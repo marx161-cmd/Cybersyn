@@ -36,14 +36,26 @@ export NPUD_DISPATCH_DIR=/data/local/tmp/agora
 # use and stay warm, which is usually what you want.
 #
 # Background + setsid, NOT exec. npud runs in the foreground forever, so exec'ing
-# it means this script never exits — and Termux:Boot runs boot scripts and waits
-# for them, so it never got started at boot (verified 2026-07-21: sshd was up
-# after reboot because `sshd` self-daemonizes and start-ssh returns, while this
-# script hung). setsid detaches it from the boot script's session so it survives
-# once Termux:Boot's own process group goes away.
+# it would mean this script never exits. setsid detaches it from the boot
+# script's session so it survives once Termux:Boot's process group goes away.
+#
+# PREREQUISITE, and the thing that actually blocked this for three reboots:
+# com.termux.boot must NOT be in the "stopped" state. A stopped app receives no
+# broadcasts at all, including BOOT_COMPLETED, so Termux:Boot silently runs
+# nothing — every script in ~/.termux/boot/, not just this one. It looked like
+# Termux:Boot was working because sshd was up after each reboot, but sshd is
+# started by something else (its parent is init). Check and fix with:
+#   dumpsys package com.termux.boot | grep stopped=
+#   monkey -p com.termux.boot -c android.intent.category.LAUNCHER 1
+#   dumpsys deviceidle whitelist +com.termux.boot
 setsid "$PREFIX/bin/npud" >> "$PREFIX/tmp/npud.log" 2>&1 &
 
-# Give bind() a moment so a boot-time failure lands in the log while Termux:Boot
-# is still holding the wake lock, rather than silently after it releases.
-sleep 2
+# Record the outcome while the wake lock is still held, so a boot-time failure
+# leaves a trace instead of vanishing.
+sleep 3
+if [ -S "$PREFIX/tmp/npud.sock" ]; then
+  echo "$(date '+%Y-%m-%d %H:%M:%S') npud up" >> "$HOME_DIR/npud-boot.log"
+else
+  echo "$(date '+%Y-%m-%d %H:%M:%S') npud FAILED to bind" >> "$HOME_DIR/npud-boot.log"
+fi
 exit 0
