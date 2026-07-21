@@ -1,0 +1,32 @@
+{
+  "mqtt": {
+    "host": "127.0.0.1",
+    "port": 1883,
+    "keepalive": 60,
+    "topics": {
+      "sensor": "android/sensor",
+      "clutch": "android/clutch",
+      "click": "android/click"
+    }
+  },
+  "engine": {
+    "sensor_type": "android.sensor.game_rotation_vector",
+    "sens_x": 150.0,
+    "sens_y": 250.0,
+    "curve": 1.8,
+    "dead": 0.0005,
+    "smooth": 0.2,
+    "idle_release_seconds": 2.0,
+    "tick_seconds": 0.2
+  },
+  "mapping": {
+    "events": {
+      "clutch": "button.clutch_toggle",
+      "click": "button.click_toggle",
+      "sensor": "sensor.rotation_vector"
+    }
+  },
+  "output": {
+    "device_name": "sensor-control-uinput"
+  }
+}

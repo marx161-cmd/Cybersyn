@@ -30,26 +30,28 @@ keystore.properties
 # Kotlin
 .kotlin/
 
+# Rust build output
+target/
+
+# Build/editor noise
+*.swp
+
+# Nested repositories — tracked separately, not as submodules.
+Android_src/
+Source_APKs/
+
+# Real secrets copied in from other projects
+misc/amd-control/control-api/ACTION_TOKEN
+misc/amd-control/ARMED
+
+# Python build noise
+__pycache__/
+*.pyc
+
 # Local agent working notes (never commit)
-CLAUDE.md
-CODEX_CHANGELOG.md
-.claude/
 *.bak
-AUDIT_COMPLETE.md
-PHASE_5_CHECKPOINT.md
 build.log
 buildlog.txt
 build_output.txt
 build_*.bat
 build.sh
-
-# Markdown files local-only (except README)
-*.md
-!README.md
-
-# AI config
-AGENTS.md
-.codex/
-.ai/
-PROJECT_CONTEXT.md
-CONTINUATION_PROMPT.md

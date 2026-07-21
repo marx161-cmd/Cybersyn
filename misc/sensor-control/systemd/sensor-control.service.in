@@ -1,0 +1,14 @@
+[Unit]
+Description=Sensor control (MQTT -> engine -> uinput)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+Environment=PYTHONPATH=@ROOT@/src
+ExecStart=/usr/bin/python3 -m sensor_control.main --config @ROOT@/config/default.json
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=default.target

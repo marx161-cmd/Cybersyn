@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "cybersyn": {
+      "command": "/home/comrade/builds/crossplatform/Cybersyn/mcp-server/server.py",
+      "args": ["stdio"],
+      "env": {
+        "CYBERSYN_BROKER": "127.0.0.1",
+        "CYBERSYN_PORT": "1883"
+      }
+    }
+  }
+}

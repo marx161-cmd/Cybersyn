@@ -1,0 +1,7 @@
+# Cross-compile the phone binary with the NDK 29 clang linker (minSdk 26).
+# Build the shippable arm64 binary with:
+#   cargo build --release --target aarch64-linux-android
+# Test the identical logic locally on comrade with the native host target:
+#   cargo run -- sub --broker 127.0.0.1 --topic 'cybersyn/+/event'
+[target.aarch64-linux-android]
+linker = "/home/comrade/Android/Sdk/ndk/29.0.14206865/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android26-clang"

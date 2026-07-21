@@ -1,0 +1,30 @@
+# Cybersyn MCP server — systemd USER unit.
+#
+# Runs in SSE mode so Agora's MCP client can connect over Tailscale
+# (http://100.108.8.60:8080/sse). Also works locally via stdio for
+# Claude Desktop (see claude_desktop_config.json.example).
+#
+# Install:
+#   install -Dm644 cybersyn-mcp.service ~/.config/systemd/user/cybersyn-mcp.service
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now cybersyn-mcp.service
+#   journalctl --user -u cybersyn-mcp -f
+
+[Unit]
+Description=Cybersyn MCP server (LLM automation bridge)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/builds/crossplatform/Cybersyn/mcp-server
+Environment=CYBERSYN_BROKER=127.0.0.1
+Environment=CYBERSYN_PORT=1883
+Environment=CYBERSYN_MCP_HOST=0.0.0.0
+Environment=CYBERSYN_MCP_PORT=8080
+ExecStart=%h/builds/crossplatform/Cybersyn/mcp-server/server.py sse
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=default.target

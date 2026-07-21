@@ -1,0 +1,29 @@
+# Cybersyn relay agent — systemd USER unit template.
+#
+# Install as a --user unit so it inherits the graphical session env
+# (DISPLAY, DBUS_SESSION_BUS_ADDRESS) that desktop actions like notify-send need:
+#
+#   install -Dm755 target/release/cybersyn-relay ~/.local/bin/cybersyn-relay
+#   install -Dm644 cybersyn-relay.service ~/.config/systemd/user/cybersyn-relay.service
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now cybersyn-relay.service
+#   journalctl --user -u cybersyn-relay -f
+#
+# On comintern, set CYBERSYN_BROKER=100.108.8.60 (comrade's Tailscale IP);
+# on comrade the default 127.0.0.1 is correct.
+
+[Unit]
+Description=Cybersyn relay agent (MQTT -> local action executor)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+Environment=CYBERSYN_BROKER=127.0.0.1
+Environment=CYBERSYN_PORT=1883
+ExecStart=%h/.local/bin/cybersyn-relay
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=default.target

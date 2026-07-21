@@ -1,0 +1,13 @@
+[Unit]
+Description=Pixel gyro-to-mouse controller (MQTT -> uinput)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /home/comrade/homelab/p30control.py --host 127.0.0.1 --port 1883
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=default.target

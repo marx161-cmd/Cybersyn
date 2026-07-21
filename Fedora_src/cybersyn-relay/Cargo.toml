@@ -1,0 +1,18 @@
+[package]
+name = "cybersyn-relay"
+version = "0.1.0"
+edition = "2021"
+description = "Cybersyn relay agent: MQTT subscriber + local action executor. One binary for comrade and comintern."
+license = "GPL-3.0-or-later"
+
+[[bin]]
+name = "cybersyn-relay"
+path = "src/main.rs"
+
+[dependencies]
+rumqttc = "0.24"
+clap = { version = "4", features = ["derive", "env"] }
+
+[profile.release]
+strip = true
+lto = true

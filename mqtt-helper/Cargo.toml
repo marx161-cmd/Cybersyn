@@ -1,0 +1,23 @@
+[package]
+name = "cybersyn-mqtt"
+version = "0.1.0"
+edition = "2021"
+description = "Self-contained MQTT helper bundled inside the Cybersyn Android app. Persistent publish/subscribe over one connection; spoken via stdin/stdout."
+license = "GPL-3.0-or-later"
+
+[[bin]]
+name = "cybersyn-mqtt"
+path = "src/main.rs"
+
+[dependencies]
+# default-features off => plain TCP MQTT, no TLS (Tailscale is the crypto layer).
+# This also drops all C/ring deps, so the aarch64-linux-android cross-build is clean
+# and the binary links only against bionic (present on every Android device).
+rumqttc = { version = "0.24", default-features = false }
+clap = { version = "4", features = ["derive"] }
+
+[profile.release]
+strip = true
+lto = true
+opt-level = "z"
+panic = "abort"

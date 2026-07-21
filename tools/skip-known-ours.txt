@@ -1,0 +1,20 @@
+# Known-ours (Termux-family platform_app) denial signatures already triaged.
+# grep -E patterns matched against the AVC logger dedup key. Denials matching these
+# are still written to avc-raw.log but kept OUT of avc-unique.txt / the review .te,
+# so each measuring session surfaces only NEW/untriaged denials.
+# Keep in lockstep with platform_app_ours.te.draft (the parked allow rules).
+# NOTE: '\|' escapes the literal pipe separators in the key.
+#
+# our privileged native binaries run from /data/local/tmp (NPU / dispatch / probes)
+s=platform_app\|t=shell_data_file\|
+s=platform_app\|t=shell_test_data_file\|
+# exec of bash / helper from app data
+perms=execute\|s=platform_app\|t=app_data_file\|
+# AVF / virtualization (VM + display work)
+s=platform_app\|t=virtualizationservice\|class=binder
+# hardware nodes probed by the NPU/GPU/AVF runtime
+s=platform_app\|t=sysfs_dt_avf\|
+s=platform_app\|t=sysfs_dmabuf_stats\|
+s=platform_app\|t=sysfs_hwrandom\|
+# vendor libs pulled in by our native binaries
+s=platform_app\|t=vendor_file\|class=file

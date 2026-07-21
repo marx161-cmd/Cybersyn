@@ -1,0 +1,4375 @@
+<TaskerData sr="" dvi="1" tv="6.7.6-beta">
+	<dmetric>1080.0,2410.0</dmetric>
+	<Setting sr="prefs0">
+		<n>leEnle</n>
+		<t>b</t>
+		<v>false</v>
+	</Setting>
+	<Setting sr="prefs1">
+		<n>PREF_USE_2024_TASKER</n>
+		<t>b</t>
+		<v>false</v>
+	</Setting>
+	<Setting sr="prefs10">
+		<n>apl</n>
+		<t>i</t>
+		<v>4</v>
+	</Setting>
+	<Setting sr="prefs100">
+		<n>gak</n>
+		<t>s</t>
+		<v></v>
+	</Setting>
+	<Setting sr="prefs101">
+		<n>PREF_START_MONITOR_ON_APP_OPEN</n>
+		<t>b</t>
+		<v>true</v>
+	</Setting>
+	<Setting sr="prefs102">
+		<n>googleDriveBackups</n>
+		<t>b</t>
+		<v>true</v>
+	</Setting>
+	<Setting sr="prefs103">
+		<n>cust_notification</n>
+		<t>s</t>
+		<v>mw_image_healing</v>
+	</Setting>
+	<Setting sr="prefs104">
+		<n>qst2</n>
+		<t>s</t>
+		<v>KioskStart_Edge</v>
+	</Setting>
+	<Setting sr="prefs105">
+		<n>fExtCache</n>
+		<t>b</t>
+		<v>false</v>
+	</Setting>
+	<Setting sr="prefs106">
+		<n>kit</n>
+		<t>i</t>
+		<v>1001</v>
+	</Setting>
+	<Setting sr="prefs107">
+		<n>searchFilterText</n>
+		<t>s</t>
+		<v></v>
+	</Setting>
+	<Setting sr="prefs108">
+		<n>avo</n>
+		<t>b</t>
+		<v>false</v>
+	</Setting>
+	<Setting sr="prefs109">
+		<n>tempWhenOff</n>
+		<t>i</t>
+		<v>2</v>
+	</Setting>
+	<Setting sr="prefs11">
+		<n>apn</n>
+		<t>b</t>
+		<v>true</v>
+	</Setting>
+	<Setting sr="prefs110">
+		<n>lang</n>
+		<t>s</t>
+		<v>en</v>
+	</Setting>
+	<Setting sr="prefs111">
+		<n>ast3</n>
+		<t>s</t>
+		<v></v>
+	</Setting>
+	<Setting sr="prefs112">
+		<n>ast2</n>
+		<t>s</t>
+		<v></v>
+	</Setting>
+	<Setting sr="prefs113">
+		<n>snopin</n>
+		<t>b</t>
+		<v>true</v>
+	</Setting>
+	<Setting sr="prefs114">
+		<n>wip</n>
+		<t>l</t>
+		<v>10</v>
+	</Setting>
+	<Setting sr="prefs115">
+		<n>anm</n>
+		<t>b</t>
+		<v>true</v>
+	</Setting>
+	<Setting sr="prefs116">
+		<n>qstcommlong1</n>
+		<t>s</t>
+		<v></v>
+	</Setting>
+	<Setting sr="prefs117">
+		<n>qstexcont1</n>
+		<t>s</t>
+		<v>51:52:2</v>
+	</Setting>
+	<Setting sr="prefs118">
+		<n>qst1</n>
+		<t>s</t>
+		<v>Keep On</v>
+	</Setting>
+	<Setting sr="prefs119">
+		<n>stroutdf</n>
+		<t>b</t>
+		<v>true</v>
+	</Setting>
+	<Setting sr="prefs12">
+		<n>PREF_IS_USING_TEST_SERVER</n>
+		<t>b</t>
+		<v>false</v>
+	</Setting>
+	<Setting sr="prefs120">
+		<n>qst0</n>
+		<t>s</t>
+		<v>Launch App In Freeform</v>
+	</Setting>
+	<Setting sr="prefs121">
+		<n>hideStatusBar</n>
+		<t>i</t>
+		<v>1</v>
+	</Setting>
+	<Setting sr="prefs122">
+		<n>clock_alarm</n>
+		<t>i</t>
+		<v>2</v>
+	</Setting>
+	<Setting sr="prefs123">
+		<n>searchMatchType</n>
+		<t>i</t>
+		<v>0</v>
+	</Setting>
+	<Setting sr="prefs124">
+		<n>lPdta</n>
+		<t>b</t>
+		<v>true</v>
+	</Setting>
+	<Setting sr="prefs125">
+		<n>sbl</n>
+		<t>i</t>
+		<v>0</v>
+	</Setting>
+	<Setting sr="prefs126">
+		<n>cape</n>
+		<t>b</t>
+		<v>false</v>
+	</Setting>
+	<Setting sr="prefs127">
+		<n>cmdTs</n>
+		<t>i</t>
+		<v>17</v>
+	</Setting>
+	<Setting sr="prefs13">
+		<n>qstcanuselockdevice1</n>
+		<t>b</t>
+		<v>false</v>
+	</Setting>
+	<Setting sr="prefs14">
+		<n>usirsbdf</n>
+		<t>b</t>
+		<v>false</v>
+	</Setting>
+	<Setting sr="prefs15">
+		<n>magnetWhenOff</n>
+		<t>i</t>
+		<v>2</v>
+	</Setting>
+	<Setting sr="prefs16">
+		<n>humidityWhenOff</n>
+		<t>i</t>
+		<v>2</v>
+	</Setting>
+	<Setting sr="prefs17">
+		<n>lperiod</n>
+		<t>l</t>
+		<v>1500</v>
+	</Setting>
+	<Setting sr="prefs18">
+		<n>bkcuva</n>
+		<t>b</t>
+		<v>true</v>
+	</Setting>
+	<Setting sr="prefs19">
+		<n>aExt</n>
+		<t>b</t>
+		<v>true</v>
+	</Setting>
+	<Setting sr="prefs2">
+		<n>sows</n>
+		<t>l</t>
+		<v>60</v>
+	</Setting>
+	<Setting sr="prefs20">
+		<n>PREF_KEEP_ACCESSIBILITY_SERVICES_RUNNING</n>
+		<t>s</t>
+		<v>[{"className":"net.dinglisch.android.taskerm.MyAccessibilityService","packageName":"net.dinglisch.android.taskerm"},{"className":"io.github.sds100.keymapper.system.accessibility.MyAccessibilityService","packageName":"io.github.sds100.keymapper"},{"className":"io.github.muntashirakon.AppManager.accessibility.NoRootAccessibilityService","packageName":"io.github.muntashirakon.AppManager"},{"className":"tk.zwander.lockscreenwidgets.services.Accessibility","packageName":"tk.zwander.lockscreenwidgets"},{"className":"com.pranavpandey.rotation.service.RotationService","packageName":"com.pranavpandey.rotation"},{"className":"org.kde.kdeconnect.plugins.mousereceiver.MouseReceiverService","packageName":"org.kde.kdeconnect_tp"},{"className":"app.lawnchair.LawnchairAccessibilityService","packageName":"app.lawnchair"},{"className":"com.joaomgcd.autoinput.service.ServiceAccessibilityV2","packageName":"com.joaomgcd.autoinput"},{"className":"com.imi.smartedge.sidebar.panel.PanelAccessibilityService","packageName":"com.imi.smartedge.sidebar.panel"},{"className":"com.joaomgcd.autonotification.service.ServiceToastIntercept","packageName":"com.joaomgcd.autonotification"}]</v>
+	</Setting>
+	<Setting sr="prefs21">
+		<n>btpiod</n>
+		<t>l</t>
+		<v>120</v>
+	</Setting>
+	<Setting sr="prefs22">
+		<n>wtp</n>
+		<t>i</t>
+		<v>7</v>
+	</Setting>
+	<Setting sr="prefs23">
+		<n>hardwareAccel</n>
+		<t>b</t>
+		<v>true</v>
+	</Setting>
+	<Setting sr="prefs24">
+		<n>qstcomm1</n>
+		<t>s</t>
+		<v></v>
+	</Setting>
+	<Setting sr="prefs25">
+		<n>workForLoc</n>
+		<t>b</t>
+		<v>false</v>
+	</Setting>
+	<Setting sr="prefs26">
+		<n>adbwp</n>
+		<t>s</t>
+		<v>5555</v>
+	</Setting>
+	<Setting sr="prefs27">
+		<n>wfpiod</n>
+		<t>l</t>
+		<v>120</v>
+	</Setting>
+	<Setting sr="prefs28">
+		<n>nvruszk</n>
+		<t>b</t>
+		<v>false</v>
+	</Setting>
+	<Setting sr="prefs29">
+		<n>qstst1</n>
+		<t>s</t>
+		<v></v>
+	</Setting>
+	<Setting sr="prefs3">
+		<n>oss</n>
+		<t>i</t>
+		<v>0</v>
+	</Setting>
+	<Setting sr="prefs30">
+		<n>gupt</n>
+		<t>l</t>
+		<v>90</v>
+	</Setting>
+	<Setting sr="prefs31">
+		<n>aigene</n>
+		<t>b</t>
+		<v>false</v>
+	</Setting>
+	<Setting sr="prefs32">
+		<n>listMarginWidthPercent</n>
+		<t>i</t>
+		<v>20</v>
+	</Setting>
+	<Setting sr="prefs33">
+		<n>tsIndexed</n>
+		<t>b</t>
+		<v>true</v>
+	</Setting>
+	<Setting sr="prefs34">
+		<n>uathusap</n>
+		<t>b</t>
+		<v>true</v>
+	</Setting>
+	<Setting sr="prefs35">
+		<n>lightWhenOff</n>
+		<t>i</t>
+		<v>1</v>
+	</Setting>
+	<Setting sr="prefs36">
+		<n>lfdd</n>
+		<t>l</t>
+		<v>600</v>
+	</Setting>
+	<Setting sr="prefs37">
+		<n>csnipD</n>
+		<t>i</t>
+		<v>2</v>
+	</Setting>
+	<Setting sr="prefs38">
+		<n>saena</n>
+		<t>b</t>
+		<v>true</v>
+	</Setting>
+	<Setting sr="prefs39">
+		<n>PREF_KEEP_ACCESSIBILITY_SERVICES_ENABLED</n>
+		<t>b</t>
+		<v>true</v>
+	</Setting>
+	<Setting sr="prefs4">
+		<n>pTs</n>
+		<t>i</t>
+		<v>17</v>
+	</Setting>
+	<Setting sr="prefs40">
+		<n>mqt</n>
+		<t>i</t>
+		<v>10</v>
+	</Setting>
+	<Setting sr="prefs41">
+		<n>shTDnoAPr</n>
+		<t>b</t>
+		<v>true</v>
+	</Setting>
+	<Setting sr="prefs42">
+		<n>accelWhenOff</n>
+		<t>i</t>
+		<v>1</v>
+	</Setting>
+	<Setting sr="prefs43">
+		<n>nfcda</n>
+		<t>b</t>
+		<v>false</v>
+	</Setting>
+	<Setting sr="prefs44">
+		<n>stepsWhenOff</n>
+		<t>i</t>
+		<v>2</v>
+	</Setting>
+	<Setting sr="prefs45">
+		<n>tEnable</n>
+		<t>b</t>
+		<v>true</v>
+	</Setting>
+	<Setting sr="prefs46">
+		<n>accentIndex</n>
+		<t>i</t>
+		<v>-1</v>
+	</Setting>
+	<Setting sr="prefs47">
+		<n>asactions</n>
+		<t>b</t>
+		<v>true</v>
+	</Setting>
+	<Setting sr="prefs48">
+		<n>qsts1</n>
+		<t>i</t>
+		<v>1</v>
+	</Setting>
+	<Setting sr="prefs49">
+		<n>bttp</n>
+		<t>l</t>
+		<v>15</v>
+	</Setting>
+	<Setting sr="prefs5">
+		<n>qstcommprefix1</n>
+		<t>s</t>
+		<v></v>
+	</Setting>
+	<Setting sr="prefs50">
+		<n>newCellApi</n>
+		<t>b</t>
+		<v>false</v>
+	</Setting>
+	<Setting sr="prefs51">
+		<n>kcph</n>
+		<t>s</t>
+		<v>PBEWithMD5And128BitAES-CBC-OpenSSL</v>
+	</Setting>
+	<Setting sr="prefs52">
+		<n>accMR</n>
+		<t>f</t>
+		<v>3.5</v>
+	</Setting>
+	<Setting sr="prefs53">
+		<n>lph</n>
+		<t>i</t>
+		<v>2</v>
+	</Setting>
+	<Setting sr="prefs54">
+		<n>PREF_ADVANCED_EXPORT_DESCRIPTION</n>
+		<t>b</t>
+		<v>true</v>
+	</Setting>
+	<Setting sr="prefs55">
+		<n>dvcownen</n>
+		<t>b</t>
+		<v>false</v>
+	</Setting>
+	<Setting sr="prefs56">
+		<n>saveMemory</n>
+		<t>b</t>
+		<v>true</v>
+	</Setting>
+	<Setting sr="prefs57">
+		<n>uiori</n>
+		<t>i</t>
+		<v>0</v>
+	</Setting>
+	<Setting sr="prefs58">
+		<n>tpEn</n>
+		<t>b</t>
+		<v>true</v>
+	</Setting>
+	<Setting sr="prefs59">
+		<n>lockIconColour</n>
+		<t>b</t>
+		<v>true</v>
+	</Setting>
+	<Setting sr="prefs6">
+		<n>lEnable</n>
+		<t>b</t>
+		<v>false</v>
+	</Setting>
+	<Setting sr="prefs60">
+		<n>sExps</n>
+		<t>b</t>
+		<v>true</v>
+	</Setting>
+	<Setting sr="prefs61">
+		<n>IS_USING_TASKY</n>
+		<t>b</t>
+		<v>false</v>
+	</Setting>
+	<Setting sr="prefs62">
+		<n>googleDriveBackupsAccount</n>
+		<t>s</t>
+		<v>chris.marx92@googlemail.com</v>
+	</Setting>
+	<Setting sr="prefs63">
+		<n>tsEmpty</n>
+		<t>b</t>
+		<v>false</v>
+	</Setting>
+	<Setting sr="prefs64">
+		<n>guped</n>
+		<t>l</t>
+		<v>120</v>
+	</Setting>
+	<Setting sr="prefs65">
+		<n>pressureWhenOff</n>
+		<t>i</t>
+		<v>1</v>
+	</Setting>
+	<Setting sr="prefs66">
+		<n>custntaskthree</n>
+		<t>s</t>
+		<v>QuickTap</v>
+	</Setting>
+	<Setting sr="prefs67">
+		<n>lae</n>
+		<t>b</t>
+		<v>false</v>
+	</Setting>
+	<Setting sr="prefs68">
+		<n>adbLogcat</n>
+		<t>b</t>
+		<v>false</v>
+	</Setting>
+	<Setting sr="prefs69">
+		<n>custntasktwo</n>
+		<t>s</t>
+		<v>Launch App In Freeform</v>
+	</Setting>
+	<Setting sr="prefs7">
+		<n>mFn</n>
+		<t>b</t>
+		<v>true</v>
+	</Setting>
+	<Setting sr="prefs70">
+		<n>shInAPr</n>
+		<t>b</t>
+		<v>true</v>
+	</Setting>
+	<Setting sr="prefs71">
+		<n>qstlc1</n>
+		<t>s</t>
+		<v></v>
+	</Setting>
+	<Setting sr="prefs72">
+		<n>dsten</n>
+		<t>b</t>
+		<v>true</v>
+	</Setting>
+	<Setting sr="prefs73">
+		<n>appcheckMethod</n>
+		<t>i</t>
+		<v>1</v>
+	</Setting>
+	<Setting sr="prefs74">
+		<n>proxWhenOff</n>
+		<t>i</t>
+		<v>1</v>
+	</Setting>
+	<Setting sr="prefs75">
+		<n>qstdc1</n>
+		<t>s</t>
+		<v></v>
+	</Setting>
+	<Setting sr="prefs76">
+		<n>acrmd</n>
+		<t>l</t>
+		<v>1200</v>
+	</Setting>
+	<Setting sr="prefs77">
+		<n>mSi</n>
+		<t>b</t>
+		<v>true</v>
+	</Setting>
+	<Setting sr="prefs78">
+		<n>qstlab1</n>
+		<t>s</t>
+		<v></v>
+	</Setting>
+	<Setting sr="prefs79">
+		<n>sHapt</n>
+		<t>b</t>
+		<v>true</v>
+	</Setting>
+	<Setting sr="prefs8">
+		<n>pen</n>
+		<t>b</t>
+		<v>true</v>
+	</Setting>
+	<Setting sr="prefs80">
+		<n>PREF_EXPORT_LIGHT</n>
+		<t>b</t>
+		<v>false</v>
+	</Setting>
+	<Setting sr="prefs81">
+		<n>themeMaterial</n>
+		<t>i</t>
+		<v>10</v>
+	</Setting>
+	<Setting sr="prefs82">
+		<n>gcfb</n>
+		<t>s</t>
+		<v></v>
+	</Setting>
+	<Setting sr="prefs83">
+		<n>lcD</n>
+		<t>s</t>
+		<v></v>
+	</Setting>
+	<Setting sr="prefs84">
+		<n>acMSr</n>
+		<t>l</t>
+		<v>300</v>
+	</Setting>
+	<Setting sr="prefs85">
+		<n>wakeForLoc</n>
+		<t>b</t>
+		<v>false</v>
+	</Setting>
+	<Setting sr="prefs86">
+		<n>dsd</n>
+		<t>b</t>
+		<v>false</v>
+	</Setting>
+	<Setting sr="prefs87">
+		<n>PREF_ALLOW_INSECURE_TASK_RUN_REQUESTS</n>
+		<t>b</t>
+		<v>true</v>
+	</Setting>
+	<Setting sr="prefs88">
+		<n>qstcommdoub1</n>
+		<t>s</t>
+		<v></v>
+	</Setting>
+	<Setting sr="prefs89">
+		<n>custntaskone</n>
+		<t>s</t>
+		<v>Ensure_FixedAdb5555</v>
+	</Setting>
+	<Setting sr="prefs9">
+		<n>gcsa</n>
+		<t>s</t>
+		<v></v>
+	</Setting>
+	<Setting sr="prefs90">
+		<n>qstico1</n>
+		<t>s</t>
+		<v></v>
+	</Setting>
+	<Setting sr="prefs91">
+		<n>PREF_ASK_FOR_PERMISSIONS_ON_APP_EXIT</n>
+		<t>b</t>
+		<v>true</v>
+	</Setting>
+	<Setting sr="prefs92">
+		<n>ast1</n>
+		<t>s</t>
+		<v></v>
+	</Setting>
+	<Setting sr="prefs93">
+		<n>dragModeNew</n>
+		<t>i</t>
+		<v>4</v>
+	</Setting>
+	<Setting sr="prefs94">
+		<n>ast0</n>
+		<t>s</t>
+		<v></v>
+	</Setting>
+	<Setting sr="prefs95">
+		<n>lPEna</n>
+		<t>b</t>
+		<v>true</v>
+	</Setting>
+	<Setting sr="prefs96">
+		<n>notactions</n>
+		<t>b</t>
+		<v>true</v>
+	</Setting>
+	<Setting sr="prefs97">
+		<n>sigmotion</n>
+		<t>b</t>
+		<v>false</v>
+	</Setting>
+	<Setting sr="prefs98">
+		<n>luped</n>
+		<t>l</t>
+		<v>30</v>
+	</Setting>
+	<Setting sr="prefs99">
+		<n>cmdTmnuw</n>
+		<t>b</t>
+		<v>false</v>
+	</Setting>
+	<Profile sr="prof10" ve="2">
+		<cdate>1767395769220</cdate>
+		<edate>1775271247936</edate>
+		<flags>10</flags>
+		<id>10</id>
+		<limit>true</limit>
+		<mid0>9</mid0>
+		<nme>CPU Notify 5m</nme>
+		<State sr="con0" ve="2">
+			<code>123</code>
+			<Int sr="arg0" val="1"/>
+		</State>
+	</Profile>
+	<Profile sr="prof15" ve="2">
+		<cdate>1768778431296</cdate>
+		<edate>1781468844162</edate>
+		<flags>10</flags>
+		<id>15</id>
+		<limit>true</limit>
+		<mid0>14</mid0>
+		<nme>Swap on</nme>
+		<Event sr="con0" ve="2">
+			<code>411</code>
+			<pri>0</pri>
+		</Event>
+	</Profile>
+	<Profile sr="prof20" ve="2">
+		<cdate>1770399596432</cdate>
+		<edate>1770691506191</edate>
+		<flags>2</flags>
+		<id>20</id>
+		<limit>true</limit>
+		<mid0>16</mid0>
+		<nme>CleanTagsProfile</nme>
+		<Event sr="con0" ve="2">
+			<code>3050</code>
+			<pri>0</pri>
+			<Str sr="arg0" ve="3">%CLIP</Str>
+			<Str sr="arg1" ve="3"/>
+			<Int sr="arg2"/>
+		</Event>
+	</Profile>
+	<Profile sr="prof26" ve="2">
+		<cdate>1768587178175</cdate>
+		<edate>1768775407070</edate>
+		<flags>10</flags>
+		<id>26</id>
+		<limit>true</limit>
+		<mid0>25</mid0>
+		<nme>Master-Logger</nme>
+		<Event sr="con0" ve="2">
+			<code>3050</code>
+			<pri>0</pri>
+			<Str sr="arg0" ve="3">%Logger_Trigger</Str>
+			<Str sr="arg1" ve="3">1</Str>
+			<Int sr="arg2" val="0"/>
+		</Event>
+	</Profile>
+	<Profile sr="prof27" ve="2">
+		<cdate>1768587252780</cdate>
+		<edate>1773253016538</edate>
+		<flags>10</flags>
+		<id>27</id>
+		<limit>true</limit>
+		<mid0>23</mid0>
+		<nme>Clipboard-Fix</nme>
+		<Event sr="con0" ve="2">
+			<code>411</code>
+			<pri>0</pri>
+		</Event>
+	</Profile>
+	<Profile sr="prof3" ve="2">
+		<cdate>1766546471762</cdate>
+		<edate>1775271202542</edate>
+		<flags>10</flags>
+		<id>3</id>
+		<limit>true</limit>
+		<mid0>2</mid0>
+		<nme>RAM Notify</nme>
+		<State sr="con0" ve="2">
+			<code>123</code>
+			<Int sr="arg0" val="1"/>
+		</State>
+	</Profile>
+	<Profile sr="prof34" ve="2">
+		<cdate>1767411257593</cdate>
+		<edate>1775268636517</edate>
+		<flags>10</flags>
+		<id>34</id>
+		<limit>true</limit>
+		<mid0>32</mid0>
+		<State sr="con0" ve="2">
+			<code>123</code>
+			<Int sr="arg0" val="1"/>
+		</State>
+	</Profile>
+	<Profile sr="prof35" ve="2">
+		<cdate>1773680977367</cdate>
+		<edate>1781461370243</edate>
+		<flags>10</flags>
+		<id>35</id>
+		<limit>true</limit>
+		<mid0>28</mid0>
+		<nme>Edge</nme>
+		<App sr="con0" ve="2">
+			<cls0>com.microsoft.ruby.Main</cls0>
+			<flags>2</flags>
+			<label0>Edge</label0>
+			<pkg0>com.microsoft.emmx</pkg0>
+		</App>
+	</Profile>
+	<Profile sr="prof36" ve="2">
+		<cdate>1773681130171</cdate>
+		<edate>1781461370889</edate>
+		<flags>10</flags>
+		<id>36</id>
+		<limit>true</limit>
+		<mid0>30</mid0>
+		<nme>Artemis</nme>
+		<App sr="con0" ve="2">
+			<cls0>com.limelight.PcView</cls0>
+			<flags>2</flags>
+			<label0>Diana (Root)</label0>
+			<pkg0>com.limelight.root.noirdebug</pkg0>
+		</App>
+	</Profile>
+	<Profile sr="prof39" ve="2">
+		<cdate>1768594480673</cdate>
+		<edate>1768597991188</edate>
+		<flags>10</flags>
+		<id>39</id>
+		<mid0>31</mid0>
+		<nme>Daily snapshot</nme>
+		<Time sr="con0">
+			<fh>0</fh>
+			<fm>0</fm>
+			<th>0</th>
+			<tm>0</tm>
+		</Time>
+	</Profile>
+	<Profile sr="prof41" ve="2">
+		<cdate>1768599013325</cdate>
+		<edate>1779032343630</edate>
+		<flags>10</flags>
+		<id>41</id>
+		<limit>true</limit>
+		<mid0>40</mid0>
+		<nme>Accessibility_Fix</nme>
+		<Event sr="con0" ve="2">
+			<code>2098</code>
+			<pri>0</pri>
+			<Bundle sr="arg0">
+				<Vals sr="val">
+					<net.dinglisch.android.tasker.RELEVANT_VARIABLES>&lt;StringArray sr=""&gt;&lt;_array_net.dinglisch.android.tasker.RELEVANT_VARIABLES0&gt;%asc_running_services()
+Running Accessibility Services
+The accessibility services that are running after this event is triggered&lt;/_array_net.dinglisch.android.tasker.RELEVANT_VARIABLES0&gt;&lt;_array_net.dinglisch.android.tasker.RELEVANT_VARIABLES1&gt;%asc_running_services_app_names()
+Running Accessibility Services App Names
+&lt;/_array_net.dinglisch.android.tasker.RELEVANT_VARIABLES1&gt;&lt;_array_net.dinglisch.android.tasker.RELEVANT_VARIABLES2&gt;%asc_running_services_service_names()
+Running Accessibility Services Names
+&lt;/_array_net.dinglisch.android.tasker.RELEVANT_VARIABLES2&gt;&lt;/StringArray&gt;</net.dinglisch.android.tasker.RELEVANT_VARIABLES>
+					<net.dinglisch.android.tasker.RELEVANT_VARIABLES-type>[Ljava.lang.String;</net.dinglisch.android.tasker.RELEVANT_VARIABLES-type>
+				</Vals>
+			</Bundle>
+			<ConditionList sr="if">
+				<Condition sr="c0" ve="3">
+					<lhs>%asc_running_services()</lhs>
+					<op>1</op>
+					<rhs>com.joaomgcd.autonotification/com.joaomgcd.autonotification.service.ServiceToastIntercept:io.github.sds100.keymapper/io.github.sds100.keymapper.system.accessibility.MyAccessibilityService:com.limelight.noir/com.limelight.KeyboardAccessibilityService:com.joaomgcd.autoinput/com.joaomgcd.autoinput.service.ServiceAccessibilityV2:com.pranavpandey.rotation/com.pranavpandey.rotation.service.RotationService:io.github.muntashirakon.AppManager/io.github.muntashirakon.AppManager.accessibility.NoRootAccessibilityService:org.kde.kdeconnect_tp/org.kde.kdeconnect.Plugins.MouseReceiverPlugin.MouseReceiverService:net.dinglisch.android.taskerm/net.dinglisch.android.taskerm.MyAccessibilityService:com.teslacoilsw.launcher/com.teslacoilsw.launcher.NovaAccessibilityService:app.lawnchair.nightly/app.lawnchair.LawnchairAccessibilityService:com.termux.x11/com.termux.x11.utils.KeyInterceptor</rhs>
+				</Condition>
+			</ConditionList>
+		</Event>
+	</Profile>
+	<Profile sr="prof47" ve="2">
+		<cdate>1775269411889</cdate>
+		<edate>1781732458444</edate>
+		<flags>10</flags>
+		<id>47</id>
+		<mid0>46</mid0>
+		<nme>Boot-ADB</nme>
+		<Event sr="con0" ve="2">
+			<code>411</code>
+			<pri>0</pri>
+		</Event>
+	</Profile>
+	<Profile sr="prof49" ve="2">
+		<cdate>1775270792654</cdate>
+		<edate>1775270818363</edate>
+		<flags>10</flags>
+		<id>49</id>
+		<mid0>48</mid0>
+		<nme>Boot-SSHD</nme>
+		<Event sr="con0" ve="2">
+			<code>411</code>
+			<pri>0</pri>
+		</Event>
+	</Profile>
+	<Profile sr="prof5" ve="2">
+		<cdate>1766473784483</cdate>
+		<cldm>2</cldm>
+		<edate>1781732560974</edate>
+		<flags>10</flags>
+		<id>5</id>
+		<limit>true</limit>
+		<mid0>4</mid0>
+		<nme>📜 | Get Screen Text</nme>
+		<pc>&lt;b&gt;📜 | Get Screen Text 0.3.20240523&lt;/b&gt;
+&lt;br&gt;&lt;br&gt;
+
+&lt;b&gt;What's new:&lt;/b&gt;&lt;br&gt;
+- Extracted texts are now sorted as longest to shortest&lt;br&gt;
+- Results now doesn't include words shorter than 7 characters&lt;br&gt;
+- Enabled &lt;u&gt;Set Assistant&lt;/u&gt; action by default&lt;br&gt;
+- Bug fixes and other improvements
+&lt;br&gt;&lt;br&gt;
+
+Project by &lt;font color="red"&gt;WhirlWolf&lt;/font&gt;</pc>
+		<Share sr="Share">
+			<b>false</b>
+			<d>This profile extracts texts from the current screen and shows them in a list dialog.
+&lt;br&gt;&lt;br&gt;
+
+What's new in &lt;b&gt;0.3.20240523&lt;/b&gt;:&lt;br&gt;
+- Extracted texts are now sorted as longest to shortest&lt;br&gt;
+- Results now doesn't include words shorter than 7 characters&lt;br&gt;
+- Enabled &lt;u&gt;Set Assistant&lt;/u&gt; action by default&lt;br&gt;
+- Bug fixes and other improvements
+&lt;br&gt;&lt;br&gt;
+
+Use just like how you use google assistant in your device (e.g. swipe from either bottom screen corner).
+&lt;br&gt;&lt;br&gt;
+
+See screenshots for this project &lt;a href=https://t.me/android_automation/37?single&amp;comment=194&gt;here&lt;/a&gt;.
+&lt;br&gt;&lt;br&gt;
+
+Checkout my other projects &lt;a href=https://taskernet.com/?user=AS35m8m8L9YzBV3qbzaAAqHiSYXYBbD3QfZ7hr0hRK4ojOFTCrjWh2CScbjMw4NaudRi1zKKzq85&gt;here&lt;/a&gt;.
+&lt;br&gt;&lt;br&gt;
+
+For more such stuff join my &lt;a href=https://t.me/android_automation&gt;Telegram Channel&lt;/a&gt;.
+&lt;br&gt;&lt;br&gt;
+
+For chat, discussion, help, feedback, suggestions, requests, etc join my &lt;a href=https://t.me/android_automation_group&gt;Telegram Group&lt;/a&gt;.
+&lt;br&gt;&lt;br&gt;
+
+&lt;u&gt;Project by &lt;a href=https://taskernet.com/?user=AS35m8m8L9YzBV3qbzaAAqHiSYXYBbD3QfZ7hr0hRK4ojOFTCrjWh2CScbjMw4NaudRi1zKKzq85&gt;&lt;font color="red"&gt;WhirlWolf&lt;/font&gt;&lt;/a&gt;</d>
+			<g>Capture Screen,Clipboard,Utility</g>
+			<p>true</p>
+			<t></t>
+		</Share>
+		<Event sr="con0" ve="2">
+			<code>201</code>
+			<pri>0</pri>
+			<App sr="arg0"/>
+			<Str sr="arg1" ve="3"/>
+			<Str sr="arg2" ve="3"/>
+			<Str sr="arg3" ve="3"/>
+		</Event>
+	</Profile>
+	<Profile sr="prof52" ve="2">
+		<cdate>1766476193796</cdate>
+		<edate>1775268511894</edate>
+		<flags>2</flags>
+		<id>52</id>
+		<mid0>51</mid0>
+		<nme>Go Back To Normal When Screen Off</nme>
+		<Event sr="con0" ve="2">
+			<code>210</code>
+		</Event>
+		<State sr="con1" ve="2">
+			<code>165</code>
+			<ConditionList sr="if">
+				<Condition sr="c0" ve="3">
+					<lhs>%LastTimeout</lhs>
+					<op>12</op>
+					<rhs></rhs>
+				</Condition>
+			</ConditionList>
+		</State>
+	</Profile>
+	<Profile sr="prof54" ve="2">
+		<cdate>1775270884563</cdate>
+		<edate>1775270994304</edate>
+		<flags>10</flags>
+		<id>54</id>
+		<mid0>48</mid0>
+		<nme>30min-sshd</nme>
+		<Time sr="con0">
+			<fh>-1</fh>
+			<fm>-1</fm>
+			<rep>2</rep>
+			<repval>30</repval>
+			<th>-1</th>
+			<tm>-1</tm>
+		</Time>
+	</Profile>
+	<Profile sr="prof56" ve="2">
+		<cdate>1776195701817</cdate>
+		<edate>1776195701817</edate>
+		<flags>10</flags>
+		<id>56</id>
+		<mid0>45</mid0>
+		<nme>DrawerAlt</nme>
+		<App sr="con0" ve="2">
+			<cls0>com.comrade.triggerlaunchers.Trigger1Activity</cls0>
+			<flags>2</flags>
+			<label0>Trigger 1</label0>
+			<pkg0>com.comrade.triggerlaunchers</pkg0>
+		</App>
+	</Profile>
+	<Profile sr="prof57" ve="2">
+		<cdate>1775615548229</cdate>
+		<edate>1784075414028</edate>
+		<flags>8</flags>
+		<id>57</id>
+		<mid0>45</mid0>
+		<nme>QuickTapTrigger</nme>
+		<Event sr="con0" ve="2">
+			<code>2077</code>
+			<pri>0</pri>
+			<Bundle sr="arg0">
+				<Vals sr="val">
+					<net.dinglisch.android.tasker.RELEVANT_VARIABLES>&lt;StringArray sr=""&gt;&lt;_array_net.dinglisch.android.tasker.RELEVANT_VARIABLES0&gt;%sa_action
+Action
+The intent action that opened the secondary app. Can be empty.&lt;/_array_net.dinglisch.android.tasker.RELEVANT_VARIABLES0&gt;&lt;_array_net.dinglisch.android.tasker.RELEVANT_VARIABLES1&gt;%sa_category
+Category
+The intent category that opened the secondary app. Can be empty.&lt;/_array_net.dinglisch.android.tasker.RELEVANT_VARIABLES1&gt;&lt;_array_net.dinglisch.android.tasker.RELEVANT_VARIABLES2&gt;%sa_extras
+Extras
+The intent category that opened the secondary app. Can be empty.&lt;/_array_net.dinglisch.android.tasker.RELEVANT_VARIABLES2&gt;&lt;/StringArray&gt;</net.dinglisch.android.tasker.RELEVANT_VARIABLES>
+					<net.dinglisch.android.tasker.RELEVANT_VARIABLES-type>[Ljava.lang.String;</net.dinglisch.android.tasker.RELEVANT_VARIABLES-type>
+				</Vals>
+			</Bundle>
+		</Event>
+	</Profile>
+	<Profile sr="prof6" ve="2">
+		<cdate>1766546773325</cdate>
+		<edate>1775271227295</edate>
+		<flags>10</flags>
+		<id>6</id>
+		<limit>true</limit>
+		<mid0>2</mid0>
+		<nme>RAM Notify 2m</nme>
+		<Time sr="con0">
+			<fh>-1</fh>
+			<fm>-1</fm>
+			<rep>2</rep>
+			<repval>2</repval>
+			<th>-1</th>
+			<tm>-1</tm>
+		</Time>
+	</Profile>
+	<Profile sr="prof71" ve="2">
+		<cdate>1766476213320</cdate>
+		<edate>1775268438161</edate>
+		<flags>43</flags>
+		<id>71</id>
+		<mid0>64</mid0>
+		<Event sr="con0" ve="2">
+			<code>1000</code>
+		</Event>
+	</Profile>
+	<Profile sr="prof72" ve="2">
+		<cdate>1766476213321</cdate>
+		<edate>1775268433911</edate>
+		<flags>43</flags>
+		<id>72</id>
+		<mid0>65</mid0>
+		<mid1>66</mid1>
+		<State sr="con0" ve="2">
+			<code>123</code>
+			<Int sr="arg0" val="1"/>
+		</State>
+	</Profile>
+	<Profile sr="prof73" ve="2">
+		<cdate>1766476213322</cdate>
+		<edate>1775268435744</edate>
+		<flags>43</flags>
+		<id>73</id>
+		<mid0>67</mid0>
+		<mid1>68</mid1>
+		<nme>Lock Screen</nme>
+		<State sr="con0" ve="2">
+			<code>165</code>
+			<ConditionList sr="if">
+				<bool0>And</bool0>
+				<Condition sr="c0" ve="3">
+					<lhs>%DisplayOn</lhs>
+					<op>12</op>
+					<rhs></rhs>
+				</Condition>
+				<Condition sr="c1" ve="3">
+					<lhs>%Locked</lhs>
+					<op>12</op>
+					<rhs></rhs>
+				</Condition>
+			</ConditionList>
+		</State>
+	</Profile>
+	<Profile sr="prof74" ve="2">
+		<cdate>1766476213324</cdate>
+		<edate>1775271028185</edate>
+		<flags>43</flags>
+		<id>74</id>
+		<mid0>69</mid0>
+		<mid1>70</mid1>
+		<nme>AOD</nme>
+		<State sr="con0" ve="2">
+			<code>165</code>
+			<ConditionList sr="if">
+				<bool0>And</bool0>
+				<Condition sr="c0" ve="3">
+					<lhs>%DisplayOn</lhs>
+					<op>13</op>
+					<rhs></rhs>
+				</Condition>
+				<Condition sr="c1" ve="3">
+					<lhs>%Locked</lhs>
+					<op>12</op>
+					<rhs></rhs>
+				</Condition>
+			</ConditionList>
+		</State>
+	</Profile>
+	<Profile sr="prof8" ve="2">
+		<cdate>1767067032083</cdate>
+		<edate>1775271151764</edate>
+		<flags>10</flags>
+		<id>8</id>
+		<limit>true</limit>
+		<mid0>7</mid0>
+		<nme>CPU Hogwatch</nme>
+		<Time sr="con0">
+			<fh>-1</fh>
+			<fm>-1</fm>
+			<rep>2</rep>
+			<repval>5</repval>
+			<th>-1</th>
+			<tm>-1</tm>
+		</Time>
+	</Profile>
+	<Project sr="proj0" ve="2">
+		<cdate>1766473304928</cdate>
+		<id>08d3a184-6ad8-4188-b829-f12fc60bb695</id>
+		<mdate>1776195701817</mdate>
+		<name>Base</name>
+		<pids>5,3,6,8,10,26,27,39,41,15,57,56</pids>
+		<tids>2,7,9,50,53,23,25,31,40,42,14,45</tids>
+		<Img sr="icon" ve="2">
+			<nme>mw_action_home</nme>
+		</Img>
+	</Project>
+	<Project sr="proj1" ve="2">
+		<cdate>1611348284982</cdate>
+		<id>f269688c-dc49-4f62-8735-6838fada53e9</id>
+		<mdate>1768253271860</mdate>
+		<name>SpecialKeys</name>
+		<pids>34</pids>
+		<psort>ActiveAlpha</psort>
+		<scenes>Special-Keys-Scene,SKButton</scenes>
+		<tids>12,13,32,11,22,24,55</tids>
+		<Share sr="Share">
+			<b>false</b>
+			<d>&lt;h4&gt;
+Almost a floating bubble made in the Tasker
+&lt;/h4&gt;
+
+&lt;h6&gt;by GlitchYou&lt;/h6&gt;
+
+&lt;h6&gt;&lt;i&gt;Version: 2.0&lt;/i&gt;&lt;/h6&gt;</d>
+			<g>Utility,Scenes</g>
+			<p>true</p>
+			<t>FS - Scene</t>
+		</Share>
+		<Img sr="icon" ve="2">
+			<nme>hd_hardware_keyboard</nme>
+		</Img>
+	</Project>
+	<Project sr="proj10" ve="2">
+		<cdate>1774900000001</cdate>
+		<id>c9d932be-5104-4d86-95a6-627584dc1c2c</id>
+		<mdate>1775270884563</mdate>
+		<name>FixedAdb5555</name>
+		<pids>47,49,54</pids>
+		<psort>ActiveAlpha</psort>
+		<tids>46,48</tids>
+		<Share sr="Share">
+			<b>false</b>
+			<d>Force adbd onto tcp:5555 and print quick verification state.</d>
+			<g>Utility</g>
+			<p>true</p>
+			<t>Fixed ADB 5555</t>
+		</Share>
+		<Img sr="icon" ve="2">
+			<nme>mw_notification_tap_and_play</nme>
+		</Img>
+	</Project>
+	<Project sr="proj2" ve="2">
+		<cdate>1537878139589</cdate>
+		<id>2de51f08-e02b-4d73-af3d-00e41be1857f</id>
+		<mdate>1775268605752</mdate>
+		<name>Keep Screen On</name>
+		<pids>52</pids>
+		<tids>51</tids>
+		<Share sr="Share">
+			<b>false</b>
+			<d>Will make your second Tasker quick tile into a toggle that will set your screen time out alternately to 10 minutes and your normal timeout setting.
+
+This can be very useful for situations where you're reading an article online for a prolonged time and don't want to always have to touch the screen to keep it on.
+&lt;br/&gt;&lt;br/&gt;
+With this task, simply tap the quick tile and read away! When you're done reading, tap the icon again or simply turn off your screen for the timeout to go back to normal!
+
+&lt;br/&gt;&lt;br/&gt;
+Full tutorial &lt;a href="http://forum.joaoapps.com/index.php?resources/quick-tile-to-keep-screen-on.350/"&gt;here&lt;/a&gt;!</d>
+			<p>false</p>
+			<t>Keep On</t>
+		</Share>
+		<Img sr="icon" ve="2">
+			<nme>mw_device_developer_mode</nme>
+		</Img>
+	</Project>
+	<Project sr="proj3" ve="2">
+		<cdate>1634650714210</cdate>
+		<id>ca418cfd-af75-4f0f-80d3-7eae51ae5f92</id>
+		<mdate>1775268504753</mdate>
+		<name>Display And Lock State</name>
+		<pids>71,72,73,74</pids>
+		<Share sr="Share">
+			<b>false</b>
+			<d>&lt;p&gt;Will create several useful display-related variables that you can use anywhere in your projects:&lt;/p&gt;
+
+&lt;ul&gt;
+     &lt;li&gt;&lt;b&gt;%AOD&lt;/b&gt;: Will be set to &lt;b&gt;1&lt;/b&gt; if the Always-On-Display is showing, unset if not. Can be used to show info-only scenes on your AOD with &lt;b&gt;Blocking Overlay +&lt;/b&gt; type scenes&lt;/li&gt;
+     &lt;li&gt;&lt;b&gt;%DisplayOn&lt;/b&gt;: Will be set to &lt;b&gt;1&lt;/b&gt; if the Display is on, unset if not (can be locked or not locked).&lt;/li&gt;
+     &lt;li&gt;&lt;b&gt;%Locked&lt;/b&gt;: Will be set to &lt;b&gt;1&lt;/b&gt; if the Display is locked, unset if not (display can be on or off). Can be used to destroy scenes that you don't want to show while the phone is unlocked for example.&lt;/li&gt;
+     &lt;li&gt;&lt;b&gt;%LockScreen&lt;/b&gt;: Will be set to &lt;b&gt;1&lt;/b&gt; if the Lock Screen is showing (while the display is on), unset if not.  Can be used to show interactive scenes on your Lock Screen with &lt;b&gt;Blocking Overlay +&lt;/b&gt; type scenes&lt;/li&gt;
+&lt;/ul&gt;</d>
+			<g>Developer's Choice,Display,Utility</g>
+			<p>true</p>
+			<t></t>
+		</Share>
+		<Img sr="icon" ve="2">
+			<nme>mw_device_screen_lock_portrait</nme>
+		</Img>
+	</Project>
+	<Project sr="proj4" ve="2">
+		<cdate>1592270104666</cdate>
+		<id>28c8bdf4-9694-4d7a-93c2-35775a752302</id>
+		<mdate>1775268423594</mdate>
+		<name>Launch App In Freeform [Android 13: Tiramisu]</name>
+		<tids>228,229</tids>
+		<Share sr="Share">
+			<b>false</b>
+			<d>&lt;h1&gt;Updated Task for Freeform Window or Floating Window&lt;/h1&gt;
+    
+    &lt;p&gt;This task is a slight revision of the original &lt;a href="https://www.reddit.com/r/tasker/comments/h9ydkz/howto_launch_app_in_freeform_window_or_popup_view/?sort=new" target="_blank"&gt;[HOW-TO] Launch app in freeform window or pop-up view&lt;/a&gt;. The original task did not work as expected on some devices. This updated version is designed to function properly, and you might want to try this version if you're facing issues with the original task.&lt;/p&gt;
+
+    &lt;h2&gt;Purpose/Function of the Task:&lt;/h2&gt;
+    &lt;p&gt;The goal of this task is to launch an app in &lt;strong&gt;freeform mode&lt;/strong&gt; or as a &lt;strong&gt;pop-up view&lt;/strong&gt; on your device. By using this task, you can control the size and position of app windows, allowing them to function in a floating window format. This is particularly useful for multitasking or when you need to run apps side by side.&lt;/p&gt;
+
+    &lt;h2&gt;Tested on:&lt;/h2&gt;
+    &lt;ul&gt;
+        &lt;li&gt;&lt;strong&gt;Device:&lt;/strong&gt; Poco X3 GT or Xiaomi Redmi Note 10 Pro&lt;/li&gt;
+        &lt;li&gt;&lt;strong&gt;OS:&lt;/strong&gt; Android 13&lt;/li&gt;
+        &lt;li&gt;&lt;strong&gt;MIUI:&lt;/strong&gt; 14&lt;/li&gt;
+    &lt;/ul&gt;
+
+    &lt;p&gt;&lt;strong&gt;Date:&lt;/strong&gt; April 16, 2025&lt;/p&gt;</d>
+			<g>Apps,Display,Overlays</g>
+			<p>true</p>
+			<t>Freeform Main Sample</t>
+		</Share>
+		<Img sr="icon" ve="2">
+			<nme>mw_action_picture_in_picture_alt</nme>
+		</Img>
+	</Project>
+	<Project sr="proj5" ve="2">
+		<cdate>1770397234860</cdate>
+		<id>34c25b7c-f8c7-4018-a698-dadcae722e7d</id>
+		<mdate>1775269631701</mdate>
+		<name>Tag clean</name>
+		<pids>20</pids>
+		<tids>16</tids>
+		<Img sr="icon" ve="2">
+			<nme>mw_image_burst_mode</nme>
+		</Img>
+	</Project>
+	<Project sr="proj6" ve="2">
+		<cdate>1773680548766</cdate>
+		<id>3025fde1-66c4-41e9-a612-dbf46eadc469</id>
+		<mdate>1775269575727</mdate>
+		<name>DO</name>
+		<pids>35,36</pids>
+		<tids>28,30</tids>
+		<Img sr="icon" ve="2">
+			<nme>mw_hardware_security</nme>
+		</Img>
+	</Project>
+	<Project sr="proj7" ve="2">
+		<cdate>1773262000001</cdate>
+		<id>c6c611a1-cb2a-4fae-8d69-657e2e70ec6d</id>
+		<mdate>1775269501574</mdate>
+		<name>BootstrapPixelStack</name>
+		<psort>ActiveAlpha</psort>
+		<tids>38</tids>
+		<Share sr="Share">
+			<b>false</b>
+			<d>Bootstrap task that restores the Pixel phone-side Tasker and Termux control scripts.</d>
+			<g>Utility</g>
+			<p>true</p>
+			<t>Bootstrap Pixel Stack</t>
+		</Share>
+		<Img sr="icon" ve="2">
+			<nme>mw_action_assignment_returned</nme>
+		</Img>
+	</Project>
+	<Project sr="proj8" ve="2">
+		<cdate>1773265000004</cdate>
+		<id>ada3e047-4261-4aeb-9bcb-443eda0b3606</id>
+		<mdate>1773687544342</mdate>
+		<name>SpecialKeysV2</name>
+		<psort>ActiveAlpha</psort>
+		<scenes>SpecialKeysV2-Scene</scenes>
+		<tids>60,61,62</tids>
+		<Share sr="Share">
+			<b>false</b>
+			<d>Special keys overlay for KDE Connect and Artemis, backed by dispatch_input.sh.</d>
+			<g>Utility,Scenes</g>
+			<p>true</p>
+			<t>Special Keys V2</t>
+		</Share>
+		<Img sr="icon" ve="2">
+			<nme>hd_hardware_keyboard</nme>
+		</Img>
+	</Project>
+	<Project sr="proj9" ve="2">
+		<cdate>1775265000004</cdate>
+		<id>26dc6db5-00ba-4b5f-ae3f-17de09bd1db1</id>
+		<mdate>1775269477078</mdate>
+		<name>PowerMenu</name>
+		<psort>ActiveAlpha</psort>
+		<scenes>PowerMenu-Scene</scenes>
+		<tids>17,18,19,21,29,37,43,44</tids>
+		<Share sr="Share">
+			<b>false</b>
+			<d>Pixel-local floating power/menu overlay with short-lived mode state, backed by powermenu.sh.</d>
+			<g>Utility,Scenes</g>
+			<p>true</p>
+			<t>Power Menu</t>
+		</Share>
+		<Img sr="icon" ve="2">
+			<nme>mw_action_settings_power</nme>
+		</Img>
+	</Project>
+	<Scene sr="scenePowerMenu-Scene">
+		<cdate>1775265000003</cdate>
+		<edate>1775254643745</edate>
+		<heightLand>-1</heightLand>
+		<heightPort>426</heightPort>
+		<nme>PowerMenu-Scene</nme>
+		<widthLand>-1</widthLand>
+		<widthPort>1237</widthPort>
+		<WebElement sr="elements0" ve="2">
+			<flags>4</flags>
+			<geom>0,0,1234,426,-1,-1,-1,-1</geom>
+			<Str sr="arg0" ve="3">PowerMenu-Web</Str>
+			<Int sr="arg1" val="2"/>
+			<Str sr="arg2" ve="3">%PowerMenu</Str>
+			<Int sr="arg3" val="1"/>
+			<Int sr="arg4" val="0"/>
+			<Int sr="arg5" val="0"/>
+			<Int sr="arg6" val="0"/>
+			<Int sr="arg7" val="1"/>
+			<Str sr="arg8" ve="3"/>
+			<RectElement sr="background">
+				<flags>4</flags>
+				<geom>-1,-1,-1,-1,-1,-1,-1,-1</geom>
+				<Str sr="arg0" ve="3"/>
+				<Int sr="arg1" val="0"/>
+				<Str sr="arg2" ve="3"/>
+				<Str sr="arg3" ve="3"/>
+				<Int sr="arg4" val="0"/>
+				<Str sr="arg5" ve="3">#FF09181C</Str>
+				<Int sr="arg6" val="0"/>
+				<Int sr="arg7" val="0"/>
+			</RectElement>
+		</WebElement>
+		<PropertiesElement sr="props">
+			<Int sr="arg0" val="0"/>
+			<Int sr="arg1" val="0"/>
+			<Str sr="arg2" ve="3">#2211181C</Str>
+			<Int sr="arg3" val="0"/>
+			<Str sr="arg4" ve="3">PowerMenu-Scene</Str>
+			<Str sr="arg5" ve="3"/>
+			<Img sr="arg6" ve="2"/>
+			<Str sr="arg7" ve="3"/>
+		</PropertiesElement>
+	</Scene>
+	<Scene sr="sceneSKButton">
+		<cdate>1767409022294</cdate>
+		<edate>1767412585070</edate>
+		<gridSize>10</gridSize>
+		<heightLand>-1</heightLand>
+		<heightPort>74</heightPort>
+		<nme>SKButton</nme>
+		<widthLand>-1</widthLand>
+		<widthPort>74</widthPort>
+		<ToggleElement sr="elements0">
+			<checkchangeTask>33</checkchangeTask>
+			<flags>4</flags>
+			<geom>0,0,72,64,-1,-1,-1,-1</geom>
+			<Str sr="arg0" ve="3">Toggle1</Str>
+			<Int sr="arg1" val="0"/>
+			<Str sr="arg2" ve="3">⛧</Str>
+			<Str sr="arg3" ve="3">☭</Str>
+			<Int sr="arg4" val="16"/>
+			<Int sr="arg5" val="100"/>
+			<Str sr="arg6" ve="3">#FF22AE75</Str>
+		</ToggleElement>
+		<PropertiesElement sr="props">
+			<Int sr="arg0" val="0"/>
+			<Int sr="arg1" val="2"/>
+			<Str sr="arg2" ve="3">#00020000</Str>
+			<Int sr="arg3" val="0"/>
+			<Str sr="arg4" ve="3">SKButton</Str>
+			<Str sr="arg5" ve="3"/>
+			<Img sr="arg6" ve="2"/>
+			<Str sr="arg7" ve="3"/>
+		</PropertiesElement>
+	</Scene>
+	<Scene sr="sceneSpecial-Keys-Scene">
+		<cdate>1767400466452</cdate>
+		<edate>1767414283824</edate>
+		<heightLand>-1</heightLand>
+		<heightPort>270</heightPort>
+		<nme>Special-Keys-Scene</nme>
+		<widthLand>-1</widthLand>
+		<widthPort>1044</widthPort>
+		<WebElement sr="elements0" ve="2">
+			<flags>4</flags>
+			<geom>0,0,1042,270,-1,-1,-1,-1</geom>
+			<Str sr="arg0" ve="3">Special-Keys</Str>
+			<Int sr="arg1" val="2"/>
+			<Str sr="arg2" ve="3">%SpecialKeys</Str>
+			<Int sr="arg3" val="1"/>
+			<Int sr="arg4" val="0"/>
+			<Int sr="arg5" val="0"/>
+			<Int sr="arg6" val="0"/>
+			<Int sr="arg7" val="1"/>
+			<Str sr="arg8" ve="3"/>
+			<RectElement sr="background">
+				<flags>4</flags>
+				<geom>-1,-1,-1,-1,-1,-1,-1,-1</geom>
+				<Str sr="arg0" ve="3"/>
+				<Int sr="arg1" val="0"/>
+				<Str sr="arg2" ve="3"/>
+				<Str sr="arg3" ve="3"/>
+				<Int sr="arg4" val="0"/>
+				<Str sr="arg5" ve="3">#FF000000</Str>
+				<Int sr="arg6" val="0"/>
+				<Int sr="arg7" val="0"/>
+			</RectElement>
+		</WebElement>
+		<PropertiesElement sr="props">
+			<Int sr="arg0" val="0"/>
+			<Int sr="arg1" val="0"/>
+			<Str sr="arg2" ve="3">#33FFFFFF</Str>
+			<Int sr="arg3" val="0"/>
+			<Str sr="arg4" ve="3">Special-Keys-Scene</Str>
+			<Str sr="arg5" ve="3"/>
+			<Img sr="arg6" ve="2"/>
+			<Str sr="arg7" ve="3"/>
+		</PropertiesElement>
+	</Scene>
+	<Scene sr="sceneSpecialKeysV2-Scene">
+		<cdate>1773265000003</cdate>
+		<edate>1773265000003</edate>
+		<heightLand>-1</heightLand>
+		<heightPort>426</heightPort>
+		<nme>SpecialKeysV2-Scene</nme>
+		<widthLand>-1</widthLand>
+		<widthPort>1237</widthPort>
+		<WebElement sr="elements0" ve="2">
+			<flags>4</flags>
+			<geom>0,0,1234,426,-1,-1,-1,-1</geom>
+			<Str sr="arg0" ve="3">SpecialKeysV2-Web</Str>
+			<Int sr="arg1" val="2"/>
+			<Str sr="arg2" ve="3">%SpecialKeysV2</Str>
+			<Int sr="arg3" val="1"/>
+			<Int sr="arg4" val="0"/>
+			<Int sr="arg5" val="0"/>
+			<Int sr="arg6" val="0"/>
+			<Int sr="arg7" val="1"/>
+			<Str sr="arg8" ve="3"/>
+			<RectElement sr="background">
+				<flags>4</flags>
+				<geom>-1,-1,-1,-1,-1,-1,-1,-1</geom>
+				<Str sr="arg0" ve="3"/>
+				<Int sr="arg1" val="0"/>
+				<Str sr="arg2" ve="3"/>
+				<Str sr="arg3" ve="3"/>
+				<Int sr="arg4" val="0"/>
+				<Str sr="arg5" ve="3">#FF09181C</Str>
+				<Int sr="arg6" val="0"/>
+				<Int sr="arg7" val="0"/>
+			</RectElement>
+		</WebElement>
+		<PropertiesElement sr="props">
+			<Int sr="arg0" val="0"/>
+			<Int sr="arg1" val="0"/>
+			<Str sr="arg2" ve="3">#2211181C</Str>
+			<Int sr="arg3" val="0"/>
+			<Str sr="arg4" ve="3">SpecialKeysV2-Scene</Str>
+			<Str sr="arg5" ve="3"/>
+			<Img sr="arg6" ve="2"/>
+			<Str sr="arg7" ve="3"/>
+		</PropertiesElement>
+	</Scene>
+	<Task sr="task11">
+		<cdate>1768020954328</cdate>
+		<edate>1768021227456</edate>
+		<id>11</id>
+		<nme>runHID</nme>
+		<Action sr="act0" ve="7">
+			<code>1256900802</code>
+			<label>start</label>
+			<se>false</se>
+			<Bundle sr="arg0">
+				<Vals sr="val">
+					<com.termux.execute.arguments>start</com.termux.execute.arguments>
+					<com.termux.execute.arguments-type>java.lang.String</com.termux.execute.arguments-type>
+					<com.termux.tasker.extra.BACKGROUND_CUSTOM_LOG_LEVEL>&lt;null&gt;</com.termux.tasker.extra.BACKGROUND_CUSTOM_LOG_LEVEL>
+					<com.termux.tasker.extra.BACKGROUND_CUSTOM_LOG_LEVEL-type>java.lang.String</com.termux.tasker.extra.BACKGROUND_CUSTOM_LOG_LEVEL-type>
+					<com.termux.tasker.extra.EXECUTABLE>~/.termux/tasker/hidrunner.sh</com.termux.tasker.extra.EXECUTABLE>
+					<com.termux.tasker.extra.EXECUTABLE-type>java.lang.String</com.termux.tasker.extra.EXECUTABLE-type>
+					<com.termux.tasker.extra.SESSION_ACTION>&lt;null&gt;</com.termux.tasker.extra.SESSION_ACTION>
+					<com.termux.tasker.extra.SESSION_ACTION-type>java.lang.String</com.termux.tasker.extra.SESSION_ACTION-type>
+					<com.termux.tasker.extra.STDIN></com.termux.tasker.extra.STDIN>
+					<com.termux.tasker.extra.STDIN-type>java.lang.String</com.termux.tasker.extra.STDIN-type>
+					<com.termux.tasker.extra.TERMINAL>false</com.termux.tasker.extra.TERMINAL>
+					<com.termux.tasker.extra.TERMINAL-type>java.lang.Boolean</com.termux.tasker.extra.TERMINAL-type>
+					<com.termux.tasker.extra.VERSION_CODE>1002</com.termux.tasker.extra.VERSION_CODE>
+					<com.termux.tasker.extra.VERSION_CODE-type>java.lang.Integer</com.termux.tasker.extra.VERSION_CODE-type>
+					<com.termux.tasker.extra.WAIT_FOR_RESULT>false</com.termux.tasker.extra.WAIT_FOR_RESULT>
+					<com.termux.tasker.extra.WAIT_FOR_RESULT-type>java.lang.Boolean</com.termux.tasker.extra.WAIT_FOR_RESULT-type>
+					<com.termux.tasker.extra.WORKDIR>&lt;null&gt;</com.termux.tasker.extra.WORKDIR>
+					<com.termux.tasker.extra.WORKDIR-type>java.lang.String</com.termux.tasker.extra.WORKDIR-type>
+					<com.twofortyfouram.locale.intent.extra.BLURB>~/.termux/tasker/hidrunner.sh start
+
+Working Directory ✕
+Stdin ✕
+Custom Log Level null
+Terminal Session ✕
+Wait For Resul</com.twofortyfouram.locale.intent.extra.BLURB>
+					<com.twofortyfouram.locale.intent.extra.BLURB-type>java.lang.String</com.twofortyfouram.locale.intent.extra.BLURB-type>
+					<net.dinglisch.android.tasker.extras.VARIABLE_REPLACE_KEYS>com.termux.tasker.extra.EXECUTABLE com.termux.execute.arguments com.termux.tasker.extra.WORKDIR com.termux.tasker.extra.STDIN com.termux.tasker.extra.SESSION_ACTION com.termux.tasker.extra.BACKGROUND_CUSTOM_LOG_LEVEL</net.dinglisch.android.tasker.extras.VARIABLE_REPLACE_KEYS>
+					<net.dinglisch.android.tasker.extras.VARIABLE_REPLACE_KEYS-type>java.lang.String</net.dinglisch.android.tasker.extras.VARIABLE_REPLACE_KEYS-type>
+					<net.dinglisch.android.tasker.subbundled>true</net.dinglisch.android.tasker.subbundled>
+					<net.dinglisch.android.tasker.subbundled-type>java.lang.Boolean</net.dinglisch.android.tasker.subbundled-type>
+				</Vals>
+			</Bundle>
+			<Str sr="arg1" ve="3">com.termux.tasker</Str>
+			<Str sr="arg2" ve="3">com.termux.tasker.EditConfigurationActivity</Str>
+			<Int sr="arg3" val="10"/>
+			<Int sr="arg4" val="1"/>
+		</Action>
+	</Task>
+	<Task sr="task12">
+		<cdate>1767400195545</cdate>
+		<edate>1773253064635</edate>
+		<id>12</id>
+		<nme>SpecialKeys</nme>
+		<pri>100</pri>
+		<Action sr="act0" ve="7">
+			<code>547</code>
+			<Str sr="arg0" ve="3">%SpecialKeys</Str>
+			<Str sr="arg1" ve="3">&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+&lt;meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"&gt;
+&lt;style&gt;
+  body { margin: 0; background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); color: #fff; height: 100vh; display: flex; flex-direction: column; border-radius: 20px; }
+  .row { display: flex; flex: 1; }
+  .btn { flex: 1; text-align: center; padding: 15px 0; border: 1px solid rgba(255,255,255,0.2); }
+  .btn:active { background: rgba(255,255,255,0.3); }
+&lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+
+  &lt;div id="layer1" class="layer" style="height: 100%; display: flex; flex-direction: column;"&gt;
+    &lt;div class="row"&gt;
+      &lt;div class="btn" onclick="send('113')"&gt;CTRL&lt;/div&gt;
+      &lt;div class="btn" onclick="send('114')"&gt;ALT&lt;/div&gt;
+      &lt;div class="btn" onclick="send('59')"&gt;SHFT&lt;/div&gt;
+      &lt;div class="btn" onclick="send('112')"&gt;DEL&lt;/div&gt;
+      &lt;div class="btn" onclick="send('122')"&gt;HOME&lt;/div&gt;
+      &lt;div class="btn" onclick="send('123')"&gt;END&lt;/div&gt;
+      &lt;div class="btn" onclick="send('124')"&gt;INS&lt;/div&gt;
+    &lt;/div&gt;
+    &lt;div class="row"&gt;
+      &lt;div class="btn" onclick="send('111')"&gt;ESC&lt;/div&gt;
+      &lt;div class="btn" onclick="send('61')"&gt;TAB&lt;/div&gt;
+      &lt;div class="btn" onclick="send('21')"&gt;◀&lt;/div&gt;
+      &lt;div class="btn" onclick="send('19')"&gt;▲&lt;/div&gt;
+      &lt;div class="btn" onclick="send('20')"&gt;▼&lt;/div&gt;
+      &lt;div class="btn" onclick="send('22')"&gt;▶&lt;/div&gt;
+      &lt;div class="btn" onclick="send('66')"&gt;⏎&lt;/div&gt;
+      &lt;div class="btn accent" onclick="toggleLayer()"&gt;⚡&lt;/div&gt;
+    &lt;/div&gt;
+  &lt;/div&gt;
+
+  &lt;div id="layer2" class="hidden"&gt;
+     &lt;/div&gt;
+
+&lt;script&gt;
+  function send(p) { performTask("SpecialKeys", 10, p); }
+  function toggleLayer() {
+    document.getElementById("layer1").classList.toggle("hidden");
+    document.getElementById("layer2").classList.toggle("hidden");
+  }
+&lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;</Str>
+			<Int sr="arg2" val="0"/>
+			<Int sr="arg3" val="0"/>
+			<Int sr="arg4" val="0"/>
+			<Int sr="arg5" val="3"/>
+			<Int sr="arg6" val="0"/>
+		</Action>
+	</Task>
+	<Task sr="task13">
+		<cdate>1767402062488</cdate>
+		<edate>1773253066499</edate>
+		<id>13</id>
+		<nme>Toggle-Special-Keys</nme>
+		<pri>100</pri>
+		<Action sr="act0" ve="7">
+			<code>194</code>
+			<Str sr="arg0" ve="3">Special-Keys-Scene</Str>
+			<Int sr="arg1" val="0"/>
+			<Str sr="arg2" ve="3">%status</Str>
+		</Action>
+		<Action sr="act1" ve="7">
+			<code>49</code>
+			<Str sr="arg0" ve="3">Special-Keys-Scene</Str>
+			<ConditionList sr="if">
+				<Condition sr="c0" ve="3">
+					<lhs>%status</lhs>
+					<op>2</op>
+					<rhs>visible</rhs>
+				</Condition>
+			</ConditionList>
+		</Action>
+		<Action sr="act2" ve="7">
+			<code>47</code>
+			<Str sr="arg0" ve="3">Special-Keys-Scene</Str>
+			<Int sr="arg1" val="1"/>
+			<Int sr="arg10" val="1"/>
+			<Int sr="arg2" val="100"/>
+			<Int sr="arg3" val="100"/>
+			<Int sr="arg4" val="0"/>
+			<Int sr="arg5" val="1"/>
+			<Int sr="arg6" val="1"/>
+			<Int sr="arg7" val="1"/>
+			<Int sr="arg8" val="1"/>
+			<Int sr="arg9" val="1"/>
+			<ConditionList sr="if">
+				<Condition sr="c0" ve="3">
+					<lhs>%status</lhs>
+					<op>3</op>
+					<rhs>visible</rhs>
+				</Condition>
+			</ConditionList>
+		</Action>
+	</Task>
+	<Task sr="task14">
+		<cdate>1768778319846</cdate>
+		<edate>1781468844162</edate>
+		<id>14</id>
+		<nme>Swap-On</nme>
+		<pri>100</pri>
+		<Action sr="act0" ve="7">
+			<code>30</code>
+			<Int sr="arg0" val="0"/>
+			<Int sr="arg1" val="1"/>
+			<Int sr="arg2" val="0"/>
+			<Int sr="arg3" val="0"/>
+			<Int sr="arg4" val="0"/>
+		</Action>
+		<Action sr="act1" ve="7">
+			<code>123</code>
+			<Str sr="arg0" ve="3">swapon -p -3 /data/swapfile</Str>
+			<Int sr="arg1" val="0"/>
+			<Int sr="arg2" val="1"/>
+			<Str sr="arg3" ve="3">%Shell_out</Str>
+			<Str sr="arg4" ve="3">%Shell_err</Str>
+			<Str sr="arg5" ve="3"/>
+			<Int sr="arg6" val="1"/>
+			<Int sr="arg7" val="0"/>
+			<Int sr="arg8" val="0"/>
+		</Action>
+	</Task>
+	<Task sr="task16">
+		<cdate>1768025000000</cdate>
+		<edate>1770399596432</edate>
+		<id>16</id>
+		<nme>Clean-Danbooru-Tags</nme>
+		<Action sr="act0" ve="7">
+			<code>129</code>
+			<Str sr="arg0" ve="3">let str = global('CLIP');
+let cleaned = str.replace(/[\[\]{}"]/g, '').trim();
+if (cleaned !== str) {
+    setClip(cleaned);
+    flash("Tags Cleaned: " + cleaned.substring(0, 30));
+}</Str>
+			<Str sr="arg1" ve="3"/>
+			<Int sr="arg2" val="1"/>
+			<Int sr="arg3" val="45"/>
+		</Action>
+	</Task>
+	<Task sr="task17">
+		<cdate>1775265000000</cdate>
+		<edate>1775265000000</edate>
+		<id>17</id>
+		<nme>PowerMenu-Render</nme>
+		<pri>100</pri>
+		<Action sr="act0" ve="7">
+			<code>547</code>
+			<se>false</se>
+			<Str sr="arg0" ve="3">%PowerMenu</Str>
+			<Str sr="arg1" ve="3">&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+&lt;meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"&gt;
+&lt;style&gt;
+  :root {
+    --panel: rgba(9, 24, 28, 0.90);
+    --panel-edge: rgba(120, 214, 182, 0.20);
+    --text: #ebfff7;
+    --muted: #9dc7bb;
+    --modifier: rgba(46, 109, 86, 0.95);
+    --transport: rgba(65, 88, 126, 0.95);
+    --gyro: rgba(118, 74, 28, 0.95);
+    --danger: rgba(128, 44, 44, 0.95);
+    --key: rgba(17, 43, 50, 0.96);
+  }
+  * {
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+    font-family: "JetBrains Mono", "IBM Plex Sans", monospace;
+  }
+  body {
+    margin: 0;
+    color: var(--text);
+    background: linear-gradient(180deg, rgba(3, 10, 12, 0.15), rgba(3, 10, 12, 0.05));
+  }
+  .shell {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-height: 100vh;
+    padding: 12px;
+    border-radius: 22px;
+    background: var(--panel);
+    border: 1px solid var(--panel-edge);
+    box-shadow: 0 18px 32px rgba(0, 0, 0, 0.35);
+    backdrop-filter: blur(14px);
+  }
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 2px;
+    font-size: 12px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+  }
+  .row {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .btn {
+    border: 0;
+    border-radius: 16px;
+    min-height: 56px;
+    padding: 10px 6px;
+    background: var(--key);
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 8px 16px rgba(0,0,0,0.18);
+  }
+  .btn.modifier { background: var(--modifier); }
+  .btn.transport { background: var(--transport); }
+  .btn.gyro { background: var(--gyro); }
+  .btn.danger { background: var(--danger); }
+  .btn:active {
+    transform: translateY(1px) scale(0.99);
+    filter: brightness(1.14);
+  }
+&lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;div class="shell"&gt;
+  &lt;div class="header"&gt;
+    &lt;span&gt;Power Menu&lt;/span&gt;
+    &lt;span&gt;Pixel / Local&lt;/span&gt;
+  &lt;/div&gt;
+
+  &lt;div class="row"&gt;
+    &lt;button class="btn modifier" onclick="send('ARM_UI')"&gt;UI&lt;/button&gt;
+    &lt;button class="btn modifier" onclick="send('ARM_MEDIA')"&gt;MEDIA&lt;/button&gt;
+    &lt;button class="btn modifier" onclick="send('ARM_BROWSER')"&gt;BROWSE&lt;/button&gt;
+    &lt;button class="btn modifier" onclick="send('ARM_NAV')"&gt;NAV&lt;/button&gt;
+    &lt;button class="btn gyro" onclick="send('VOL_UP')"&gt;VOL +&lt;/button&gt;
+    &lt;button class="btn gyro" onclick="send('VOL_DOWN')"&gt;VOL -&lt;/button&gt;
+  &lt;/div&gt;
+
+  &lt;div class="row"&gt;
+    &lt;button class="btn transport" onclick="send('DIRECT_LOCKS')"&gt;LOCKS&lt;/button&gt;
+    &lt;button class="btn transport" onclick="send('DIRECT_EDGE')"&gt;EDGE&lt;/button&gt;
+    &lt;button class="btn transport" onclick="send('DIRECT_NOTIFS')"&gt;NOTIF&lt;/button&gt;
+    &lt;button class="btn transport" onclick="send('DIRECT_QS')"&gt;QS&lt;/button&gt;
+    &lt;button class="btn danger" onclick="send('DIRECT_OFF')"&gt;OFF&lt;/button&gt;
+    &lt;button class="btn danger" onclick="send('DIRECT_CLEAR')"&gt;CLR&lt;/button&gt;
+  &lt;/div&gt;
+
+  &lt;div class="row"&gt;
+    &lt;button class="btn" onclick="send('DIRECT_BACK')"&gt;BACK&lt;/button&gt;
+    &lt;button class="btn" onclick="send('DIRECT_HOME')"&gt;HOME&lt;/button&gt;
+    &lt;button class="btn" onclick="send('DIRECT_RECENTS')"&gt;RECENTS&lt;/button&gt;
+    &lt;button class="btn" onclick="send('DIRECT_VOLUME_UP')"&gt;LOUDER&lt;/button&gt;
+    &lt;button class="btn" onclick="send('DIRECT_VOLUME_DOWN')"&gt;SOFTER&lt;/button&gt;
+    &lt;button class="btn danger" onclick="closePanel()"&gt;HIDE&lt;/button&gt;
+  &lt;/div&gt;
+&lt;/div&gt;
+&lt;script&gt;
+  function send(action) {
+    performTask("PowerMenu-Action", 10, action);
+  }
+  function closePanel() {
+    performTask("Toggle-PowerMenu", 10, "");
+  }
+&lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;</Str>
+			<Int sr="arg2" val="0"/>
+			<Int sr="arg3" val="0"/>
+			<Int sr="arg4" val="0"/>
+			<Int sr="arg5" val="3"/>
+			<Int sr="arg6" val="0"/>
+		</Action>
+	</Task>
+	<Task sr="task18">
+		<cdate>1775265000001</cdate>
+		<edate>1775265000001</edate>
+		<id>18</id>
+		<nme>PowerMenu-Action</nme>
+		<pri>100</pri>
+		<Action sr="act0" ve="7">
+			<code>123</code>
+			<Str sr="arg0" ve="3">/data/data/com.termux/files/home/.termux/tasker/powermenu.sh %par1</Str>
+			<Int sr="arg1" val="0"/>
+			<Int sr="arg2" val="1"/>
+			<Str sr="arg3" ve="3"/>
+			<Str sr="arg4" ve="3"/>
+			<Str sr="arg5" ve="3"/>
+			<Int sr="arg6" val="1"/>
+			<Int sr="arg7" val="0"/>
+			<Int sr="arg8" val="0"/>
+		</Action>
+	</Task>
+	<Task sr="task19">
+		<cdate>1775265000002</cdate>
+		<edate>1775265000002</edate>
+		<id>19</id>
+		<nme>Toggle-PowerMenu</nme>
+		<pri>100</pri>
+		<Action sr="act0" ve="7">
+			<code>130</code>
+			<Str sr="arg0" ve="3">PowerMenu-Render</Str>
+			<Int sr="arg1">
+				<var>%priority</var>
+			</Int>
+			<Int sr="arg10" val="0"/>
+			<Str sr="arg2" ve="3"/>
+			<Str sr="arg3" ve="3"/>
+			<Str sr="arg4" ve="3"/>
+			<Int sr="arg5" val="0"/>
+			<Int sr="arg6" val="0"/>
+			<Str sr="arg7" ve="3"/>
+			<Int sr="arg8" val="0"/>
+			<Int sr="arg9" val="0"/>
+		</Action>
+		<Action sr="act1" ve="7">
+			<code>194</code>
+			<Str sr="arg0" ve="3">PowerMenu-Scene</Str>
+			<Int sr="arg1" val="0"/>
+			<Str sr="arg2" ve="3">%powermenu_status</Str>
+		</Action>
+		<Action sr="act2" ve="7">
+			<code>49</code>
+			<Str sr="arg0" ve="3">PowerMenu-Scene</Str>
+			<ConditionList sr="if">
+				<Condition sr="c0" ve="3">
+					<lhs>%powermenu_status</lhs>
+					<op>2</op>
+					<rhs>visible</rhs>
+				</Condition>
+			</ConditionList>
+		</Action>
+		<Action sr="act3" ve="7">
+			<code>47</code>
+			<Str sr="arg0" ve="3">PowerMenu-Scene</Str>
+			<Int sr="arg1" val="1"/>
+			<Int sr="arg10" val="1"/>
+			<Int sr="arg2" val="100"/>
+			<Int sr="arg3" val="100"/>
+			<Int sr="arg4" val="0"/>
+			<Int sr="arg5" val="1"/>
+			<Int sr="arg6" val="1"/>
+			<Int sr="arg7" val="1"/>
+			<Int sr="arg8" val="1"/>
+			<Int sr="arg9" val="1"/>
+			<ConditionList sr="if">
+				<Condition sr="c0" ve="3">
+					<lhs>%powermenu_status</lhs>
+					<op>3</op>
+					<rhs>visible</rhs>
+				</Condition>
+			</ConditionList>
+		</Action>
+	</Task>
+	<Task sr="task2">
+		<cdate>1766545924504</cdate>
+		<edate>1775271207197</edate>
+		<id>2</id>
+		<nme>RAM-Notification</nme>
+		<pri>6</pri>
+		<Action sr="act0" ve="7">
+			<code>123</code>
+			<label>mem-dashboard</label>
+			<Str sr="arg0" ve="3">MEM_INFO=$(cat /proc/meminfo)
+SWAPS=$(cat /proc/swaps)
+
+RAM_T=$(echo "$MEM_INFO" | awk '/MemTotal/ {print int($2/1024)}')
+RAM_F=$(echo "$MEM_INFO" | awk '/MemFree/ {print int($2/1024)}')
+RAM_U=$(( RAM_T - RAM_F ))
+
+Z_U=$(echo "$SWAPS" | grep "zram" | awk '{sum+=$4} END {print int(sum/1024)}')
+[ -z "$Z_U" ] &amp;&amp; Z_U=0
+
+D_U=$(echo "$SWAPS" | grep -v "zram" | grep -v "Filename" | awk '{sum+=$4} END {print int(sum/1024)}')
+[ -z "$D_U" ] &amp;&amp; D_U=0
+
+echo "RAM: ${RAM_U}/${RAM_T}MB | ZRAM: ${Z_U}MB | DISK: ${D_U}MB"</Str>
+			<Int sr="arg1" val="30"/>
+			<Int sr="arg2" val="1"/>
+			<Str sr="arg3" ve="3">%Mem_stats</Str>
+			<Str sr="arg4" ve="3"/>
+			<Str sr="arg5" ve="3"/>
+			<Int sr="arg6" val="1"/>
+			<Int sr="arg7" val="0"/>
+			<Int sr="arg8" val="0"/>
+		</Action>
+		<Action sr="act1" ve="7">
+			<code>523</code>
+			<label>mem-dashboard</label>
+			<Str sr="arg0" ve="3">RAM/ZRAM/SWAP</Str>
+			<Str sr="arg1" ve="3">%Mem_stats</Str>
+			<Str sr="arg10" ve="3"/>
+			<Str sr="arg11" ve="3"/>
+			<Str sr="arg12" ve="3"/>
+			<Int sr="arg13" val="0"/>
+			<Str sr="arg14" ve="3"/>
+			<Str sr="arg15" ve="3"/>
+			<Img sr="arg2" ve="2">
+				<nme>hd_content_save</nme>
+			</Img>
+			<Int sr="arg3" val="0"/>
+			<Int sr="arg4" val="1"/>
+			<Int sr="arg5" val="3"/>
+			<Int sr="arg6" val="0"/>
+			<Int sr="arg7" val="0"/>
+			<Int sr="arg8" val="0"/>
+			<Str sr="arg9" ve="3"/>
+		</Action>
+		<Img sr="icn" ve="2">
+			<nme>mw_navigation_arrow_drop_down</nme>
+		</Img>
+	</Task>
+	<Task sr="task21">
+		<cdate>1775249613608</cdate>
+		<edate>1775251584600</edate>
+		<id>21</id>
+		<nme>PowerMenu-Arm-UI</nme>
+		<pri>100</pri>
+		<Action sr="act0" ve="7">
+			<code>123</code>
+			<label>PM-Arm-UI</label>
+			<Str sr="arg0" ve="3">/data/data/com.termux/files/home/.termux/tasker/powermenu.sh ARM_UI</Str>
+			<Int sr="arg1" val="0"/>
+			<Int sr="arg2" val="1"/>
+			<Str sr="arg3" ve="3"/>
+			<Str sr="arg4" ve="3"/>
+			<Str sr="arg5" ve="3"/>
+			<Int sr="arg6" val="1"/>
+			<Int sr="arg7" val="0"/>
+			<Int sr="arg8" val="0"/>
+		</Action>
+		<Img sr="icn" ve="2">
+			<nme>hl_ab_navigation_collapse</nme>
+		</Img>
+	</Task>
+	<Task sr="task22">
+		<cdate>1768021235998</cdate>
+		<edate>1773253070526</edate>
+		<id>22</id>
+		<nme>killHID</nme>
+		<Action sr="act0" ve="7">
+			<code>1256900802</code>
+			<label>stop</label>
+			<se>false</se>
+			<Bundle sr="arg0">
+				<Vals sr="val">
+					<com.termux.execute.arguments>stop</com.termux.execute.arguments>
+					<com.termux.execute.arguments-type>java.lang.String</com.termux.execute.arguments-type>
+					<com.termux.tasker.extra.BACKGROUND_CUSTOM_LOG_LEVEL>&lt;null&gt;</com.termux.tasker.extra.BACKGROUND_CUSTOM_LOG_LEVEL>
+					<com.termux.tasker.extra.BACKGROUND_CUSTOM_LOG_LEVEL-type>java.lang.String</com.termux.tasker.extra.BACKGROUND_CUSTOM_LOG_LEVEL-type>
+					<com.termux.tasker.extra.EXECUTABLE>~/.termux/tasker/hidrunner.sh</com.termux.tasker.extra.EXECUTABLE>
+					<com.termux.tasker.extra.EXECUTABLE-type>java.lang.String</com.termux.tasker.extra.EXECUTABLE-type>
+					<com.termux.tasker.extra.SESSION_ACTION>&lt;null&gt;</com.termux.tasker.extra.SESSION_ACTION>
+					<com.termux.tasker.extra.SESSION_ACTION-type>java.lang.String</com.termux.tasker.extra.SESSION_ACTION-type>
+					<com.termux.tasker.extra.STDIN>&lt;null&gt;</com.termux.tasker.extra.STDIN>
+					<com.termux.tasker.extra.STDIN-type>java.lang.String</com.termux.tasker.extra.STDIN-type>
+					<com.termux.tasker.extra.TERMINAL>false</com.termux.tasker.extra.TERMINAL>
+					<com.termux.tasker.extra.TERMINAL-type>java.lang.Boolean</com.termux.tasker.extra.TERMINAL-type>
+					<com.termux.tasker.extra.VERSION_CODE>1002</com.termux.tasker.extra.VERSION_CODE>
+					<com.termux.tasker.extra.VERSION_CODE-type>java.lang.Integer</com.termux.tasker.extra.VERSION_CODE-type>
+					<com.termux.tasker.extra.WAIT_FOR_RESULT>false</com.termux.tasker.extra.WAIT_FOR_RESULT>
+					<com.termux.tasker.extra.WAIT_FOR_RESULT-type>java.lang.Boolean</com.termux.tasker.extra.WAIT_FOR_RESULT-type>
+					<com.termux.tasker.extra.WORKDIR>&lt;null&gt;</com.termux.tasker.extra.WORKDIR>
+					<com.termux.tasker.extra.WORKDIR-type>java.lang.String</com.termux.tasker.extra.WORKDIR-type>
+					<com.twofortyfouram.locale.intent.extra.BLURB>~/.termux/tasker/hidrunner.sh stop
+
+Working Directory ✕
+Stdin ✕
+Custom Log Level null
+Terminal Session ✕
+Wait For Result</com.twofortyfouram.locale.intent.extra.BLURB>
+					<com.twofortyfouram.locale.intent.extra.BLURB-type>java.lang.String</com.twofortyfouram.locale.intent.extra.BLURB-type>
+					<net.dinglisch.android.tasker.extras.VARIABLE_REPLACE_KEYS>com.termux.tasker.extra.EXECUTABLE com.termux.execute.arguments com.termux.tasker.extra.WORKDIR com.termux.tasker.extra.STDIN com.termux.tasker.extra.SESSION_ACTION com.termux.tasker.extra.BACKGROUND_CUSTOM_LOG_LEVEL</net.dinglisch.android.tasker.extras.VARIABLE_REPLACE_KEYS>
+					<net.dinglisch.android.tasker.extras.VARIABLE_REPLACE_KEYS-type>java.lang.String</net.dinglisch.android.tasker.extras.VARIABLE_REPLACE_KEYS-type>
+					<net.dinglisch.android.tasker.subbundled>true</net.dinglisch.android.tasker.subbundled>
+					<net.dinglisch.android.tasker.subbundled-type>java.lang.Boolean</net.dinglisch.android.tasker.subbundled-type>
+				</Vals>
+			</Bundle>
+			<Str sr="arg1" ve="3">com.termux.tasker</Str>
+			<Str sr="arg2" ve="3">com.termux.tasker.EditConfigurationActivity</Str>
+			<Int sr="arg3" val="10"/>
+			<Int sr="arg4" val="1"/>
+		</Action>
+	</Task>
+	<Task sr="task228">
+		<cdate>1589828067438</cdate>
+		<edate>1784521810969</edate>
+		<id>228</id>
+		<nme>Launch App In Freeform</nme>
+		<pri>100</pri>
+		<Action sr="act0" ve="7">
+			<code>590</code>
+			<Str sr="arg0" ve="3">%par2</Str>
+			<Str sr="arg1" ve="3">,</Str>
+			<Int sr="arg2" val="0"/>
+			<Int sr="arg3" val="0"/>
+		</Action>
+		<Action sr="act1" ve="7">
+			<code>664</code>
+			<Str sr="arg0" ve="3">r</Str>
+			<Str sr="arg1" ve="3">Rect</Str>
+			<Str sr="arg2" ve="3">new
+{Rect} (int, int, int, int)</Str>
+			<Str sr="arg3" ve="3">%par2(1)</Str>
+			<Str sr="arg4" ve="3">%par2(2)</Str>
+			<Str sr="arg5" ve="3">%par2(3)</Str>
+			<Str sr="arg6" ve="3">%par2(4)</Str>
+			<Str sr="arg7" ve="3"/>
+			<Str sr="arg8" ve="3"/>
+			<Str sr="arg9" ve="3"/>
+		</Action>
+		<Action sr="act10" ve="7">
+			<code>664</code>
+			<Str sr="arg0" ve="3">intent</Str>
+			<Str sr="arg1" ve="3">pm</Str>
+			<Str sr="arg2" ve="3">getLaunchIntentForPackage
+{Intent} (String)</Str>
+			<Str sr="arg3" ve="3">%par1</Str>
+			<Str sr="arg4" ve="3"/>
+			<Str sr="arg5" ve="3"/>
+			<Str sr="arg6" ve="3"/>
+			<Str sr="arg7" ve="3"/>
+			<Str sr="arg8" ve="3"/>
+			<Str sr="arg9" ve="3"/>
+		</Action>
+		<Action sr="act11" ve="7">
+			<code>664</code>
+			<label>add intent ACTIVITY_NEW_TASK (Optional)</label>
+			<Str sr="arg0" ve="3">intent</Str>
+			<Str sr="arg1" ve="3">intent</Str>
+			<Str sr="arg2" ve="3">addFlags
+{Intent} (int)</Str>
+			<Str sr="arg3" ve="3">268435456</Str>
+			<Str sr="arg4" ve="3"/>
+			<Str sr="arg5" ve="3"/>
+			<Str sr="arg6" ve="3"/>
+			<Str sr="arg7" ve="3"/>
+			<Str sr="arg8" ve="3"/>
+			<Str sr="arg9" ve="3"/>
+		</Action>
+		<Action sr="act12" ve="7">
+			<code>664</code>
+			<label>add intent ACTIVITY_MULTIPLE_TASK (Optional)</label>
+			<Str sr="arg0" ve="3">intent</Str>
+			<Str sr="arg1" ve="3">intent</Str>
+			<Str sr="arg2" ve="3">addFlags
+{Intent} (int)</Str>
+			<Str sr="arg3" ve="3">134217728</Str>
+			<Str sr="arg4" ve="3"/>
+			<Str sr="arg5" ve="3"/>
+			<Str sr="arg6" ve="3"/>
+			<Str sr="arg7" ve="3"/>
+			<Str sr="arg8" ve="3"/>
+			<Str sr="arg9" ve="3"/>
+		</Action>
+		<Action sr="act13" ve="7">
+			<code>664</code>
+			<label>add intent ACTIVITY_LAUNCH_ADJACENT (Split Screen)</label>
+			<on>false</on>
+			<Str sr="arg0" ve="3">intent</Str>
+			<Str sr="arg1" ve="3">intent</Str>
+			<Str sr="arg2" ve="3">addFlags
+{Intent} (int)</Str>
+			<Str sr="arg3" ve="3">4096</Str>
+			<Str sr="arg4" ve="3"/>
+			<Str sr="arg5" ve="3"/>
+			<Str sr="arg6" ve="3"/>
+			<Str sr="arg7" ve="3"/>
+			<Str sr="arg8" ve="3"/>
+			<Str sr="arg9" ve="3"/>
+		</Action>
+		<Action sr="act14" ve="7">
+			<code>664</code>
+			<Str sr="arg0" ve="3"/>
+			<Str sr="arg1" ve="3">CONTEXT</Str>
+			<Str sr="arg2" ve="3">startActivity
+{} (Intent, Bundle)</Str>
+			<Str sr="arg3" ve="3">intent</Str>
+			<Str sr="arg4" ve="3">bundle</Str>
+			<Str sr="arg5" ve="3"/>
+			<Str sr="arg6" ve="3"/>
+			<Str sr="arg7" ve="3"/>
+			<Str sr="arg8" ve="3"/>
+			<Str sr="arg9" ve="3"/>
+		</Action>
+		<Action sr="act2" ve="7">
+			<code>664</code>
+			<Str sr="arg0" ve="3">mb</Str>
+			<Str sr="arg1" ve="3">ActivityOptions</Str>
+			<Str sr="arg2" ve="3">makeBasic
+{ActivityOptions} ()</Str>
+			<Str sr="arg3" ve="3"/>
+			<Str sr="arg4" ve="3"/>
+			<Str sr="arg5" ve="3"/>
+			<Str sr="arg6" ve="3"/>
+			<Str sr="arg7" ve="3"/>
+			<Str sr="arg8" ve="3"/>
+			<Str sr="arg9" ve="3"/>
+		</Action>
+		<Action sr="act3" ve="7">
+			<code>664</code>
+			<Str sr="arg0" ve="3"/>
+			<Str sr="arg1" ve="3">mb</Str>
+			<Str sr="arg2" ve="3">setLaunchBounds
+{ActivityOptions} (Rect)</Str>
+			<Str sr="arg3" ve="3">r</Str>
+			<Str sr="arg4" ve="3"/>
+			<Str sr="arg5" ve="3"/>
+			<Str sr="arg6" ve="3"/>
+			<Str sr="arg7" ve="3"/>
+			<Str sr="arg8" ve="3"/>
+			<Str sr="arg9" ve="3"/>
+		</Action>
+		<Action sr="act4" ve="7">
+			<code>664</code>
+			<Str sr="arg0" ve="3">bundle</Str>
+			<Str sr="arg1" ve="3">mb</Str>
+			<Str sr="arg2" ve="3">toBundle
+{Bundle} ()</Str>
+			<Str sr="arg3" ve="3"/>
+			<Str sr="arg4" ve="3"/>
+			<Str sr="arg5" ve="3"/>
+			<Str sr="arg6" ve="3"/>
+			<Str sr="arg7" ve="3"/>
+			<Str sr="arg8" ve="3"/>
+			<Str sr="arg9" ve="3"/>
+		</Action>
+		<Action sr="act5" ve="7">
+			<code>664</code>
+			<label>set freeform mode</label>
+			<Str sr="arg0" ve="3"/>
+			<Str sr="arg1" ve="3">bundle</Str>
+			<Str sr="arg2" ve="3">putInt
+{} (String, int)</Str>
+			<Str sr="arg3" ve="3">android.activity.windowingMode</Str>
+			<Str sr="arg4" ve="3">5</Str>
+			<Str sr="arg5" ve="3"/>
+			<Str sr="arg6" ve="3"/>
+			<Str sr="arg7" ve="3"/>
+			<Str sr="arg8" ve="3"/>
+			<Str sr="arg9" ve="3"/>
+		</Action>
+		<Action sr="act6" ve="7">
+			<code>664</code>
+			<Str sr="arg0" ve="3">pm</Str>
+			<Str sr="arg1" ve="3">CONTEXT</Str>
+			<Str sr="arg2" ve="3">getPackageManager
+{PackageManager} ()</Str>
+			<Str sr="arg3" ve="3"/>
+			<Str sr="arg4" ve="3"/>
+			<Str sr="arg5" ve="3"/>
+			<Str sr="arg6" ve="3"/>
+			<Str sr="arg7" ve="3"/>
+			<Str sr="arg8" ve="3"/>
+			<Str sr="arg9" ve="3"/>
+		</Action>
+		<Action sr="act7" ve="7">
+			<code>664</code>
+			<Str sr="arg0" ve="3">start</Str>
+			<Str sr="arg1" ve="3">Intent</Str>
+			<Str sr="arg2" ve="3">new
+{Intent} (String)</Str>
+			<Str sr="arg3" ve="3">android.intent.action.MAIN</Str>
+			<Str sr="arg4" ve="3"/>
+			<Str sr="arg5" ve="3"/>
+			<Str sr="arg6" ve="3"/>
+			<Str sr="arg7" ve="3"/>
+			<Str sr="arg8" ve="3"/>
+			<Str sr="arg9" ve="3"/>
+		</Action>
+		<Action sr="act8" ve="7">
+			<code>664</code>
+			<Str sr="arg0" ve="3"/>
+			<Str sr="arg1" ve="3">start</Str>
+			<Str sr="arg2" ve="3">addCategory
+{Intent} (String)</Str>
+			<Str sr="arg3" ve="3">android.intent.category.LAUNCHER</Str>
+			<Str sr="arg4" ve="3"/>
+			<Str sr="arg5" ve="3"/>
+			<Str sr="arg6" ve="3"/>
+			<Str sr="arg7" ve="3"/>
+			<Str sr="arg8" ve="3"/>
+			<Str sr="arg9" ve="3"/>
+		</Action>
+		<Action sr="act9" ve="7">
+			<code>664</code>
+			<Str sr="arg0" ve="3">list</Str>
+			<Str sr="arg1" ve="3">pm</Str>
+			<Str sr="arg2" ve="3">queryIntentActivities
+{List} (Intent, int)</Str>
+			<Str sr="arg3" ve="3">start</Str>
+			<Str sr="arg4" ve="3">0</Str>
+			<Str sr="arg5" ve="3"/>
+			<Str sr="arg6" ve="3"/>
+			<Str sr="arg7" ve="3"/>
+			<Str sr="arg8" ve="3"/>
+			<Str sr="arg9" ve="3"/>
+		</Action>
+	</Task>
+	<Task sr="task229">
+		<cdate>1744803614057</cdate>
+		<edate>1784521825765</edate>
+		<id>229</id>
+		<nme>Freeform Main Sample</nme>
+		<pri>100</pri>
+		<Share sr="Share">
+			<b>false</b>
+			<d>This task is a slight revision/edit of the [HOW-TO] Launch app in freeform window or pop-up view.
+
+The original task did not work as my expected, especially on the latest Android versions. This updated version is designed to function correctly.
+
+Tested on:
+- Device: Poco X3 GT or Xiaomi Redmi Note 10 Pro
+- OS: Android 13
+- MIUI: 14</d>
+			<g>Apps,Display,Overlays</g>
+			<p>true</p>
+			<t></t>
+		</Share>
+		<Action sr="act0" ve="7">
+			<code>348</code>
+			<Int sr="arg0" val="4"/>
+			<Str sr="arg1" ve="3"/>
+			<Str sr="arg2" ve="3">%res</Str>
+		</Action>
+		<Action sr="act1" ve="7">
+			<code>590</code>
+			<Str sr="arg0" ve="3">%res</Str>
+			<Str sr="arg1" ve="3">x</Str>
+			<Int sr="arg2" val="0"/>
+			<Int sr="arg3" val="0"/>
+		</Action>
+		<Action sr="act2" ve="7">
+			<code>547</code>
+			<Str sr="arg0" ve="3">%res1</Str>
+			<Str sr="arg1" ve="3">%res1</Str>
+			<Int sr="arg2" val="0"/>
+			<Int sr="arg3" val="1"/>
+			<Int sr="arg4" val="0"/>
+			<Int sr="arg5" val="1"/>
+			<Int sr="arg6" val="0"/>
+		</Action>
+		<Action sr="act3" ve="7">
+			<code>547</code>
+			<Str sr="arg0" ve="3">%res2</Str>
+			<Str sr="arg1" ve="3">%res2 / 1.411</Str>
+			<Int sr="arg2" val="0"/>
+			<Int sr="arg3" val="1"/>
+			<Int sr="arg4" val="0"/>
+			<Int sr="arg5" val="10"/>
+			<Int sr="arg6" val="0"/>
+		</Action>
+		<Action sr="act4" ve="7">
+			<code>590</code>
+			<Str sr="arg0" ve="3">%res1</Str>
+			<Str sr="arg1" ve="3">.</Str>
+			<Int sr="arg2" val="0"/>
+			<Int sr="arg3" val="0"/>
+		</Action>
+		<Action sr="act5" ve="7">
+			<code>590</code>
+			<Str sr="arg0" ve="3">%res2</Str>
+			<Str sr="arg1" ve="3">.</Str>
+			<Int sr="arg2" val="0"/>
+			<Int sr="arg3" val="0"/>
+		</Action>
+		<Action sr="act6" ve="7">
+			<code>130</code>
+			<label>%par1: App package name to launch in freeform mode.
+
+%par2: Window bounds, defined by four numbers (x1, y1, x2, y2), representing the top-left and bottom-right corners. For example: 0,0,500,500. Note: Freeform windows cannot overlap with the status bar.</label>
+			<Str sr="arg0" ve="3">Launch App In Freeform</Str>
+			<Int sr="arg1">
+				<var>%priority</var>
+			</Int>
+			<Int sr="arg10" val="0"/>
+			<Str sr="arg2" ve="3">com.android.chrome</Str>
+			<Str sr="arg3" ve="3">200,200,%res1(1),%res2(1)</Str>
+			<Str sr="arg4" ve="3"/>
+			<Int sr="arg5" val="0"/>
+			<Int sr="arg6" val="0"/>
+			<Str sr="arg7" ve="3"/>
+			<Int sr="arg8" val="0"/>
+			<Int sr="arg9" val="0"/>
+		</Action>
+		<Action sr="act7" ve="7">
+			<code>130</code>
+			<on>false</on>
+			<Str sr="arg0" ve="3">Launch App In Freeform</Str>
+			<Int sr="arg1">
+				<var>%priority</var>
+			</Int>
+			<Int sr="arg10" val="0"/>
+			<Str sr="arg2" ve="3">com.android.chrome</Str>
+			<Str sr="arg3" ve="3">200,200,1000,1700</Str>
+			<Str sr="arg4" ve="3"/>
+			<Int sr="arg5" val="0"/>
+			<Int sr="arg6" val="0"/>
+			<Str sr="arg7" ve="3"/>
+			<Int sr="arg8" val="0"/>
+			<Int sr="arg9" val="0"/>
+		</Action>
+	</Task>
+	<Task sr="task23">
+		<cdate>1768584220955</cdate>
+		<edate>1775268936558</edate>
+		<id>23</id>
+		<nme>Clipboard_Fix</nme>
+		<pri>100</pri>
+		<Action sr="act0" ve="7">
+			<code>30</code>
+			<Int sr="arg0" val="0"/>
+			<Int sr="arg1" val="0"/>
+			<Int sr="arg2" val="1"/>
+			<Int sr="arg3" val="0"/>
+			<Int sr="arg4" val="0"/>
+		</Action>
+		<Action sr="act1" ve="7">
+			<code>123</code>
+			<se>false</se>
+			<Str sr="arg0" ve="3">APPS="org.kde.kdeconnect_tp net.dinglisch.android.taskerm com.termux ca.apollocode.artemis"
+
+for app in $APPS; do
+    pm grant $app android.permission.READ_LOGS
+    appops set $app SYSTEM_ALERT_WINDOW allow
+    am force-stop $app
+done</Str>
+			<Int sr="arg1" val="0"/>
+			<Int sr="arg2" val="1"/>
+			<Str sr="arg3" ve="3">%Shell_out</Str>
+			<Str sr="arg4" ve="3">%Shell_err</Str>
+			<Str sr="arg5" ve="3"/>
+			<Int sr="arg6" val="1"/>
+			<Int sr="arg7" val="0"/>
+			<Int sr="arg8" val="1"/>
+		</Action>
+		<Action sr="act2" ve="7">
+			<code>547</code>
+			<Str sr="arg0" ve="3">%Logger_Trigger</Str>
+			<Str sr="arg1" ve="3">1</Str>
+			<Int sr="arg2" val="0"/>
+			<Int sr="arg3" val="0"/>
+			<Int sr="arg4" val="0"/>
+			<Int sr="arg5" val="3"/>
+			<Int sr="arg6" val="1"/>
+		</Action>
+	</Task>
+	<Task sr="task24">
+		<cdate>1769000000000</cdate>
+		<edate>1768024367216</edate>
+		<id>24</id>
+		<nme>HIDKey</nme>
+		<pri>100</pri>
+		<Action sr="act0" ve="7">
+			<code>1256900802</code>
+			<label>hidkey</label>
+			<se>false</se>
+			<Bundle sr="arg0">
+				<Vals sr="val">
+					<com.termux.execute.arguments>%par1</com.termux.execute.arguments>
+					<com.termux.execute.arguments-type>java.lang.String</com.termux.execute.arguments-type>
+					<com.termux.tasker.extra.BACKGROUND_CUSTOM_LOG_LEVEL>&lt;null&gt;</com.termux.tasker.extra.BACKGROUND_CUSTOM_LOG_LEVEL>
+					<com.termux.tasker.extra.BACKGROUND_CUSTOM_LOG_LEVEL-type>java.lang.String</com.termux.tasker.extra.BACKGROUND_CUSTOM_LOG_LEVEL-type>
+					<com.termux.tasker.extra.EXECUTABLE>~/.termux/tasker/hidkey.sh</com.termux.tasker.extra.EXECUTABLE>
+					<com.termux.tasker.extra.EXECUTABLE-type>java.lang.String</com.termux.tasker.extra.EXECUTABLE-type>
+					<com.termux.tasker.extra.SESSION_ACTION>&lt;null&gt;</com.termux.tasker.extra.SESSION_ACTION>
+					<com.termux.tasker.extra.SESSION_ACTION-type>java.lang.String</com.termux.tasker.extra.SESSION_ACTION-type>
+					<com.termux.tasker.extra.STDIN></com.termux.tasker.extra.STDIN>
+					<com.termux.tasker.extra.STDIN-type>java.lang.String</com.termux.tasker.extra.STDIN-type>
+					<com.termux.tasker.extra.TERMINAL>false</com.termux.tasker.extra.TERMINAL>
+					<com.termux.tasker.extra.TERMINAL-type>java.lang.Boolean</com.termux.tasker.extra.TERMINAL-type>
+					<com.termux.tasker.extra.VERSION_CODE>1002</com.termux.tasker.extra.VERSION_CODE>
+					<com.termux.tasker.extra.VERSION_CODE-type>java.lang.Integer</com.termux.tasker.extra.VERSION_CODE-type>
+					<com.termux.tasker.extra.WAIT_FOR_RESULT>false</com.termux.tasker.extra.WAIT_FOR_RESULT>
+					<com.termux.tasker.extra.WAIT_FOR_RESULT-type>java.lang.Boolean</com.termux.tasker.extra.WAIT_FOR_RESULT-type>
+					<com.termux.tasker.extra.WORKDIR>&lt;null&gt;</com.termux.tasker.extra.WORKDIR>
+					<com.termux.tasker.extra.WORKDIR-type>java.lang.String</com.termux.tasker.extra.WORKDIR-type>
+					<com.twofortyfouram.locale.intent.extra.BLURB>~/.termux/tasker/hidkey.sh %par1</com.twofortyfouram.locale.intent.extra.BLURB>
+					<com.twofortyfouram.locale.intent.extra.BLURB-type>java.lang.String</com.twofortyfouram.locale.intent.extra.BLURB-type>
+					<net.dinglisch.android.tasker.extras.VARIABLE_REPLACE_KEYS>com.termux.tasker.extra.EXECUTABLE com.termux.execute.arguments com.termux.tasker.extra.WORKDIR com.termux.tasker.extra.STDIN com.termux.tasker.extra.SESSION_ACTION com.termux.tasker.extra.BACKGROUND_CUSTOM_LOG_LEVEL</net.dinglisch.android.tasker.extras.VARIABLE_REPLACE_KEYS>
+					<net.dinglisch.android.tasker.extras.VARIABLE_REPLACE_KEYS-type>java.lang.String</net.dinglisch.android.tasker.extras.VARIABLE_REPLACE_KEYS-type>
+					<net.dinglisch.android.tasker.subbundled>true</net.dinglisch.android.tasker.subbundled>
+					<net.dinglisch.android.tasker.subbundled-type>java.lang.Boolean</net.dinglisch.android.tasker.subbundled-type>
+				</Vals>
+			</Bundle>
+			<Str sr="arg1" ve="3">com.termux.tasker</Str>
+			<Str sr="arg2" ve="3">com.termux.tasker.EditConfigurationActivity</Str>
+			<Int sr="arg3" val="10"/>
+			<Int sr="arg4" val="1"/>
+		</Action>
+	</Task>
+	<Task sr="task25">
+		<cdate>1768584983647</cdate>
+		<edate>1775268946369</edate>
+		<id>25</id>
+		<nme>Master_Logger</nme>
+		<Action sr="act0" ve="7">
+			<code>410</code>
+			<Str sr="arg0" ve="3">Documents/Tasker_Log.txt</Str>
+			<Str sr="arg1" ve="3">--- %DATE %TIME | From: %caller(1) ---
+OUT: %Shell_out
+ERROR: %Shell_err
+---------------------------------
+</Str>
+			<Int sr="arg2" val="1"/>
+			<Int sr="arg3" val="1"/>
+		</Action>
+		<Action sr="act1" ve="7">
+			<code>549</code>
+			<Str sr="arg0" ve="3">%Shell_out</Str>
+			<Int sr="arg1" val="0"/>
+			<Int sr="arg2" val="0"/>
+			<Int sr="arg3" val="0"/>
+		</Action>
+		<Action sr="act2" ve="7">
+			<code>549</code>
+			<Str sr="arg0" ve="3">%Shell_err</Str>
+			<Int sr="arg1" val="0"/>
+			<Int sr="arg2" val="0"/>
+			<Int sr="arg3" val="0"/>
+		</Action>
+		<Action sr="act3" ve="7">
+			<code>547</code>
+			<Str sr="arg0" ve="3">%Logger_Trigger</Str>
+			<Str sr="arg1" ve="3">0</Str>
+			<Int sr="arg2" val="0"/>
+			<Int sr="arg3" val="0"/>
+			<Int sr="arg4" val="0"/>
+			<Int sr="arg5" val="3"/>
+			<Int sr="arg6" val="1"/>
+		</Action>
+	</Task>
+	<Task sr="task28">
+		<cdate>1773259100000</cdate>
+		<edate>1773681009575</edate>
+		<id>28</id>
+		<nme>KioskStart_Edge</nme>
+		<pri>100</pri>
+		<Action sr="act0" ve="7">
+			<code>123</code>
+			<Str sr="arg0" ve="3">/data/data/com.termux/files/home/.termux/tasker/presentation_mode.sh enter edge</Str>
+			<Int sr="arg1" val="0"/>
+			<Int sr="arg2" val="1"/>
+			<Str sr="arg3" ve="3">%Shell_out</Str>
+			<Str sr="arg4" ve="3">%Shell_err</Str>
+			<Str sr="arg5" ve="3"/>
+			<Int sr="arg6" val="1"/>
+			<Int sr="arg7" val="0"/>
+			<Int sr="arg8" val="0"/>
+		</Action>
+	</Task>
+	<Task sr="task29">
+		<cdate>1775249772839</cdate>
+		<edate>1775251222949</edate>
+		<id>29</id>
+		<nme>PowerMenu-Arm-Media</nme>
+		<pri>100</pri>
+		<Action sr="act0" ve="7">
+			<code>123</code>
+			<Str sr="arg0" ve="3">/data/data/com.termux/files/home/.termux/tasker/powermenu.sh ARM_MEDIA</Str>
+			<Int sr="arg1" val="0"/>
+			<Int sr="arg2" val="1"/>
+			<Str sr="arg3" ve="3"/>
+			<Str sr="arg4" ve="3"/>
+			<Str sr="arg5" ve="3"/>
+			<Int sr="arg6" val="1"/>
+			<Int sr="arg7" val="0"/>
+			<Int sr="arg8" val="0"/>
+		</Action>
+		<Img sr="icn" ve="2">
+			<nme>hl_av_fast_forward</nme>
+		</Img>
+	</Task>
+	<Task sr="task30">
+		<cdate>1773259100001</cdate>
+		<edate>1781461365691</edate>
+		<id>30</id>
+		<nme>KioskStart_Artemis</nme>
+		<pri>100</pri>
+		<Action sr="act0" ve="7">
+			<code>123</code>
+			<Str sr="arg0" ve="3">/data/data/com.termux/files/home/.termux/tasker/presentation_mode.sh enter artemis</Str>
+			<Int sr="arg1" val="0"/>
+			<Int sr="arg2" val="1"/>
+			<Str sr="arg3" ve="3">%Shell_out</Str>
+			<Str sr="arg4" ve="3">%Shell_err</Str>
+			<Str sr="arg5" ve="3"/>
+			<Int sr="arg6" val="1"/>
+			<Int sr="arg7" val="0"/>
+			<Int sr="arg8" val="0"/>
+		</Action>
+	</Task>
+	<Task sr="task31">
+		<cdate>1768594118314</cdate>
+		<edate>1784075479934</edate>
+		<id>31</id>
+		<nme>Daily_Snapshot</nme>
+		<pri>6</pri>
+		<Action sr="act0" ve="7">
+			<code>1256900802</code>
+			<Bundle sr="arg0">
+				<Vals sr="val">
+					<com.termux.execute.arguments>&lt;null&gt;</com.termux.execute.arguments>
+					<com.termux.execute.arguments-type>java.lang.String</com.termux.execute.arguments-type>
+					<com.termux.tasker.extra.BACKGROUND_CUSTOM_LOG_LEVEL>&lt;null&gt;</com.termux.tasker.extra.BACKGROUND_CUSTOM_LOG_LEVEL>
+					<com.termux.tasker.extra.BACKGROUND_CUSTOM_LOG_LEVEL-type>java.lang.String</com.termux.tasker.extra.BACKGROUND_CUSTOM_LOG_LEVEL-type>
+					<com.termux.tasker.extra.EXECUTABLE>pixelsnap.sh</com.termux.tasker.extra.EXECUTABLE>
+					<com.termux.tasker.extra.EXECUTABLE-type>java.lang.String</com.termux.tasker.extra.EXECUTABLE-type>
+					<com.termux.tasker.extra.SESSION_ACTION>&lt;null&gt;</com.termux.tasker.extra.SESSION_ACTION>
+					<com.termux.tasker.extra.SESSION_ACTION-type>java.lang.String</com.termux.tasker.extra.SESSION_ACTION-type>
+					<com.termux.tasker.extra.STDIN></com.termux.tasker.extra.STDIN>
+					<com.termux.tasker.extra.STDIN-type>java.lang.String</com.termux.tasker.extra.STDIN-type>
+					<com.termux.tasker.extra.TERMINAL>false</com.termux.tasker.extra.TERMINAL>
+					<com.termux.tasker.extra.TERMINAL-type>java.lang.Boolean</com.termux.tasker.extra.TERMINAL-type>
+					<com.termux.tasker.extra.VERSION_CODE>1002</com.termux.tasker.extra.VERSION_CODE>
+					<com.termux.tasker.extra.VERSION_CODE-type>java.lang.Integer</com.termux.tasker.extra.VERSION_CODE-type>
+					<com.termux.tasker.extra.WAIT_FOR_RESULT>true</com.termux.tasker.extra.WAIT_FOR_RESULT>
+					<com.termux.tasker.extra.WAIT_FOR_RESULT-type>java.lang.Boolean</com.termux.tasker.extra.WAIT_FOR_RESULT-type>
+					<com.termux.tasker.extra.WORKDIR>/data/data/com.termux/files/home/</com.termux.tasker.extra.WORKDIR>
+					<com.termux.tasker.extra.WORKDIR-type>java.lang.String</com.termux.tasker.extra.WORKDIR-type>
+					<com.twofortyfouram.locale.intent.extra.BLURB>pixelsnap.sh
+
+Working Directory ✓
+Stdin ✕
+Custom Log Level null
+Terminal Session ✕
+Wait For Result ✓</com.twofortyfouram.locale.intent.extra.BLURB>
+					<com.twofortyfouram.locale.intent.extra.BLURB-type>java.lang.String</com.twofortyfouram.locale.intent.extra.BLURB-type>
+					<net.dinglisch.android.tasker.RELEVANT_VARIABLES>&lt;StringArray sr=""&gt;&lt;_array_net.dinglisch.android.tasker.RELEVANT_VARIABLES0&gt;%stdout
+Standard Output
+The &amp;lt;B&amp;gt;stdout&amp;lt;/B&amp;gt; of the command.&lt;/_array_net.dinglisch.android.tasker.RELEVANT_VARIABLES0&gt;&lt;_array_net.dinglisch.android.tasker.RELEVANT_VARIABLES1&gt;%stdout_original_length
+Standard Output Original Length
+The original length of &amp;lt;B&amp;gt;stdout&amp;lt;/B&amp;gt;.&lt;/_array_net.dinglisch.android.tasker.RELEVANT_VARIABLES1&gt;&lt;_array_net.dinglisch.android.tasker.RELEVANT_VARIABLES2&gt;%stderr
+Standard Error
+The &amp;lt;B&amp;gt;stderr&amp;lt;/B&amp;gt; of the command.&lt;/_array_net.dinglisch.android.tasker.RELEVANT_VARIABLES2&gt;&lt;_array_net.dinglisch.android.tasker.RELEVANT_VARIABLES3&gt;%stderr_original_length
+Standard Error Original Length
+The original length of &amp;lt;B&amp;gt;stderr&amp;lt;/B&amp;gt;.&lt;/_array_net.dinglisch.android.tasker.RELEVANT_VARIABLES3&gt;&lt;_array_net.dinglisch.android.tasker.RELEVANT_VARIABLES4&gt;%result
+Exit Code
+The &amp;lt;B&amp;gt;exit code&amp;lt;/B&amp;gt; of the command.0 often means success and anything else is usually a failure of some sort.&lt;/_array_net.dinglisch.android.tasker.RELEVANT_VARIABLES4&gt;&lt;/StringArray&gt;</net.dinglisch.android.tasker.RELEVANT_VARIABLES>
+					<net.dinglisch.android.tasker.RELEVANT_VARIABLES-type>[Ljava.lang.String;</net.dinglisch.android.tasker.RELEVANT_VARIABLES-type>
+					<net.dinglisch.android.tasker.extras.VARIABLE_REPLACE_KEYS>com.termux.tasker.extra.EXECUTABLE com.termux.execute.arguments com.termux.tasker.extra.WORKDIR com.termux.tasker.extra.STDIN com.termux.tasker.extra.SESSION_ACTION com.termux.tasker.extra.BACKGROUND_CUSTOM_LOG_LEVEL</net.dinglisch.android.tasker.extras.VARIABLE_REPLACE_KEYS>
+					<net.dinglisch.android.tasker.extras.VARIABLE_REPLACE_KEYS-type>java.lang.String</net.dinglisch.android.tasker.extras.VARIABLE_REPLACE_KEYS-type>
+					<net.dinglisch.android.tasker.subbundled>true</net.dinglisch.android.tasker.subbundled>
+					<net.dinglisch.android.tasker.subbundled-type>java.lang.Boolean</net.dinglisch.android.tasker.subbundled-type>
+				</Vals>
+			</Bundle>
+			<Str sr="arg1" ve="3">com.termux.tasker</Str>
+			<Str sr="arg2" ve="3">com.termux.tasker.EditConfigurationActivity</Str>
+			<Int sr="arg3" val="300"/>
+			<Int sr="arg4" val="1"/>
+		</Action>
+	</Task>
+	<Task sr="task32">
+		<cdate>1767409995082</cdate>
+		<edate>1773253068849</edate>
+		<id>32</id>
+		<nme>SKButton</nme>
+		<pri>100</pri>
+		<Action sr="act0" ve="7">
+			<code>49</code>
+			<Str sr="arg0" ve="3">SKButton</Str>
+		</Action>
+		<Action sr="act1" ve="7">
+			<code>47</code>
+			<se>false</se>
+			<Str sr="arg0" ve="3">SKButton</Str>
+			<Int sr="arg1" val="1"/>
+			<Int sr="arg10" val="1"/>
+			<Int sr="arg2" val="122"/>
+			<Int sr="arg3" val="0"/>
+			<Int sr="arg4" val="0"/>
+			<Int sr="arg5" val="0"/>
+			<Int sr="arg6" val="1"/>
+			<Int sr="arg7" val="1"/>
+			<Int sr="arg8" val="1"/>
+			<Int sr="arg9" val="1"/>
+		</Action>
+	</Task>
+	<Task sr="task33">
+		<cdate>1767410337366</cdate>
+		<edate>1767410337366</edate>
+		<id>33</id>
+		<pri>7</pri>
+		<Action sr="act0" ve="7">
+			<code>130</code>
+			<Str sr="arg0" ve="3">Toggle-Special-Keys</Str>
+			<Int sr="arg1">
+				<var>%priority</var>
+			</Int>
+			<Int sr="arg10" val="1"/>
+			<Str sr="arg2" ve="3"/>
+			<Str sr="arg3" ve="3"/>
+			<Str sr="arg4" ve="3"/>
+			<Int sr="arg5" val="0"/>
+			<Int sr="arg6" val="0"/>
+			<Str sr="arg7" ve="3"/>
+			<Int sr="arg8" val="0"/>
+			<Int sr="arg9" val="0"/>
+		</Action>
+	</Task>
+	<Task sr="task37">
+		<cdate>1775249901282</cdate>
+		<edate>1776063179138</edate>
+		<id>37</id>
+		<nme>PowerMenu-VolUp</nme>
+		<pri>100</pri>
+		<Action sr="act0" ve="7">
+			<code>123</code>
+			<Str sr="arg0" ve="3">/data/data/com.termux/files/home/.termux/tasker/powermenu.sh VOL_UP</Str>
+			<Int sr="arg1" val="0"/>
+			<Int sr="arg2" val="1"/>
+			<Str sr="arg3" ve="3"/>
+			<Str sr="arg4" ve="3"/>
+			<Str sr="arg5" ve="3"/>
+			<Int sr="arg6" val="1"/>
+			<Int sr="arg7" val="0"/>
+			<Int sr="arg8" val="0"/>
+		</Action>
+		<Img sr="icn" ve="2">
+			<nme>hl_device_access_volume_on</nme>
+		</Img>
+	</Task>
+	<Task sr="task38">
+		<cdate>1773262000000</cdate>
+		<edate>1784075353114</edate>
+		<id>38</id>
+		<nme>Bootstrap_PixelStack</nme>
+		<pri>100</pri>
+		<Action sr="act0" ve="7">
+			<code>123</code>
+			<Str sr="arg0" ve="3">mkdir -p /data/data/com.termux/files/home/.termux/tasker /data/data/com.termux/files/home/.termux/boot</Str>
+			<Int sr="arg1" val="0"/>
+			<Int sr="arg2" val="1"/>
+			<Str sr="arg3" ve="3"/>
+			<Str sr="arg4" ve="3"/>
+			<Str sr="arg5" ve="3"/>
+			<Int sr="arg6" val="1"/>
+			<Int sr="arg7" val="0"/>
+			<Int sr="arg8" val="0"/>
+		</Action>
+		<Action sr="act1" ve="7">
+			<code>123</code>
+			<Str sr="arg0" ve="3">cat &gt; /data/data/com.termux/files/home/.termux/tasker/clutch.sh &lt;&lt;'EOF_TASKER'
+#!/data/data/com.termux/files/usr/bin/bash
+mosquitto_pub -h 100.108.8.60 -t "android/clutch" -m "TOGGLE"
+EOF_TASKER
+chmod 700 /data/data/com.termux/files/home/.termux/tasker/clutch.sh</Str>
+			<Int sr="arg1" val="0"/>
+			<Int sr="arg2" val="1"/>
+			<Str sr="arg3" ve="3"/>
+			<Str sr="arg4" ve="3"/>
+			<Str sr="arg5" ve="3"/>
+			<Int sr="arg6" val="1"/>
+			<Int sr="arg7" val="0"/>
+			<Int sr="arg8" val="0"/>
+		</Action>
+		<Action sr="act2" ve="7">
+			<code>123</code>
+			<Str sr="arg0" ve="3">cat &gt; /data/data/com.termux/files/home/.termux/tasker/click.sh &lt;&lt;'EOF_TASKER'
+#!/data/data/com.termux/files/usr/bin/bash
+mosquitto_pub -h 100.108.8.60 -t "android/click" -m "LEFT"
+EOF_TASKER
+chmod 700 /data/data/com.termux/files/home/.termux/tasker/click.sh</Str>
+			<Int sr="arg1" val="0"/>
+			<Int sr="arg2" val="1"/>
+			<Str sr="arg3" ve="3"/>
+			<Str sr="arg4" ve="3"/>
+			<Str sr="arg5" ve="3"/>
+			<Int sr="arg6" val="1"/>
+			<Int sr="arg7" val="0"/>
+			<Int sr="arg8" val="0"/>
+		</Action>
+		<Action sr="act3" ve="7">
+			<code>123</code>
+			<Str sr="arg0" ve="3">cat &gt; /data/data/com.termux/files/home/.termux/tasker/hidrunner.sh &lt;&lt;'EOF_TASKER'
+#!/data/data/com.termux/files/usr/bin/bash
+set -u
+
+PIPE=/data/local/tmp/pixel_keyboard.fifo
+LOG=/data/local/tmp/pixel_keyboard.log
+PID=/data/local/tmp/pixel_keyboard.pid
+
+DESC='[0x05,0x01,0x09,0x06,0xA1,0x01,0x05,0x07,0x19,0xE0,0x29,0xE7,0x15,0x00,0x25,0x01,0x75,0x01,0x95,0x08,0x81,0x02,0x95,0x01,0x75,0x08,0x81,0x03,0x95,0x05,0x75,0x01,0x05,0x08,0x19,0x01,0x29,0x05,0x91,0x02,0x95,0x01,0x75,0x03,0x91,0x03,0x95,0x06,0x75,0x08,0x15,0x00,0x25,0x65,0x05,0x07,0x19,0x00,0x29,0x65,0x81,0x00,0xC0]'
+
+stop_runner() {
+  sudo sh -c '
+    if [ -f /data/local/tmp/pixel_keyboard.pid ]; then
+      kill "$(cat /data/local/tmp/pixel_keyboard.pid)" 2&gt;/dev/null || true
+      rm -f /data/local/tmp/pixel_keyboard.pid
+    fi
+    rm -f /data/local/tmp/pixel_keyboard.fifo
+  '
+}
+
+start_runner() {
+  stop_runner
+  sudo sh -c "
+    nohup sh -c '
+      while true; do
+        rm -f \"$PIPE\"
+        mkfifo \"$PIPE\"
+        {
+          echo \"{ \\\"id\\\": 1, \\\"command\\\": \\\"register\\\", \\\"name\\\": \\\"PixelSaneKey\\\", \\\"vid\\\": 0x18d1, \\\"pid\\\": 0x2c40, \\\"bus\\\": \\\"bluetooth\\\", \\\"descriptor\\\": $DESC }\"
+          echo \"{ \\\"id\\\": 1, \\\"command\\\": \\\"delay\\\", \\\"duration\\\": 800 }\"
+          cat \"$PIPE\"
+        } | /system/bin/hid - &gt;&gt;\"$LOG\" 2&gt;&amp;1
+        sleep 1
+      done
+    ' &gt;/dev/null 2&gt;&amp;1 &amp; echo \$! &gt; \"$PID\"
+  "
+}
+
+case \"${1:-}\" in
+  start) start_runner ;;
+  stop)  stop_runner ;;
+  *)
+    echo \"Usage: hidrunner.sh {start|stop}\"
+    exit 1
+    ;;
+esac
+EOF_TASKER
+chmod 700 /data/data/com.termux/files/home/.termux/tasker/hidrunner.sh</Str>
+			<Int sr="arg1" val="0"/>
+			<Int sr="arg2" val="1"/>
+			<Str sr="arg3" ve="3"/>
+			<Str sr="arg4" ve="3"/>
+			<Str sr="arg5" ve="3"/>
+			<Int sr="arg6" val="1"/>
+			<Int sr="arg7" val="0"/>
+			<Int sr="arg8" val="0"/>
+		</Action>
+		<Action sr="act4" ve="7">
+			<code>123</code>
+			<Str sr="arg0" ve="3">cat &gt; /data/data/com.termux/files/home/.termux/tasker/hidkey.sh &lt;&lt;'EOF_TASKER'
+#!/data/data/com.termux/files/usr/bin/bash
+set -euo pipefail
+
+FIFO="/data/local/tmp/pixel_keyboard.fifo"
+MODFILE="/data/local/tmp/pixel_keyboard.mod"
+
+asroot() { su -c "$*"; }
+
+get_mod() {
+  asroot "test -f '$MODFILE' || echo 0 &gt; '$MODFILE'"
+  asroot "cat '$MODFILE' 2&gt;/dev/null" | tr -d '\r\n' | sed 's/[^0-9]//g' || echo 0
+}
+
+set_mod() {
+  local mod="$1"
+  asroot "printf '%s\n' '$mod' &gt; '$MODFILE'"
+}
+
+send_report() {
+  local mod="$1"
+  local key="$2"
+  asroot "test -p '$FIFO'" || exit 0
+  asroot "printf '%s\n' '{ \"id\": 1, \"command\": \"report\", \"report\": [$mod,0,$key,0,0,0,0,0] }' &gt; '$FIFO'"
+}
+
+tap_key() {
+  local key="$1"
+  local mod
+  mod="$(get_mod)"
+  send_report "$mod" "$key"
+  usleep 30000 2&gt;/dev/null || sleep 0.03
+  send_report "$mod" 0
+}
+
+toggle_modbit() {
+  local bit="$1"
+  local mod
+  mod="$(get_mod)"
+  mod=$(( mod ^ bit ))
+  set_mod "$mod"
+  send_report "$mod" 0
+}
+
+cmd="${1:-}"
+[[ -n "$cmd" ]] || exit 0
+cmd="$(echo "$cmd" | tr '[:lower:]' '[:upper:]')"
+
+case "$cmd" in
+  CTRL)  toggle_modbit 1 ;;
+  SHIFT) toggle_modbit 2 ;;
+  ALT)   toggle_modbit 4 ;;
+  GUI|WIN|META) toggle_modbit 8 ;;
+  CLEAR|RESET)
+    set_mod 0
+    send_report 0 0
+    ;;
+  ESC)  tap_key 41 ;;
+  TAB)  tap_key 43 ;;
+  ENTER|RETURN) tap_key 40 ;;
+  BSP|BACKSPACE) tap_key 42 ;;
+  SPACE) tap_key 44 ;;
+  DEL|DELETE) tap_key 76 ;;
+  HOME) tap_key 74 ;;
+  END)  tap_key 77 ;;
+  PGUP|PAGEUP) tap_key 75 ;;
+  PGDN|PAGEDOWN) tap_key 78 ;;
+  UP)    tap_key 82 ;;
+  DOWN)  tap_key 81 ;;
+  LEFT)  tap_key 80 ;;
+  RIGHT) tap_key 79 ;;
+  A) tap_key 4 ;; B) tap_key 5 ;; C) tap_key 6 ;; D) tap_key 7 ;; E) tap_key 8 ;;
+  F) tap_key 9 ;; G) tap_key 10 ;; H) tap_key 11 ;; I) tap_key 12 ;; J) tap_key 13 ;;
+  K) tap_key 14 ;; L) tap_key 15 ;; M) tap_key 16 ;; N) tap_key 17 ;; O) tap_key 18 ;;
+  P) tap_key 19 ;; Q) tap_key 20 ;; R) tap_key 21 ;; S) tap_key 22 ;; T) tap_key 23 ;;
+  U) tap_key 24 ;; V) tap_key 25 ;; W) tap_key 26 ;; X) tap_key 27 ;; Y) tap_key 28 ;;
+  Z) tap_key 29 ;;
+  *)
+    exit 0
+    ;;
+esac
+EOF_TASKER
+chmod 700 /data/data/com.termux/files/home/.termux/tasker/hidkey.sh</Str>
+			<Int sr="arg1" val="0"/>
+			<Int sr="arg2" val="1"/>
+			<Str sr="arg3" ve="3"/>
+			<Str sr="arg4" ve="3"/>
+			<Str sr="arg5" ve="3"/>
+			<Int sr="arg6" val="1"/>
+			<Int sr="arg7" val="0"/>
+			<Int sr="arg8" val="0"/>
+		</Action>
+		<Action sr="act5" ve="7">
+			<code>123</code>
+			<Str sr="arg0" ve="3">cat &gt; /data/data/com.termux/files/home/.termux/tasker/dispatch_input.sh &lt;&lt;'EOF_TASKER'
+#!/data/data/com.termux/files/usr/bin/bash
+set -euo pipefail
+
+TERMUX_HOME="/data/data/com.termux/files/home"
+TASKER_DIR="${TERMUX_HOME}/.termux/tasker"
+
+HIDRUNNER="${TASKER_DIR}/hidrunner.sh"
+HIDKEY="${TASKER_DIR}/hidkey.sh"
+CLUTCH="${TASKER_DIR}/clutch.sh"
+CLICK="${TASKER_DIR}/click.sh"
+
+need_exec() {
+  local file="$1"
+  if [[ ! -x "$file" ]]; then
+    echo "Missing executable: $file" &gt;&amp;2
+    exit 1
+  fi
+}
+
+run_root_script() {
+  local file="$1"
+  shift
+  need_exec "$file"
+  local cmd
+  printf -v cmd '%q' "$file"
+  if [[ $# -gt 0 ]]; then
+    local arg
+    for arg in "$@"; do
+      printf -v cmd '%s %q' "$cmd" "$arg"
+    done
+  fi
+  su -c "$cmd"
+}
+
+dispatch_hid() {
+  local token="$1"
+  need_exec "$HIDKEY"
+  "$HIDKEY" "$token"
+}
+
+action="${1:-}"
+target="${2:-}"
+
+if [[ -z "$action" ]]; then
+  echo "Usage: dispatch_input.sh &lt;ACTION&gt; [TARGET]" &gt;&amp;2
+  exit 1
+fi
+
+action="$(printf '%s' "$action" | tr '[:lower:]' '[:upper:]')"
+
+case "$action" in
+  CLUTCH|CLUTCH_TOGGLE)
+    run_root_script "$CLUTCH"
+    ;;
+  CLICK|CLICK_TOGGLE|CLICK_HOLD)
+    run_root_script "$CLICK"
+    ;;
+  HID_START)
+    run_root_script "$HIDRUNNER" start
+    ;;
+  HID_STOP)
+    run_root_script "$HIDRUNNER" stop
+    ;;
+  HID|KEY)
+    if [[ -z "$target" ]]; then
+      echo "dispatch_input.sh HID &lt;TOKEN&gt;" &gt;&amp;2
+      exit 1
+    fi
+    dispatch_hid "$target"
+    ;;
+  CTRL|SHIFT|ALT|GUI|WIN|META|CLEAR|RESET|ESC|TAB|ENTER|RETURN|BSP|BACKSPACE|SPACE|DEL|DELETE|HOME|END|PGUP|PAGEUP|PGDN|PAGEDOWN|UP|DOWN|LEFT|RIGHT|A|B|C|D|E|F|G|H|I|J|K|L|M|N|O|P|Q|R|S|T|U|V|W|X|Y|Z)
+    dispatch_hid "$action"
+    ;;
+  *)
+    echo "Unknown action: $action" &gt;&amp;2
+    exit 1
+    ;;
+esac
+EOF_TASKER
+chmod 700 /data/data/com.termux/files/home/.termux/tasker/dispatch_input.sh</Str>
+			<Int sr="arg1" val="0"/>
+			<Int sr="arg2" val="1"/>
+			<Str sr="arg3" ve="3"/>
+			<Str sr="arg4" ve="3"/>
+			<Str sr="arg5" ve="3"/>
+			<Int sr="arg6" val="1"/>
+			<Int sr="arg7" val="0"/>
+			<Int sr="arg8" val="0"/>
+		</Action>
+		<Action sr="act6" ve="7">
+			<code>123</code>
+			<Str sr="arg0" ve="3">cat &gt; /data/data/com.termux/files/home/.termux/tasker/presentation_mode.sh &lt;&lt;'EOF_TASKER'
+#!/data/data/com.termux/files/usr/bin/bash
+set -euo pipefail
+
+TERMUX_HOME="/data/data/com.termux/files/home"
+STATE_DIR="${TERMUX_HOME}/.termux/tasker/.presentation-mode"
+STATE_FILE="${STATE_DIR}/state.env"
+
+EDGE_COMPONENT="com.microsoft.emmx/com.microsoft.ruby.Main"
+ARTEMIS_COMPONENT="com.limelight.root.noirdebug/com.limelight.PcView"
+
+require_root() {
+    if [[ "$(id -u)" -ne 0 ]]; then
+        echo "presentation_mode.sh must run as root" &gt;&amp;2
+        exit 1
+    fi
+}
+
+escape_squotes() {
+    printf "%s" "$1" | sed "s/'/'\\\\''/g"
+}
+
+current_policy_control() {
+    settings get global policy_control 2&gt;/dev/null || true
+}
+
+store_state() {
+    local target="$1"
+    local component="$2"
+    local previous_policy
+    previous_policy="$(current_policy_control)"
+
+    mkdir -p "$STATE_DIR"
+    cat &gt;"$STATE_FILE" &lt;&lt;EOF
+TARGET='$(escape_squotes "$target")'
+COMPONENT='$(escape_squotes "$component")'
+PREVIOUS_POLICY_CONTROL='$(escape_squotes "$previous_policy")'
+EOF
+}
+
+apply_statusbar_restrictions() {
+    cmd statusbar collapse || true
+    cmd statusbar send-disable-flag home recents statusbar-expansion notification-peek quick-settings
+}
+
+clear_statusbar_restrictions() {
+    cmd statusbar send-disable-flag none
+}
+
+apply_policy_control() {
+    local pkg="$1"
+    settings put global policy_control "immersive.full=${pkg}"
+}
+
+restore_policy_control() {
+    local previous="null"
+    if [[ -f "$STATE_FILE" ]]; then
+        source "$STATE_FILE"
+        previous="${PREVIOUS_POLICY_CONTROL:-null}"
+    fi
+
+    if [[ -z "$previous" || "$previous" == "null" ]]; then
+        settings delete global policy_control || true
+    else
+        settings put global policy_control "$previous"
+    fi
+}
+
+launch_component() {
+    local component="$1"
+    am start-activity -W -n "$component"
+}
+
+component_to_package() {
+    printf "%s" "${1%%/*}"
+}
+
+resolve_component() {
+    case "$1" in
+        edge) printf "%s" "$EDGE_COMPONENT" ;;
+        artemis) printf "%s" "$ARTEMIS_COMPONENT" ;;
+        */*) printf "%s" "$1" ;;
+        *)
+            echo "Unknown target '$1'." &gt;&amp;2
+            exit 1
+            ;;
+    esac
+}
+
+enter_mode() {
+    local target="$1"
+    local component pkg
+    component="$(resolve_component "$target")"
+    pkg="$(component_to_package "$component")"
+
+    store_state "$target" "$component"
+    apply_policy_control "$pkg"
+    apply_statusbar_restrictions
+    launch_component "$component"
+}
+
+exit_mode() {
+    clear_statusbar_restrictions
+    restore_policy_control
+}
+
+case "${1:-}" in
+    enter) enter_mode "$2" ;;
+    exit) exit_mode ;;
+    *) exit 1 ;;
+esac
+EOF_TASKER
+chmod 700 /data/data/com.termux/files/home/.termux/tasker/presentation_mode.sh</Str>
+			<Int sr="arg1" val="0"/>
+			<Int sr="arg2" val="1"/>
+			<Str sr="arg3" ve="3"/>
+			<Str sr="arg4" ve="3"/>
+			<Str sr="arg5" ve="3"/>
+			<Int sr="arg6" val="1"/>
+			<Int sr="arg7" val="0"/>
+			<Int sr="arg8" val="0"/>
+		</Action>
+		<Action sr="act7" ve="7">
+			<code>123</code>
+			<Str sr="arg0" ve="3">cat &gt; /data/data/com.termux/files/home/.termux/boot/start-gyro-control.sh &lt;&lt;'EOF_TASKER'
+#!/data/data/com.termux/files/usr/bin/bash
+PREFIX=/data/data/com.termux/files/usr
+HOME_TERMUX=/data/data/com.termux/files/home
+PATH=$PREFIX/bin:/system/bin:/system/xbin:/vendor/bin:/vendor/xbin
+LOG=$HOME_TERMUX/.termux/boot/start-gyro-control.log
+TASKER_DIR=$HOME_TERMUX/.termux/tasker
+ENVFILE=$TASKER_DIR/sensor-relay.env
+
+mkdir -p "$TASKER_DIR"
+
+cat &gt; "$TASKER_DIR/clutch.sh" &lt;&lt;'EOS'
+#!/data/data/com.termux/files/usr/bin/bash
+/data/data/com.termux/files/usr/bin/mosquitto_pub -h 100.108.8.60 -t "android/clutch" -m "TOGGLE"
+EOS
+
+cat &gt; "$TASKER_DIR/click.sh" &lt;&lt;'EOS'
+#!/data/data/com.termux/files/usr/bin/bash
+/data/data/com.termux/files/usr/bin/mosquitto_pub -h 100.108.8.60 -t "android/click" -m "TOGGLE"
+EOS
+
+chmod 700 "$TASKER_DIR/clutch.sh" "$TASKER_DIR/click.sh"
+
+ENABLE_SENSOR_RELAY=1
+[ -f "$ENVFILE" ] &amp;&amp; . "$ENVFILE"
+
+if [ "${ENABLE_SENSOR_RELAY:-1}" = "1" ] &amp;&amp; [ -x "$TASKER_DIR/sensor-relay-start.sh" ]; then
+  "$TASKER_DIR/sensor-relay-start.sh" &gt;&gt; "$LOG" 2&gt;&amp;1 || true
+fi
+
+{
+  echo "[$(date +%F_%T)] gyro boot prep"
+  if command -v /data/data/com.termux/files/usr/bin/mosquitto_pub &gt;/dev/null 2&gt;&amp;1; then
+    echo "mosquitto_pub: ok"
+  else
+    echo "mosquitto_pub: MISSING"
+  fi
+  ls -l "$TASKER_DIR/clutch.sh" "$TASKER_DIR/click.sh"
+} &gt;&gt; "$LOG" 2&gt;&amp;1
+EOF_TASKER
+chmod 700 /data/data/com.termux/files/home/.termux/boot/start-gyro-control.sh</Str>
+			<Int sr="arg1" val="0"/>
+			<Int sr="arg2" val="1"/>
+			<Str sr="arg3" ve="3"/>
+			<Str sr="arg4" ve="3"/>
+			<Str sr="arg5" ve="3"/>
+			<Int sr="arg6" val="1"/>
+			<Int sr="arg7" val="0"/>
+			<Int sr="arg8" val="0"/>
+		</Action>
+		<Action sr="act8" ve="7">
+			<code>123</code>
+			<Str sr="arg0" ve="3">ls -l /data/data/com.termux/files/home/.termux/tasker /data/data/com.termux/files/home/.termux/boot</Str>
+			<Int sr="arg1" val="0"/>
+			<Int sr="arg2" val="1"/>
+			<Str sr="arg3" ve="3"/>
+			<Str sr="arg4" ve="3"/>
+			<Str sr="arg5" ve="3"/>
+			<Int sr="arg6" val="1"/>
+			<Int sr="arg7" val="0"/>
+			<Int sr="arg8" val="0"/>
+		</Action>
+	</Task>
+	<Task sr="task4">
+		<cdate>1679550054759</cdate>
+		<edate>1781732557173</edate>
+		<id>4</id>
+		<pri>6</pri>
+		<Action sr="act0" ve="7">
+			<code>37</code>
+			<coll>true</coll>
+			<ConditionList sr="if">
+				<Condition sr="c0" ve="3">
+					<lhs>%evtprm3</lhs>
+					<op>13</op>
+					<rhs></rhs>
+				</Condition>
+			</ConditionList>
+		</Action>
+		<Action sr="act1" ve="7">
+			<code>548</code>
+			<Str sr="arg0" ve="3">Couldn't extract text, please try again!</Str>
+			<Int sr="arg1" val="0"/>
+			<Str sr="arg10" ve="3"/>
+			<Int sr="arg11" val="1"/>
+			<Int sr="arg12" val="0"/>
+			<Str sr="arg13" ve="3"/>
+			<Int sr="arg14" val="0"/>
+			<Str sr="arg15" ve="3"/>
+			<Int sr="arg2" val="0"/>
+			<Str sr="arg3" ve="3"/>
+			<Str sr="arg4" ve="3"/>
+			<Str sr="arg5" ve="3"/>
+			<Str sr="arg6" ve="3"/>
+			<Str sr="arg7" ve="3"/>
+			<Str sr="arg8" ve="3"/>
+			<Int sr="arg9" val="1"/>
+		</Action>
+		<Action sr="act10" ve="7">
+			<code>43</code>
+		</Action>
+		<Action sr="act11" ve="7">
+			<code>105</code>
+			<Str sr="arg0" ve="3">%ld_selected</Str>
+			<Int sr="arg1" val="0"/>
+			<Str sr="arg2" ve="3"/>
+			<Int sr="arg3" val="0"/>
+		</Action>
+		<Action sr="act12" ve="7">
+			<code>38</code>
+		</Action>
+		<Action sr="act2" ve="7">
+			<code>137</code>
+			<Int sr="arg0" val="0"/>
+			<Str sr="arg1" ve="3"/>
+		</Action>
+		<Action sr="act3" ve="7">
+			<code>38</code>
+		</Action>
+		<Action sr="act4" ve="7">
+			<code>362</code>
+			<label>&lt;font color="red"&gt;&lt;b&gt;Required&lt;/b&gt;&lt;/font&gt;
+&lt;br&gt;
+You can disable this action if you are sure that Tasker is set as your device assistant.</label>
+			<Str sr="arg0" ve="3">net.dinglisch.android.taskerm</Str>
+		</Action>
+		<Action sr="act5" ve="7">
+			<code>547</code>
+			<Str sr="arg0" ve="3">%texts</Str>
+			<Str sr="arg1" ve="3">%evtprm3</Str>
+			<Int sr="arg2" val="0"/>
+			<Int sr="arg3" val="0"/>
+			<Int sr="arg4" val="0"/>
+			<Int sr="arg5" val="3"/>
+			<Int sr="arg6" val="1"/>
+		</Action>
+		<Action sr="act6" ve="7">
+			<code>129</code>
+			<Str sr="arg0" ve="3">var extracted = [];
+var textsObject = JSON.parse(texts);
+extracted = textsObject.map(item =&gt; item.text).filter(text =&gt; text.length &gt; 6).sort((a, b) =&gt; b.length - a.length);</Str>
+			<Str sr="arg1" ve="3"/>
+			<Int sr="arg2" val="1"/>
+			<Int sr="arg3" val="45"/>
+		</Action>
+		<Action sr="act7" ve="7">
+			<code>378</code>
+			<Bundle sr="arg0">
+				<Vals sr="val">
+					<net.dinglisch.android.tasker.RELEVANT_VARIABLES>&lt;StringArray sr=""&gt;&lt;_array_net.dinglisch.android.tasker.RELEVANT_VARIABLES0&gt;%ld_button
+Button
+The label of the button that was clicked&lt;/_array_net.dinglisch.android.tasker.RELEVANT_VARIABLES0&gt;&lt;_array_net.dinglisch.android.tasker.RELEVANT_VARIABLES1&gt;%ld_long
+Long
+true if item was long clicked, false otherwise&lt;/_array_net.dinglisch.android.tasker.RELEVANT_VARIABLES1&gt;&lt;_array_net.dinglisch.android.tasker.RELEVANT_VARIABLES2&gt;%ld_selected
+Selected
+&lt;/_array_net.dinglisch.android.tasker.RELEVANT_VARIABLES2&gt;&lt;_array_net.dinglisch.android.tasker.RELEVANT_VARIABLES3&gt;%ld_selected_index
+Selected Index
+&lt;/_array_net.dinglisch.android.tasker.RELEVANT_VARIABLES3&gt;&lt;/StringArray&gt;</net.dinglisch.android.tasker.RELEVANT_VARIABLES>
+					<net.dinglisch.android.tasker.RELEVANT_VARIABLES-type>[Ljava.lang.String;</net.dinglisch.android.tasker.RELEVANT_VARIABLES-type>
+				</Vals>
+			</Bundle>
+			<Int sr="arg1" val="0"/>
+			<Int sr="arg10" val="1"/>
+			<Int sr="arg11" val="0"/>
+			<Int sr="arg12" val="0"/>
+			<Str sr="arg13" ve="3">&lt;font color="grey"&gt;Tap to copy&lt;br&gt;
+Long tap to add&lt;/font&gt;</Str>
+			<Str sr="arg2" ve="3">Tap to copy</Str>
+			<Str sr="arg3" ve="3">%extracted</Str>
+			<Str sr="arg4" ve="3"/>
+			<Str sr="arg5" ve="3"/>
+			<Str sr="arg6" ve="3"/>
+			<Str sr="arg7" ve="3"/>
+			<Str sr="arg8" ve="3"/>
+			<Int sr="arg9" val="120"/>
+		</Action>
+		<Action sr="act8" ve="7">
+			<code>37</code>
+			<coll>true</coll>
+			<ConditionList sr="if">
+				<Condition sr="c0" ve="3">
+					<lhs>%ld_long</lhs>
+					<op>2</op>
+					<rhs>true</rhs>
+				</Condition>
+			</ConditionList>
+		</Action>
+		<Action sr="act9" ve="7">
+			<code>105</code>
+			<Str sr="arg0" ve="3">
+
+%ld_selected</Str>
+			<Int sr="arg1" val="1"/>
+			<Str sr="arg2" ve="3"/>
+			<Int sr="arg3" val="0"/>
+		</Action>
+	</Task>
+	<Task sr="task40">
+		<cdate>1768598220790</cdate>
+		<edate>1779121996997</edate>
+		<id>40</id>
+		<nme>Accessibility_Fix</nme>
+		<pri>100</pri>
+		<Action sr="act0" ve="7">
+			<code>123</code>
+			<Str sr="arg0" ve="3">settings put secure enabled_accessibility_services "com.joaomgcd.autonotification/com.joaomgcd.autonotification.service.ServiceToastIntercept:io.github.sds100.keymapper/io.github.sds100.keymapper.system.accessibility.MyAccessibilityService:com.limelight.noir/com.limelight.KeyboardAccessibilityService:com.joaomgcd.autoinput/com.joaomgcd.autoinput.service.ServiceAccessibilityV2:com.pranavpandey.rotation/com.pranavpandey.rotation.service.RotationService:io.github.muntashirakon.AppManager/io.github.muntashirakon.AppManager.accessibility.NoRootAccessibilityService:org.kde.kdeconnect_tp/org.kde.kdeconnect.Plugins.MouseReceiverPlugin.MouseReceiverService:net.dinglisch.android.taskerm/net.dinglisch.android.taskerm.MyAccessibilityService:com.teslacoilsw.launcher/com.teslacoilsw.launcher.NovaAccessibilityService:app.lawnchair.nightly/app.lawnchair.LawnchairAccessibilityService:com.termux.x11/com.termux.x11.utils.KeyInterceptor"</Str>
+			<Int sr="arg1" val="0"/>
+			<Int sr="arg2" val="1"/>
+			<Str sr="arg3" ve="3">%Shell_out</Str>
+			<Str sr="arg4" ve="3">%Shell_err</Str>
+			<Str sr="arg5" ve="3"/>
+			<Int sr="arg6" val="1"/>
+			<Int sr="arg7" val="0"/>
+			<Int sr="arg8" val="0"/>
+		</Action>
+	</Task>
+	<Task sr="task42">
+		<cdate>1768611247990</cdate>
+		<edate>1775269051014</edate>
+		<id>42</id>
+		<nme>Fix_ADB</nme>
+		<pri>100</pri>
+		<Action sr="act0" ve="7">
+			<code>30</code>
+			<Int sr="arg0" val="0"/>
+			<Int sr="arg1" val="30"/>
+			<Int sr="arg2" val="1"/>
+			<Int sr="arg3" val="0"/>
+			<Int sr="arg4" val="0"/>
+		</Action>
+		<Action sr="act1" ve="7">
+			<code>123</code>
+			<Str sr="arg0" ve="3">setprop service.adb.tcp.port 5555
+stop adbd
+start adbd</Str>
+			<Int sr="arg1" val="0"/>
+			<Int sr="arg2" val="1"/>
+			<Str sr="arg3" ve="3">%Shell_out</Str>
+			<Str sr="arg4" ve="3">%Shell_err</Str>
+			<Str sr="arg5" ve="3"/>
+			<Int sr="arg6" val="1"/>
+			<Int sr="arg7" val="0"/>
+			<Int sr="arg8" val="0"/>
+		</Action>
+	</Task>
+	<Task sr="task43">
+		<cdate>1775249901282</cdate>
+		<edate>1776063181493</edate>
+		<id>43</id>
+		<nme>PowerMenu-VolDown</nme>
+		<pri>100</pri>
+		<Action sr="act0" ve="7">
+			<code>123</code>
+			<Str sr="arg0" ve="3">/data/data/com.termux/files/home/.termux/tasker/powermenu.sh VOL_DOWN</Str>
+			<Int sr="arg1" val="0"/>
+			<Int sr="arg2" val="1"/>
+			<Str sr="arg3" ve="3"/>
+			<Str sr="arg4" ve="3"/>
+			<Str sr="arg5" ve="3"/>
+			<Int sr="arg6" val="1"/>
+			<Int sr="arg7" val="0"/>
+			<Int sr="arg8" val="0"/>
+		</Action>
+		<Img sr="icn" ve="2">
+			<nme>hl_device_access_volume_muted</nme>
+		</Img>
+	</Task>
+	<Task sr="task44">
+		<cdate>1775250036166</cdate>
+		<edate>1775250208482</edate>
+		<id>44</id>
+		<nme>PowerMenu-Screen</nme>
+		<Action sr="act0" ve="7">
+			<code>248</code>
+			<Int sr="arg0" val="0"/>
+			<Int sr="arg1" val="0"/>
+			<ConditionList sr="if">
+				<Condition sr="c0" ve="3">
+					<lhs>%DisplayOn</lhs>
+					<op>12</op>
+					<rhs></rhs>
+				</Condition>
+			</ConditionList>
+		</Action>
+		<Action sr="act1" ve="7">
+			<code>806</code>
+			<Int sr="arg0" val="500"/>
+			<ConditionList sr="if">
+				<Condition sr="c0" ve="3">
+					<lhs>%DisplayOn</lhs>
+					<op>13</op>
+					<rhs></rhs>
+				</Condition>
+			</ConditionList>
+		</Action>
+	</Task>
+	<Task sr="task45">
+		<cdate>1775614949473</cdate>
+		<edate>1784075485695</edate>
+		<id>45</id>
+		<nme>QuickTap</nme>
+		<pri>6</pri>
+		<Action sr="act0" ve="7">
+			<code>370</code>
+			<label>sidebaropen</label>
+			<Bundle sr="arg0">
+				<Vals sr="val">
+					<net.dinglisch.android.tasker.RELEVANT_VARIABLES>&lt;StringArray sr=""/&gt;</net.dinglisch.android.tasker.RELEVANT_VARIABLES>
+					<net.dinglisch.android.tasker.RELEVANT_VARIABLES-type>[Ljava.lang.String;</net.dinglisch.android.tasker.RELEVANT_VARIABLES-type>
+				</Vals>
+			</Bundle>
+			<Str sr="arg1" ve="3">#Intent;action=com.imi.smartedge.sidebar.panel.TOGGLE;extendedLaunchFlags=0x4;component=com.imi.smartedge.sidebar.panel/.ToggleActivity;end</Str>
+		</Action>
+		<Img sr="icn" ve="2">
+			<sym>back_to_tab</sym>
+		</Img>
+	</Task>
+	<Task sr="task46">
+		<cdate>1774900000000</cdate>
+		<edate>1784521764248</edate>
+		<id>46</id>
+		<nme>Ensure_FixedAdb5555</nme>
+		<pri>100</pri>
+		<Action sr="act0" ve="7">
+			<code>123</code>
+			<se>false</se>
+			<Str sr="arg0" ve="3">su -c 'settings put global adb_wifi_enabled 1 || true; setprop service.adb.tcp.port 5555; stop adbd || true; sleep 1; start adbd'</Str>
+			<Int sr="arg1" val="0"/>
+			<Int sr="arg2" val="1"/>
+			<Str sr="arg3" ve="3"/>
+			<Str sr="arg4" ve="3"/>
+			<Str sr="arg5" ve="3"/>
+			<Int sr="arg6" val="1"/>
+			<Int sr="arg7" val="0"/>
+			<Int sr="arg8" val="0"/>
+		</Action>
+		<Action sr="act1" ve="7">
+			<code>123</code>
+			<se>false</se>
+			<Str sr="arg0" ve="3">su -c 'printf "usb=%s\nwireless=%s\ntcp=%s\n" "$(settings get global adb_enabled 2&gt;/dev/null)" "$(settings get global adb_wifi_enabled 2&gt;/dev/null)" "$(getprop service.adb.tcp.port)"; ss -ltn 2&gt;/dev/null | grep ":5555\\b" || echo "not-listening"'</Str>
+			<Int sr="arg1" val="0"/>
+			<Int sr="arg2" val="1"/>
+			<Str sr="arg3" ve="3"/>
+			<Str sr="arg4" ve="3"/>
+			<Str sr="arg5" ve="3"/>
+			<Int sr="arg6" val="1"/>
+			<Int sr="arg7" val="0"/>
+			<Int sr="arg8" val="0"/>
+		</Action>
+		<Img sr="icn" ve="2">
+			<nme>mw_action_settings_remote</nme>
+		</Img>
+	</Task>
+	<Task sr="task48">
+		<cdate>1775270641697</cdate>
+		<edate>1784075390781</edate>
+		<id>48</id>
+		<nme>Ensure_sshd</nme>
+		<pri>6</pri>
+		<Action sr="act0" ve="7">
+			<code>123</code>
+			<Str sr="arg0" ve="3">run-as com.termux sh -c 'ss -ltn 2&gt;/dev/null | grep -q ":8022\\b" || nohup /data/data/com.termux/files/usr/bin/sshd &gt;/dev/null 2&gt;&amp;1 &amp;'</Str>
+			<Int sr="arg1" val="0"/>
+			<Int sr="arg2" val="1"/>
+			<Str sr="arg3" ve="3"/>
+			<Str sr="arg4" ve="3"/>
+			<Str sr="arg5" ve="3"/>
+			<Int sr="arg6" val="1"/>
+			<Int sr="arg7" val="0"/>
+			<Int sr="arg8" val="0"/>
+		</Action>
+		<Img sr="icn" ve="2">
+			<nme>mw_device_devices</nme>
+		</Img>
+	</Task>
+	<Task sr="task50">
+		<cdate>1768192490261</cdate>
+		<edate>1775268891927</edate>
+		<id>50</id>
+		<nme>Moonlight Portrait</nme>
+		<Action sr="act0" ve="7">
+			<code>123</code>
+			<Str sr="arg0" ve="3">settings put system user_rotation 0</Str>
+			<Int sr="arg1" val="0"/>
+			<Int sr="arg2" val="1"/>
+			<Str sr="arg3" ve="3"/>
+			<Str sr="arg4" ve="3"/>
+			<Str sr="arg5" ve="3"/>
+			<Int sr="arg6" val="1"/>
+			<Int sr="arg7" val="0"/>
+			<Int sr="arg8" val="0"/>
+		</Action>
+		<Action sr="act1" ve="7">
+			<code>822</code>
+			<Int sr="arg0" val="0"/>
+		</Action>
+		<Action sr="act2" ve="7">
+			<code>318</code>
+			<Int sr="arg0" val="1"/>
+			<Int sr="arg1" val="0"/>
+		</Action>
+	</Task>
+	<Task sr="task51">
+		<cdate>1537878164659</cdate>
+		<edate>1781732525186</edate>
+		<id>51</id>
+		<nme>Keep On</nme>
+		<pri>100</pri>
+		<Action sr="act0" ve="7">
+			<code>37</code>
+			<ConditionList sr="if">
+				<Condition sr="c0" ve="3">
+					<lhs>%LastTimeout</lhs>
+					<op>12</op>
+					<rhs></rhs>
+				</Condition>
+			</ConditionList>
+		</Action>
+		<Action sr="act1" ve="7">
+			<code>162</code>
+			<Int sr="arg0" val="1"/>
+			<Str sr="arg1" ve="3">Keep On</Str>
+			<Str sr="arg10" ve="3"/>
+			<Str sr="arg11" ve="3"/>
+			<Str sr="arg12" ve="3"/>
+			<Int sr="arg13" val="0"/>
+			<Int sr="arg2" val="1"/>
+			<Int sr="arg3" val="0"/>
+			<Str sr="arg4" ve="3"/>
+			<Str sr="arg5" ve="3"/>
+			<Str sr="arg6" ve="3"/>
+			<Str sr="arg7" ve="3"/>
+			<Str sr="arg8" ve="3"/>
+			<Str sr="arg9" ve="3"/>
+		</Action>
+		<Action sr="act2" ve="7">
+			<code>812</code>
+			<Int sr="arg0">
+				<var>%LastTimeout</var>
+			</Int>
+			<Int sr="arg1" val="0"/>
+			<Int sr="arg2" val="0"/>
+		</Action>
+		<Action sr="act3" ve="7">
+			<code>549</code>
+			<Str sr="arg0" ve="3">%LastTimeout</Str>
+			<Int sr="arg1" val="0"/>
+			<Int sr="arg2" val="0"/>
+			<Int sr="arg3" val="0"/>
+		</Action>
+		<Action sr="act4" ve="7">
+			<code>43</code>
+		</Action>
+		<Action sr="act5" ve="7">
+			<code>162</code>
+			<Int sr="arg0" val="1"/>
+			<Str sr="arg1" ve="3">Keep On</Str>
+			<Str sr="arg10" ve="3"/>
+			<Str sr="arg11" ve="3"/>
+			<Str sr="arg12" ve="3"/>
+			<Int sr="arg13" val="0"/>
+			<Int sr="arg2" val="0"/>
+			<Int sr="arg3" val="0"/>
+			<Str sr="arg4" ve="3"/>
+			<Str sr="arg5" ve="3"/>
+			<Str sr="arg6" ve="3"/>
+			<Str sr="arg7" ve="3"/>
+			<Str sr="arg8" ve="3"/>
+			<Str sr="arg9" ve="3"/>
+		</Action>
+		<Action sr="act6" ve="7">
+			<code>547</code>
+			<Str sr="arg0" ve="3">%LastTimeout</Str>
+			<Str sr="arg1" ve="3">%DTOUT</Str>
+			<Int sr="arg2" val="0"/>
+			<Int sr="arg3" val="0"/>
+			<Int sr="arg4" val="0"/>
+			<Int sr="arg5"/>
+			<Int sr="arg6" val="0"/>
+		</Action>
+		<Action sr="act7" ve="7">
+			<code>812</code>
+			<Int sr="arg0" val="0"/>
+			<Int sr="arg1" val="10"/>
+			<Int sr="arg2" val="0"/>
+		</Action>
+		<Action sr="act8" ve="7">
+			<code>38</code>
+		</Action>
+		<Action sr="act9" ve="7">
+			<code>548</code>
+			<Str sr="arg0" ve="3">Your screen will be on for %DTOUT seconds</Str>
+			<Int sr="arg1" val="0"/>
+			<Str sr="arg10" ve="3"/>
+			<Int sr="arg11" val="1"/>
+			<Int sr="arg12" val="0"/>
+			<Str sr="arg13" ve="3"/>
+			<Int sr="arg14" val="0"/>
+			<Str sr="arg15" ve="3"/>
+			<Int sr="arg2" val="0"/>
+			<Str sr="arg3" ve="3"/>
+			<Str sr="arg4" ve="3"/>
+			<Str sr="arg5" ve="3"/>
+			<Str sr="arg6" ve="3"/>
+			<Str sr="arg7" ve="3"/>
+			<Str sr="arg8" ve="3"/>
+			<Int sr="arg9" val="1"/>
+		</Action>
+		<Img sr="icn" ve="2">
+			<nme>mw_hardware_phone_iphone</nme>
+		</Img>
+	</Task>
+	<Task sr="task53">
+		<cdate>1768192787976</cdate>
+		<edate>1775268907167</edate>
+		<id>53</id>
+		<nme>Restore Rotate</nme>
+		<Action sr="act0" ve="7">
+			<code>123</code>
+			<Str sr="arg0" ve="3">settings put system accelerometer_rotation 1</Str>
+			<Int sr="arg1" val="0"/>
+			<Int sr="arg2" val="1"/>
+			<Str sr="arg3" ve="3"/>
+			<Str sr="arg4" ve="3"/>
+			<Str sr="arg5" ve="3"/>
+			<Int sr="arg6" val="1"/>
+			<Int sr="arg7" val="0"/>
+			<Int sr="arg8" val="0"/>
+		</Action>
+		<Action sr="act1" ve="7">
+			<code>123</code>
+			<Str sr="arg0" ve="3">settings put system user_rotation 0</Str>
+			<Int sr="arg1" val="0"/>
+			<Int sr="arg2" val="1"/>
+			<Str sr="arg3" ve="3"/>
+			<Str sr="arg4" ve="3"/>
+			<Str sr="arg5" ve="3"/>
+			<Int sr="arg6" val="1"/>
+			<Int sr="arg7" val="0"/>
+			<Int sr="arg8" val="0"/>
+		</Action>
+		<Action sr="act2" ve="7">
+			<code>822</code>
+			<Int sr="arg0" val="1"/>
+		</Action>
+	</Task>
+	<Task sr="task55">
+		<cdate>1768600000000</cdate>
+		<edate>1773253072823</edate>
+		<id>55</id>
+		<nme>Bootstrap-SpecialKeys</nme>
+		<pri>10</pri>
+		<Action sr="act0" ve="7">
+			<code>123</code>
+			<Str sr="arg0" ve="3">mkdir -p /data/data/com.termux/files/home/.termux/tasker</Str>
+			<Int sr="arg1" val="0"/>
+			<Int sr="arg2" val="1"/>
+			<Str sr="arg3" ve="3"/>
+			<Str sr="arg4" ve="3"/>
+			<Str sr="arg5" ve="3"/>
+			<Int sr="arg6" val="1"/>
+			<Int sr="arg7" val="0"/>
+			<Int sr="arg8" val="0"/>
+		</Action>
+		<Action sr="act1" ve="7">
+			<code>123</code>
+			<Str sr="arg0" ve="3">cat &gt; /data/data/com.termux/files/home/.termux/tasker/hidrunner.sh &lt;&lt;'EOF'
+#!/data/data/com.termux/files/usr/bin/bash
+set -u
+
+FIFO="/data/local/tmp/pixel_keyboard.fifo"
+PIDFILE="/data/local/tmp/pixel_keyboard.pid"
+
+start() {
+  if [ -f "$PIDFILE" ] &amp;&amp; kill -0 "$(cat "$PIDFILE")" 2&gt;/dev/null; then
+    echo "hidrunner already running: $(cat "$PIDFILE")"
+    exit 0
+  fi
+
+  # Make FIFO (root-required path)
+  rm -f "$FIFO"
+  mkfifo "$FIFO"
+  chmod 666 "$FIFO"
+
+  # Start hid in background and keep it alive by holding stdin open.
+  (
+    # Register a keyboard device and keep stdin open forever.
+    # NOTE: hid reads JSON from stdin; we keep it alive by feeding it from FIFO.
+    # The "cat $FIFO" blocks, which is exactly what we want.
+    cat "$FIFO" | /system/bin/hid
+  ) &amp;
+
+  echo $! &gt; "$PIDFILE"
+  echo "hidrunner started: $(cat "$PIDFILE")"
+}
+
+stop() {
+  if [ -f "$PIDFILE" ]; then
+    pid="$(cat "$PIDFILE")"
+    if kill -0 "$pid" 2&gt;/dev/null; then
+      kill "$pid" 2&gt;/dev/null || true
+    fi
+    rm -f "$PIDFILE"
+  fi
+
+  # Remove FIFO (optional)
+  rm -f "$FIFO"
+  echo "hidrunner stopped"
+}
+
+case "${1:-}" in
+  start) start ;;
+  stop)  stop ;;
+  *)
+    echo "Usage: $0 {start|stop}"
+    exit 1
+    ;;
+esac
+EOF
+chmod 700 /data/data/com.termux/files/home/.termux/tasker/hidrunner.sh</Str>
+			<Int sr="arg1" val="0"/>
+			<Int sr="arg2" val="1"/>
+			<Str sr="arg3" ve="3"/>
+			<Str sr="arg4" ve="3"/>
+			<Str sr="arg5" ve="3"/>
+			<Int sr="arg6" val="1"/>
+			<Int sr="arg7" val="0"/>
+			<Int sr="arg8" val="0"/>
+		</Action>
+		<Action sr="act2" ve="7">
+			<code>123</code>
+			<Str sr="arg0" ve="3">cat &gt; /data/data/com.termux/files/home/.termux/tasker/hidkey.sh &lt;&lt;'EOF'
+#!/data/data/com.termux/files/usr/bin/bash
+set -euo pipefail
+
+FIFO="/data/local/tmp/pixel_keyboard.fifo"
+STATE="/data/local/tmp/pixel_keyboard.modstate"
+
+token="${1:-}"
+[ -n "$token" ] || exit 0
+
+# Modifier bits (HID): Ctrl=0x01, Shift=0x02, Alt=0x04, GUI=0x08
+# (Left variants; sticky toggles)
+mod=0
+if [ -f "$STATE" ]; then
+  mod="$(cat "$STATE")"
+fi
+
+toggle_mod() {
+  local bit="$1"
+  if (( (mod &amp; bit) != 0 )); then
+    mod=$(( mod &amp; ~bit ))
+  else
+    mod=$(( mod | bit ))
+  fi
+  echo "$mod" &gt; "$STATE"
+}
+
+# Emit a single HID keyboard report (8 bytes):
+# [mod][0][k1][k2][k3][k4][k5][k6]
+emit_key() {
+  local key="$1"
+  # press
+  printf '{"type":"keyboard","report":[%d,0,%d,0,0,0,0,0]}\n' "$mod" "$key" &gt; "$FIFO"
+  # release (keep modifiers as-is)
+  printf '{"type":"keyboard","report":[%d,0,0,0,0,0,0,0]}\n' "$mod" &gt; "$FIFO"
+}
+
+emit_release_all() {
+  mod=0
+  echo "$mod" &gt; "$STATE"
+  printf '{"type":"keyboard","report":[0,0,0,0,0,0,0,0]}\n' &gt; "$FIFO"
+}
+
+case "$token" in
+  CTRL)  toggle_mod 1 ;;
+  SHIFT) toggle_mod 2 ;;
+  ALT)   toggle_mod 4 ;;
+  GUI|WIN|META) toggle_mod 8 ;;
+
+  LEFT)  emit_key 0x50 ;;
+  RIGHT) emit_key 0x4F ;;
+  UP)    emit_key 0x52 ;;
+  DOWN)  emit_key 0x51 ;;
+
+  ESC)   emit_key 0x29 ;;
+  TAB)   emit_key 0x2B ;;
+  ENTER) emit_key 0x28 ;;
+  BACKSPACE|BKSP) emit_key 0x2A ;;
+  DEL|DELETE) emit_key 0x4C ;;
+  INS|INSERT) emit_key 0x49 ;;
+  HOME)  emit_key 0x4A ;;
+  END)   emit_key 0x4D ;;
+  PGUP)  emit_key 0x4B ;;
+  PGDN)  emit_key 0x4E ;;
+
+  CLEAR) emit_release_all ;;
+
+  *)
+    # If token looks like a single character, try to map basic a-z/0-9 quickly (optional).
+    # Otherwise: ignore.
+    exit 0
+    ;;
+esac
+EOF
+chmod 700 /data/data/com.termux/files/home/.termux/tasker/hidkey.sh</Str>
+			<Int sr="arg1" val="0"/>
+			<Int sr="arg2" val="1"/>
+			<Str sr="arg3" ve="3"/>
+			<Str sr="arg4" ve="3"/>
+			<Str sr="arg5" ve="3"/>
+			<Int sr="arg6" val="1"/>
+			<Int sr="arg7" val="0"/>
+			<Int sr="arg8" val="0"/>
+		</Action>
+		<Action sr="act3" ve="7">
+			<code>123</code>
+			<Str sr="arg0" ve="3">ls -l /data/data/com.termux/files/home/.termux/tasker</Str>
+			<Int sr="arg1" val="0"/>
+			<Int sr="arg2" val="1"/>
+			<Str sr="arg3" ve="3"/>
+			<Str sr="arg4" ve="3"/>
+			<Str sr="arg5" ve="3"/>
+			<Int sr="arg6" val="1"/>
+			<Int sr="arg7" val="0"/>
+			<Int sr="arg8" val="0"/>
+		</Action>
+	</Task>
+	<Task sr="task60">
+		<cdate>1773265000000</cdate>
+		<edate>1780532049794</edate>
+		<id>60</id>
+		<nme>SpecialKeysV2-Render</nme>
+		<pri>100</pri>
+		<Action sr="act0" ve="7">
+			<code>547</code>
+			<se>false</se>
+			<Str sr="arg0" ve="3">%SpecialKeysV2</Str>
+			<Str sr="arg1" ve="3">&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+&lt;meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"&gt;
+&lt;style&gt;
+  :root {
+    --panel: rgba(9, 24, 28, 0.90);
+    --panel-edge: rgba(120, 214, 182, 0.20);
+    --text: #ebfff7;
+    --muted: #9dc7bb;
+    --modifier: rgba(46, 109, 86, 0.95);
+    --transport: rgba(65, 88, 126, 0.95);
+    --gyro: rgba(118, 74, 28, 0.95);
+    --danger: rgba(128, 44, 44, 0.95);
+    --key: rgba(17, 43, 50, 0.96);
+  }
+  * {
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+    font-family: "JetBrains Mono", "IBM Plex Sans", monospace;
+  }
+  body {
+    margin: 0;
+    color: var(--text);
+    background: linear-gradient(180deg, rgba(3, 10, 12, 0.15), rgba(3, 10, 12, 0.05));
+  }
+  .shell {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-height: 100vh;
+    padding: 12px;
+    border-radius: 22px;
+    background: var(--panel);
+    border: 1px solid var(--panel-edge);
+    box-shadow: 0 18px 32px rgba(0, 0, 0, 0.35);
+    backdrop-filter: blur(14px);
+  }
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 2px;
+    font-size: 12px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+  }
+  .row {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .btn {
+    border: 0;
+    border-radius: 16px;
+    min-height: 56px;
+    padding: 10px 6px;
+    background: var(--key);
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 8px 16px rgba(0,0,0,0.18);
+  }
+  .btn.modifier { background: var(--modifier); }
+  .btn.transport { background: var(--transport); }
+  .btn.gyro { background: var(--gyro); }
+  .btn.danger { background: var(--danger); }
+  .btn:active {
+    transform: translateY(1px) scale(0.99);
+    filter: brightness(1.14);
+  }
+&lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;div class="shell"&gt;
+  &lt;div class="header"&gt;
+    &lt;span&gt;Special Keys V2&lt;/span&gt;
+    &lt;span&gt;KDE / Artemis&lt;/span&gt;
+  &lt;/div&gt;
+  &lt;div class="row"&gt;&lt;button class="btn modifier" onclick="send('CTRL')"&gt;CTRL&lt;/button&gt;&lt;button class="btn modifier" onclick="send('ALT')"&gt;ALT&lt;/button&gt;&lt;button class="btn modifier" onclick="send('SHIFT')"&gt;SHIFT&lt;/button&gt;&lt;button class="btn" onclick="send('TAB')"&gt;TAB&lt;/button&gt;&lt;button class="btn" onclick="send('ESC')"&gt;ESC&lt;/button&gt;&lt;button class="btn danger" onclick="send('CLEAR')"&gt;CLR&lt;/button&gt;&lt;/div&gt;&lt;div class="row"&gt;&lt;button class="btn" onclick="send('HOME')"&gt;HOME&lt;/button&gt;&lt;button class="btn" onclick="send('END')"&gt;END&lt;/button&gt;&lt;button class="btn" onclick="send('PGUP')"&gt;PGUP&lt;/button&gt;&lt;button class="btn" onclick="send('PGDN')"&gt;PGDN&lt;/button&gt;&lt;button class="btn" onclick="send('DEL')"&gt;DEL&lt;/button&gt;&lt;button class="btn" onclick="send('BSP')"&gt;BSP&lt;/button&gt;&lt;/div&gt;&lt;div class="row"&gt;&lt;button class="btn" onclick="send('UP')"&gt;UP&lt;/button&gt;&lt;button class="btn" onclick="send('LEFT')"&gt;LEFT&lt;/button&gt;&lt;button class="btn" onclick="send('DOWN')"&gt;DOWN&lt;/button&gt;&lt;button class="btn" onclick="send('RIGHT')"&gt;RIGHT&lt;/button&gt;&lt;button class="btn gyro" onclick="send('CLUTCH_TOGGLE')"&gt;CLUTCH&lt;/button&gt;&lt;button class="btn gyro" onclick="send('CLICK_TOGGLE')"&gt;CLICK&lt;/button&gt;&lt;/div&gt;&lt;div class="row"&gt;&lt;button class="btn transport" onclick="send('HID_START')"&gt;HID ON&lt;/button&gt;&lt;button class="btn transport" onclick="send('HID_STOP')"&gt;HID OFF&lt;/button&gt;&lt;button class="btn modifier" onclick="send('META')"&gt;META&lt;/button&gt;&lt;button class="btn" onclick="send('ENTER')"&gt;ENTER&lt;/button&gt;&lt;button class="btn" onclick="send('SPACE')"&gt;SPACE&lt;/button&gt;&lt;button class="btn danger" onclick="send('RESET')"&gt;RESET&lt;/button&gt;&lt;/div&gt;
+&lt;/div&gt;
+&lt;script&gt;
+  function send(action) {
+    performTask("SpecialKeysV2-Action", 10, action);
+  }
+&lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;</Str>
+			<Int sr="arg2" val="0"/>
+			<Int sr="arg3" val="0"/>
+			<Int sr="arg4" val="0"/>
+			<Int sr="arg5" val="3"/>
+			<Int sr="arg6" val="0"/>
+		</Action>
+	</Task>
+	<Task sr="task61">
+		<cdate>1773265000001</cdate>
+		<edate>1780532061708</edate>
+		<id>61</id>
+		<nme>SpecialKeysV2-Action</nme>
+		<pri>100</pri>
+		<Action sr="act0" ve="7">
+			<code>123</code>
+			<Str sr="arg0" ve="3">/data/data/com.termux/files/home/.termux/tasker/dispatch_input.sh %par1</Str>
+			<Int sr="arg1" val="0"/>
+			<Int sr="arg2" val="1"/>
+			<Str sr="arg3" ve="3"/>
+			<Str sr="arg4" ve="3"/>
+			<Str sr="arg5" ve="3"/>
+			<Int sr="arg6" val="1"/>
+			<Int sr="arg7" val="0"/>
+			<Int sr="arg8" val="0"/>
+		</Action>
+	</Task>
+	<Task sr="task62">
+		<cdate>1773265000002</cdate>
+		<edate>1780531650407</edate>
+		<id>62</id>
+		<nme>Toggle-SpecialKeysV2</nme>
+		<pri>100</pri>
+		<Action sr="act0" ve="7">
+			<code>130</code>
+			<Str sr="arg0" ve="3">SpecialKeysV2-Render</Str>
+			<Int sr="arg1">
+				<var>%priority</var>
+			</Int>
+			<Int sr="arg10" val="0"/>
+			<Str sr="arg2" ve="3"/>
+			<Str sr="arg3" ve="3"/>
+			<Str sr="arg4" ve="3"/>
+			<Int sr="arg5" val="0"/>
+			<Int sr="arg6" val="0"/>
+			<Str sr="arg7" ve="3"/>
+			<Int sr="arg8" val="0"/>
+			<Int sr="arg9" val="0"/>
+		</Action>
+		<Action sr="act1" ve="7">
+			<code>194</code>
+			<Str sr="arg0" ve="3">SpecialKeysV2-Scene</Str>
+			<Int sr="arg1" val="0"/>
+			<Str sr="arg2" ve="3">%skv2_status</Str>
+		</Action>
+		<Action sr="act2" ve="7">
+			<code>49</code>
+			<Str sr="arg0" ve="3">SpecialKeysV2-Scene</Str>
+			<ConditionList sr="if">
+				<Condition sr="c0" ve="3">
+					<lhs>%skv2_status</lhs>
+					<op>2</op>
+					<rhs>visible</rhs>
+				</Condition>
+			</ConditionList>
+		</Action>
+		<Action sr="act3" ve="7">
+			<code>47</code>
+			<Str sr="arg0" ve="3">SpecialKeysV2-Scene</Str>
+			<Int sr="arg1" val="1"/>
+			<Int sr="arg10" val="1"/>
+			<Int sr="arg2" val="100"/>
+			<Int sr="arg3" val="100"/>
+			<Int sr="arg4" val="0"/>
+			<Int sr="arg5" val="1"/>
+			<Int sr="arg6" val="1"/>
+			<Int sr="arg7" val="1"/>
+			<Int sr="arg8" val="1"/>
+			<Int sr="arg9" val="1"/>
+			<ConditionList sr="if">
+				<Condition sr="c0" ve="3">
+					<lhs>%skv2_status</lhs>
+					<op>3</op>
+					<rhs>visible</rhs>
+				</Condition>
+			</ConditionList>
+		</Action>
+	</Task>
+	<Task sr="task64">
+		<cdate>1634199879681</cdate>
+		<edate>1634565368832</edate>
+		<id>64</id>
+		<pri>6</pri>
+		<Action sr="act0" ve="7">
+			<code>549</code>
+			<Str sr="arg0" ve="3">%Locked</Str>
+			<Int sr="arg1" val="0"/>
+			<Int sr="arg2" val="0"/>
+			<Int sr="arg3" val="0"/>
+		</Action>
+	</Task>
+	<Task sr="task65">
+		<cdate>1634569648816</cdate>
+		<edate>1635163977035</edate>
+		<id>65</id>
+		<pri>100</pri>
+		<Action sr="act0" ve="7">
+			<code>389</code>
+			<Bundle sr="arg0">
+				<Vals sr="val">
+					<net.dinglisch.android.tasker.RELEVANT_VARIABLES>&lt;StringArray sr=""/&gt;</net.dinglisch.android.tasker.RELEVANT_VARIABLES>
+					<net.dinglisch.android.tasker.RELEVANT_VARIABLES-type>[Ljava.lang.String;</net.dinglisch.android.tasker.RELEVANT_VARIABLES-type>
+				</Vals>
+			</Bundle>
+			<Str sr="arg1" ve="3">%DisplayOn</Str>
+			<Str sr="arg2" ve="3"/>
+			<Str sr="arg3" ve="3">1</Str>
+			<Str sr="arg4" ve="3"/>
+			<Int sr="arg5" val="0"/>
+			<Int sr="arg6" val="3"/>
+			<Int sr="arg7" val="0"/>
+			<Int sr="arg8" val="0"/>
+		</Action>
+		<Action sr="act1" ve="7">
+			<code>348</code>
+			<Int sr="arg0" val="5"/>
+			<Str sr="arg1" ve="3"/>
+			<Str sr="arg2" ve="3">%locked</Str>
+		</Action>
+		<Action sr="act2" ve="7">
+			<code>549</code>
+			<Str sr="arg0" ve="3">%Locked</Str>
+			<Int sr="arg1" val="0"/>
+			<Int sr="arg2" val="0"/>
+			<Int sr="arg3" val="0"/>
+			<ConditionList sr="if">
+				<Condition sr="c0" ve="3">
+					<lhs>%locked</lhs>
+					<op>2</op>
+					<rhs>false</rhs>
+				</Condition>
+			</ConditionList>
+		</Action>
+	</Task>
+	<Task sr="task66">
+		<cdate>1634569736146</cdate>
+		<edate>1634650752402</edate>
+		<id>66</id>
+		<Action sr="act0" ve="7">
+			<code>389</code>
+			<Bundle sr="arg0">
+				<Vals sr="val">
+					<net.dinglisch.android.tasker.RELEVANT_VARIABLES>&lt;StringArray sr=""/&gt;</net.dinglisch.android.tasker.RELEVANT_VARIABLES>
+					<net.dinglisch.android.tasker.RELEVANT_VARIABLES-type>[Ljava.lang.String;</net.dinglisch.android.tasker.RELEVANT_VARIABLES-type>
+				</Vals>
+			</Bundle>
+			<Str sr="arg1" ve="3">%Locked</Str>
+			<Str sr="arg2" ve="3"/>
+			<Str sr="arg3" ve="3">1</Str>
+			<Str sr="arg4" ve="3"/>
+			<Int sr="arg5" val="0"/>
+			<Int sr="arg6" val="3"/>
+			<Int sr="arg7" val="0"/>
+			<Int sr="arg8" val="0"/>
+		</Action>
+		<Action sr="act1" ve="7">
+			<code>549</code>
+			<Str sr="arg0" ve="3">%DisplayOn</Str>
+			<Int sr="arg1" val="0"/>
+			<Int sr="arg2" val="0"/>
+			<Int sr="arg3" val="0"/>
+		</Action>
+	</Task>
+	<Task sr="task67">
+		<cdate>1634924774803</cdate>
+		<edate>1634924840046</edate>
+		<id>67</id>
+		<Action sr="act0" ve="7">
+			<code>547</code>
+			<Str sr="arg0" ve="3">%LockScreen</Str>
+			<Str sr="arg1" ve="3">1</Str>
+			<Int sr="arg2" val="0"/>
+			<Int sr="arg3" val="0"/>
+			<Int sr="arg4" val="0"/>
+			<Int sr="arg5" val="3"/>
+			<Int sr="arg6" val="0"/>
+		</Action>
+	</Task>
+	<Task sr="task68">
+		<cdate>1634924796024</cdate>
+		<edate>1634924847925</edate>
+		<id>68</id>
+		<Action sr="act0" ve="7">
+			<code>549</code>
+			<Str sr="arg0" ve="3">%LockScreen</Str>
+			<Int sr="arg1" val="0"/>
+			<Int sr="arg2" val="0"/>
+			<Int sr="arg3" val="0"/>
+		</Action>
+	</Task>
+	<Task sr="task69">
+		<cdate>1634924774803</cdate>
+		<edate>1634924787898</edate>
+		<id>69</id>
+		<Action sr="act0" ve="7">
+			<code>547</code>
+			<Str sr="arg0" ve="3">%AOD</Str>
+			<Str sr="arg1" ve="3">1</Str>
+			<Int sr="arg2" val="0"/>
+			<Int sr="arg3" val="0"/>
+			<Int sr="arg4" val="0"/>
+			<Int sr="arg5" val="3"/>
+			<Int sr="arg6" val="0"/>
+		</Action>
+	</Task>
+	<Task sr="task7">
+		<cdate>1767066571549</cdate>
+		<edate>1775269144640</edate>
+		<id>7</id>
+		<nme>CPU-Watch</nme>
+		<pri>6</pri>
+		<Action sr="act0" ve="7">
+			<code>123</code>
+			<se>false</se>
+			<Str sr="arg0" ve="3"># 1. Setup the Database in a neutral zone
+DB="/data/adb/villain_leaderboard.txt"
+[ ! -f "$DB" ] &amp;&amp; touch "$DB"
+
+# 2. Get Thermal Status (0-6)
+# Higher status = Higher multiplier for points
+THERMAL=$(dumpsys thermal | grep "Thermal Status" | awk '{print $NF}')
+[ -z "$THERMAL" ] &amp;&amp; THERMAL=0
+
+# Multiplier: Status 0-1 = 1x | Status 2 = 2x | Status 3+ = 3x
+if [ "$THERMAL" -le 1 ]; then MULT=1; elif [ "$THERMAL" -eq 2 ]; then MULT=2; else MULT=3; fi
+
+# 3. Process the Top 10 CPU Hogs
+# We assign points: #1 gets 10pts, #10 gets 1pt
+# Multiplied by the thermal state of the phone
+top -n 1 -b -o %CPU,NAME | head -n 17 | tail -n 10 | awk '{print $1, $2}' | while read -r cpu name; do
+    [ -z "$name" ] &amp;&amp; continue
+    
+    # Simple rank-based points
+    POINTS=$(( (10 - count) * MULT ))
+    
+    if grep -q "$name" "$DB"; then
+        # Update existing score
+        SCORE=$(grep "$name" "$DB" | awk '{print $1}')
+        NEW_SCORE=$((SCORE + POINTS))
+        sed -i "s/.*$name/$NEW_SCORE $name/" "$DB"
+    else
+        # Add new entry
+        echo "$POINTS $name" &gt;&gt; "$DB"
+    fi
+done
+
+# 4. Sort the Leaderboard (highest score at top)
+sort -rn "$DB" -o "$DB"</Str>
+			<Int sr="arg1" val="0"/>
+			<Int sr="arg2" val="1"/>
+			<Str sr="arg3" ve="3"/>
+			<Str sr="arg4" ve="3"/>
+			<Str sr="arg5" ve="3"/>
+			<Int sr="arg6" val="1"/>
+			<Int sr="arg7" val="0"/>
+			<Int sr="arg8" val="0"/>
+		</Action>
+	</Task>
+	<Task sr="task70">
+		<cdate>1634924796024</cdate>
+		<edate>1634924801850</edate>
+		<id>70</id>
+		<Action sr="act0" ve="7">
+			<code>549</code>
+			<Str sr="arg0" ve="3">%AOD</Str>
+			<Int sr="arg1" val="0"/>
+			<Int sr="arg2" val="0"/>
+			<Int sr="arg3" val="0"/>
+		</Action>
+	</Task>
+	<Task sr="task9">
+		<cdate>1766545924504</cdate>
+		<edate>1775271247936</edate>
+		<id>9</id>
+		<nme>CPU-Notification</nme>
+		<pri>100</pri>
+		<Action sr="act0" ve="7">
+			<code>123</code>
+			<label>cpu-dashboard</label>
+			<Str sr="arg0" ve="3">F0=$(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq 2&gt;/dev/null)
+F1=$(cat /sys/devices/system/cpu/cpu1/cpufreq/scaling_cur_freq 2&gt;/dev/null)
+F2=$(cat /sys/devices/system/cpu/cpu2/cpufreq/scaling_cur_freq 2&gt;/dev/null)
+F3=$(cat /sys/devices/system/cpu/cpu3/cpufreq/scaling_cur_freq 2&gt;/dev/null)
+F4=$(cat /sys/devices/system/cpu/cpu4/cpufreq/scaling_cur_freq 2&gt;/dev/null)
+F5=$(cat /sys/devices/system/cpu/cpu5/cpufreq/scaling_cur_freq 2&gt;/dev/null)
+F6=$(cat /sys/devices/system/cpu/cpu6/cpufreq/scaling_cur_freq 2&gt;/dev/null)
+F7=$(cat /sys/devices/system/cpu/cpu7/cpufreq/scaling_cur_freq 2&gt;/dev/null)
+
+G0=$(awk -v k="$F0" 'BEGIN{if(k==""){printf "0.00"}else{printf "%.2f", k/1000000}}')
+G1=$(awk -v k="$F1" 'BEGIN{if(k==""){printf "0.00"}else{printf "%.2f", k/1000000}}')
+G2=$(awk -v k="$F2" 'BEGIN{if(k==""){printf "0.00"}else{printf "%.2f", k/1000000}}')
+G3=$(awk -v k="$F3" 'BEGIN{if(k==""){printf "0.00"}else{printf "%.2f", k/1000000}}')
+G4=$(awk -v k="$F4" 'BEGIN{if(k==""){printf "0.00"}else{printf "%.2f", k/1000000}}')
+G5=$(awk -v k="$F5" 'BEGIN{if(k==""){printf "0.00"}else{printf "%.2f", k/1000000}}')
+G6=$(awk -v k="$F6" 'BEGIN{if(k==""){printf "0.00"}else{printf "%.2f", k/1000000}}')
+G7=$(awk -v k="$F7" 'BEGIN{if(k==""){printf "0.00"}else{printf "%.2f", k/1000000}}')
+
+printf "S (0-1): %s %s\nM (2-4): %s %s %s\nU (5-6): %s %s\nP (7)  : %s" "$G0" "$G1" "$G2" "$G3" "$G4" "$G5" "$G6" "$G7"</Str>
+			<Int sr="arg1" val="0"/>
+			<Int sr="arg2" val="1"/>
+			<Str sr="arg3" ve="3">%CPU_stats</Str>
+			<Str sr="arg4" ve="3"/>
+			<Str sr="arg5" ve="3"/>
+			<Int sr="arg6" val="1"/>
+			<Int sr="arg7" val="0"/>
+			<Int sr="arg8" val="0"/>
+		</Action>
+		<Action sr="act1" ve="7">
+			<code>523</code>
+			<label>cpu-dashboard</label>
+			<Str sr="arg0" ve="3">CPU FREQ</Str>
+			<Str sr="arg1" ve="3">%CPU_stats</Str>
+			<Str sr="arg10" ve="3"/>
+			<Str sr="arg11" ve="3"/>
+			<Str sr="arg12" ve="3"/>
+			<Int sr="arg13" val="0"/>
+			<Str sr="arg14" ve="3"/>
+			<Str sr="arg15" ve="3"/>
+			<Img sr="arg2" ve="2">
+				<nme>hd_content_save</nme>
+			</Img>
+			<Int sr="arg3" val="0"/>
+			<Int sr="arg4" val="1"/>
+			<Int sr="arg5" val="3"/>
+			<Int sr="arg6" val="0"/>
+			<Int sr="arg7" val="0"/>
+			<Int sr="arg8" val="0"/>
+			<Str sr="arg9" ve="3"/>
+		</Action>
+		<Action sr="act2" ve="7">
+			<code>30</code>
+			<Int sr="arg0" val="0"/>
+			<Int sr="arg1" val="1"/>
+			<Int sr="arg2" val="0"/>
+			<Int sr="arg3" val="0"/>
+			<Int sr="arg4" val="0"/>
+		</Action>
+		<Action sr="act3" ve="7">
+			<code>135</code>
+			<Int sr="arg0" val="0"/>
+			<Int sr="arg1" val="1"/>
+			<Str sr="arg2" ve="3"/>
+		</Action>
+		<Img sr="icn" ve="2">
+			<nme>mw_places_smoking_rooms</nme>
+		</Img>
+	</Task>
+	<Variable sr="vars0">
+		<n>%Mem_stats</n>
+		<v>RAM: 15028/15568MB | ZRAM: 7783MB | DISK: 0MB</v>
+	</Variable>
+	<Variable sr="vars1">
+		<n>%AVCONTINUOUS</n>
+		<v>false</v>
+	</Variable>
+	<Variable sr="vars2">
+		<n>%Shell_out</n>
+		<v>Starting: Intent { cmp=com.limelight.root.noirdebug/com.limelight.PcView }
+Status: ok
+LaunchState: WARM
+Activity: com.limelight.root.noirdebug/com.limelight.PcView
+TotalTime: 50
+WaitTime: 58
+Complete</v>
+	</Variable>
+	<Variable sr="vars3">
+		<n>%DisplayOn</n>
+		<v>1</v>
+	</Variable>
+	<Variable sr="vars4">
+		<n>%SpecialKeysV2</n>
+		<v>&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+&lt;meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"&gt;
+&lt;style&gt;
+  :root {
+    --panel: rgba(9, 24, 28, 0.90);
+    --panel-edge: rgba(120, 214, 182, 0.20);
+    --text: #ebfff7;
+    --muted: #9dc7bb;
+    --modifier: rgba(46, 109, 86, 0.95);
+    --transport: rgba(65, 88, 126, 0.95);
+    --gyro: rgba(118, 74, 28, 0.95);
+    --danger: rgba(128, 44, 44, 0.95);
+    --key: rgba(17, 43, 50, 0.96);
+  }
+  * {
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+    font-family: "JetBrains Mono", "IBM Plex Sans", monospace;
+  }
+  body {
+    margin: 0;
+    color: var(--text);
+    background: linear-gradient(180deg, rgba(3, 10, 12, 0.15), rgba(3, 10, 12, 0.05));
+  }
+  .shell {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-height: 100vh;
+    padding: 12px;
+    border-radius: 22px;
+    background: var(--panel);
+    border: 1px solid var(--panel-edge);
+    box-shadow: 0 18px 32px rgba(0, 0, 0, 0.35);
+    backdrop-filter: blur(14px);
+  }
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 2px;
+    font-size: 12px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+  }
+  .row {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .btn {
+    border: 0;
+    border-radius: 16px;
+    min-height: 56px;
+    padding: 10px 6px;
+    background: var(--key);
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 8px 16px rgba(0,0,0,0.18);
+  }
+  .btn.modifier { background: var(--modifier); }
+  .btn.transport { background: var(--transport); }
+  .btn.gyro { background: var(--gyro); }
+  .btn.danger { background: var(--danger); }
+  .btn:active {
+    transform: translateY(1px) scale(0.99);
+    filter: brightness(1.14);
+  }
+&lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;div class="shell"&gt;
+  &lt;div class="header"&gt;
+    &lt;span&gt;Special Keys V2&lt;/span&gt;
+    &lt;span&gt;KDE / Artemis&lt;/span&gt;
+  &lt;/div&gt;
+  &lt;div class="row"&gt;&lt;button class="btn modifier" onclick="send('CTRL')"&gt;CTRL&lt;/button&gt;&lt;button class="btn modifier" onclick="send('ALT')"&gt;ALT&lt;/button&gt;&lt;button class="btn modifier" onclick="send('SHIFT')"&gt;SHIFT&lt;/button&gt;&lt;button class="btn" onclick="send('TAB')"&gt;TAB&lt;/button&gt;&lt;button class="btn" onclick="send('ESC')"&gt;ESC&lt;/button&gt;&lt;button class="btn danger" onclick="send('CLEAR')"&gt;CLR&lt;/button&gt;&lt;/div&gt;&lt;div class="row"&gt;&lt;button class="btn" onclick="send('HOME')"&gt;HOME&lt;/button&gt;&lt;button class="btn" onclick="send('END')"&gt;END&lt;/button&gt;&lt;button class="btn" onclick="send('PGUP')"&gt;PGUP&lt;/button&gt;&lt;button class="btn" onclick="send('PGDN')"&gt;PGDN&lt;/button&gt;&lt;button class="btn" onclick="send('DEL')"&gt;DEL&lt;/button&gt;&lt;button class="btn" onclick="send('BSP')"&gt;BSP&lt;/button&gt;&lt;/div&gt;&lt;div class="row"&gt;&lt;button class="btn" onclick="send('UP')"&gt;UP&lt;/button&gt;&lt;button class="btn" onclick="send('LEFT')"&gt;LEFT&lt;/button&gt;&lt;button class="btn" onclick="send('DOWN')"&gt;DOWN&lt;/button&gt;&lt;button class="btn" onclick="send('RIGHT')"&gt;RIGHT&lt;/button&gt;&lt;button class="btn gyro" onclick="send('CLUTCH_TOGGLE')"&gt;CLUTCH&lt;/button&gt;&lt;button class="btn gyro" onclick="send('CLICK_TOGGLE')"&gt;CLICK&lt;/button&gt;&lt;/div&gt;&lt;div class="row"&gt;&lt;button class="btn transport" onclick="send('HID_START')"&gt;HID ON&lt;/button&gt;&lt;button class="btn transport" onclick="send('HID_STOP')"&gt;HID OFF&lt;/button&gt;&lt;button class="btn modifier" onclick="send('META')"&gt;META&lt;/button&gt;&lt;button class="btn" onclick="send('ENTER')"&gt;ENTER&lt;/button&gt;&lt;button class="btn" onclick="send('SPACE')"&gt;SPACE&lt;/button&gt;&lt;button class="btn danger" onclick="send('RESET')"&gt;RESET&lt;/button&gt;&lt;/div&gt;
+&lt;/div&gt;
+&lt;script&gt;
+  function send(action) {
+    performTask("SpecialKeysV2-Action", 10, action);
+  }
+&lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;</v>
+	</Variable>
+	<Variable sr="vars5">
+		<n>%CPU_stats</n>
+		<v>S (0-1): 0.88 0.53
+M (2-4): 0.92 2.84 2.53
+U (5-6): 0.92 1.67
+P (7)  : 2.94</v>
+	</Variable>
+	<Variable sr="vars6">
+		<n>%AVAMBIENT</n>
+		<v>false</v>
+	</Variable>
+</TaskerData>
