@@ -34,4 +34,16 @@ export NPUD_DISPATCH_DIR=/data/local/tmp/agora
 # the models present first: each resident LLM costs roughly its file size in RSS,
 # so preloading several will not fit in 16 GB. Without it models load on first
 # use and stay warm, which is usually what you want.
-exec "$PREFIX/bin/npud" >> "$PREFIX/tmp/npud.log" 2>&1
+#
+# Background + setsid, NOT exec. npud runs in the foreground forever, so exec'ing
+# it means this script never exits — and Termux:Boot runs boot scripts and waits
+# for them, so it never got started at boot (verified 2026-07-21: sshd was up
+# after reboot because `sshd` self-daemonizes and start-ssh returns, while this
+# script hung). setsid detaches it from the boot script's session so it survives
+# once Termux:Boot's own process group goes away.
+setsid "$PREFIX/bin/npud" >> "$PREFIX/tmp/npud.log" 2>&1 &
+
+# Give bind() a moment so a boot-time failure lands in the log while Termux:Boot
+# is still holding the wake lock, rather than silently after it releases.
+sleep 2
+exit 0
