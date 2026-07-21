@@ -1,0 +1,18 @@
+[package]
+name = "npud"
+version = "0.1.0"
+edition = "2021"
+description = "Resident NPU model daemon. Keeps litert-lm worker processes warm so Tensor G5 models answer without a per-request init, and exposes them over a Unix socket to any client."
+license = "GPL-3.0-or-later"
+
+[[bin]]
+name = "npud"
+path = "src/main.rs"
+
+# Deliberately dependency-free: std only. The worker processes do the model work;
+# this is supervision + routing, so the aarch64 build links only against bionic.
+
+[profile.release]
+strip = true
+lto = true
+opt-level = "z"

@@ -1,0 +1,35 @@
+#!/data/data/com.termux/files/usr/bin/sh
+# npud runit service — install to $PREFIX/var/service/npud/run (chmod +x).
+#
+# termux-services (runit) is used rather than an Android init service on purpose:
+# it runs natively under the Termux UID, which is what the model directory and
+# the workers already expect, and it needs no new SELinux domain — this ROM
+# builds with PRODUCT_PRIVATE_SEPOLICY_DIRS disabled, so adding one is not an
+# option. Termux:Boot starts runit at boot, the same path sshd already uses.
+#
+#   mkdir -p $PREFIX/var/service/npud/log
+#   cp run $PREFIX/var/service/npud/run && chmod +x $PREFIX/var/service/npud/run
+#   sv up npud    # sv down npud / sv status npud
+exec 2>&1
+
+PREFIX=/data/data/com.termux/files/usr
+HOME_DIR=/data/data/com.termux/files/home
+
+# Model weights are file-backed mmaps (~3.7 GB resident for Gemma 1B), so the
+# kernel may evict them under pressure and the next request pays a re-read. A
+# raised memlock ceiling lets the daemon keep them pinned; the default is 64 KB,
+# which is not enough for anything. Best-effort: if this shell cannot raise it,
+# npud still runs, just without the option to pin.
+ulimit -l unlimited 2>/dev/null || true
+
+export NPUD_CONF="$HOME_DIR/.config/npud/npud.conf"
+export NPUD_MODEL_DIR="$HOME_DIR/npu_models"
+export NPUD_SOCKET="$PREFIX/tmp/npud.sock"
+export NPUD_DISPATCH_DIR=/data/local/tmp/agora
+
+# NPUD_PRELOAD=1 loads every discovered model at startup. Leave it off until you
+# have checked total RAM against the models present: each resident LLM costs
+# roughly its file size in RSS, so preloading several will not fit in 16 GB.
+# Without it, models load on first use and then stay warm, which is usually what
+# you actually want.
+exec "$PREFIX/bin/npud"
