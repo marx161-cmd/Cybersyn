@@ -77,10 +77,18 @@ struct Backend {
     end: String,
     /// Prefix identifying an error reply.
     error: String,
-    /// File extension identifying models for this backend.
+    /// File extension identifying models for this backend. Ignored when
+    /// `model_is_dir` is set.
     ext: String,
-    /// How the model path is passed, e.g. `--model_path=`.
+    /// How the model path is passed, e.g. `--model_path=` or `--model_dir=`.
     model_flag: String,
+    /// How the dispatch dir is passed. The workers disagree:
+    /// `--litert_dispatch_lib_dir=` (poll_e) vs `--dispatch_lib_dir=`
+    /// (whisper, kokoro), which is why this is data rather than hardcoded.
+    dispatch_flag: String,
+    /// True when a "model" is a directory of tensors rather than one file
+    /// (kokoro takes `--model_dir`).
+    model_is_dir: bool,
     /// Fixed arguments, whitespace-separated in config.
     args: Vec<String>,
 }
@@ -121,11 +129,19 @@ fn parse_conf(path: &Path) -> Result<Vec<Backend>, String> {
                 begin: kv.get("begin").cloned().filter(|s| !s.is_empty()),
                 end: need("end")?,
                 error: kv.get("error").cloned().unwrap_or_else(|| "ERROR".into()),
-                ext: need("ext")?,
+                ext: kv.get("ext").cloned().unwrap_or_default(),
                 model_flag: kv
                     .get("model_flag")
                     .cloned()
                     .unwrap_or_else(|| "--model_path=".into()),
+                dispatch_flag: kv
+                    .get("dispatch_flag")
+                    .cloned()
+                    .unwrap_or_else(|| "--litert_dispatch_lib_dir=".into()),
+                model_is_dir: kv
+                    .get("model_is_dir")
+                    .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+                    .unwrap_or(false),
                 args: kv
                     .get("args")
                     .map(|a| a.split_whitespace().map(String::from).collect())
@@ -255,7 +271,8 @@ impl Worker {
         }
         cmd.arg(format!("{}{}", be.model_flag, model.to_string_lossy()))
             .arg(format!(
-                "--litert_dispatch_lib_dir={}",
+                "{}{}",
+                be.dispatch_flag,
                 cfg.dispatch_dir.to_string_lossy()
             ))
             .env("LD_LIBRARY_PATH", &ld)
@@ -398,11 +415,14 @@ fn model_path(cfg: &Config, be: &Backend, name: &str) -> Option<PathBuf> {
     if !safe_name(name) {
         return None;
     }
-    let p = cfg
-        .model_dir
-        .join(&be.kind)
-        .join(format!("{name}.{}", be.ext));
-    p.is_file().then_some(p)
+    let base = cfg.model_dir.join(&be.kind);
+    if be.model_is_dir {
+        let p = base.join(name);
+        p.is_dir().then_some(p)
+    } else {
+        let p = base.join(format!("{name}.{}", be.ext));
+        p.is_file().then_some(p)
+    }
 }
 
 /// Rescan on every call so a dropped-in model appears without a restart.
@@ -413,9 +433,21 @@ fn scan(cfg: &Config) -> Vec<(String, String)> {
         if let Ok(entries) = std::fs::read_dir(&dir) {
             for e in entries.flatten() {
                 let p = e.path();
-                if p.is_file() && p.extension().map(|x| x == be.ext.as_str()).unwrap_or(false) {
-                    if let Some(stem) = p.file_stem().and_then(|s| s.to_str()) {
-                        out.push((be.kind.clone(), stem.to_string()));
+                let hit = if be.model_is_dir {
+                    p.is_dir()
+                } else {
+                    p.is_file() && p.extension().map(|x| x == be.ext.as_str()).unwrap_or(false)
+                };
+                if hit {
+                    // Directory-models keep their full name; file-models drop
+                    // the extension so clients name them the same way either way.
+                    let label = if be.model_is_dir {
+                        p.file_name().and_then(|s| s.to_str())
+                    } else {
+                        p.file_stem().and_then(|s| s.to_str())
+                    };
+                    if let Some(l) = label {
+                        out.push((be.kind.clone(), l.to_string()));
                     }
                 }
             }
