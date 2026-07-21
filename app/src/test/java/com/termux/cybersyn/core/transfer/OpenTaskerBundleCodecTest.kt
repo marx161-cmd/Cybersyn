@@ -1,0 +1,235 @@
+package com.termux.cybersyn.core.transfer
+
+import com.termux.cybersyn.core.capabilities.CapabilityLevel
+import com.termux.cybersyn.core.capabilities.AutomationPower
+import com.termux.cybersyn.core.model.ActionSpec
+import com.termux.cybersyn.core.model.ContextSpec
+import com.termux.cybersyn.core.model.ContextType
+import com.termux.cybersyn.core.model.Profile
+import com.termux.cybersyn.core.model.Task
+import com.termux.cybersyn.core.model.Variable
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class OpenTaskerBundleCodecTest {
+    @Test
+    fun buildSortsTopLevelCollectionsForStableDiffs() {
+        val firstTask = Task(id = 2, name = "B Task", actions = listOf(ActionSpec(type = "log", args = mapOf("message" to "b"))))
+        val secondTask = Task(id = 1, name = "A Task", actions = listOf(ActionSpec(type = "notify.show")))
+
+        val bundle = OpenTaskerBundleCodec.build(
+            appVersion = "0.2.13",
+            exportedAtEpochMs = 123L,
+            profiles = listOf(
+                Profile(id = 2, name = "Z Profile", enterTaskId = 2, contexts = listOf(ContextSpec(ContextType.TIME))),
+                Profile(id = 1, name = "A Profile", enterTaskId = 1, contexts = listOf(ContextSpec(ContextType.STATE))),
+            ),
+            tasks = listOf(firstTask, secondTask),
+            variables = listOf(
+                Variable(name = "%Z", value = "2", isGlobal = true),
+                Variable(name = "%A", value = "1", isGlobal = true),
+            ),
+        )
+
+        assertEquals(listOf("A Task", "B Task"), bundle.tasks.map { it.name })
+        assertEquals(listOf("A Profile", "Z Profile"), bundle.profiles.map { it.name })
+        assertEquals(listOf("%A", "%Z"), bundle.variables.map { it.name })
+    }
+
+    @Test
+    fun buildRecordsCapabilityRequirements() {
+        val bundle = OpenTaskerBundleCodec.build(
+            appVersion = "0.2.13",
+            exportedAtEpochMs = 123L,
+            profiles = emptyList(),
+            tasks = listOf(
+                Task(
+                    id = 1,
+                    name = "Restricted",
+                    actions = listOf(
+                        ActionSpec(type = "notify.show"),
+                        ActionSpec(type = "reboot"),
+                        ActionSpec(type = "log"),
+                    ),
+                )
+            ),
+        )
+
+        val requirements = bundle.metadata.capabilityRequirements.associateBy { it.actionId }
+        assertEquals(CapabilityLevel.RequiresSetup, requirements.getValue("notify.show").level)
+        assertEquals(CapabilityLevel.Unsupported, requirements.getValue("reboot").level)
+        assertFalse(requirements.containsKey("log"))
+        assertFalse(bundle.metadata.warnings.any { it.contains("manifest did not match") })
+    }
+
+    @Test
+    fun buildGroupsRequestedPowersAndFlagsDataToExternalChains() {
+        val bundle = OpenTaskerBundleCodec.build(
+            appVersion = "0.2.75",
+            exportedAtEpochMs = 123L,
+            profiles = listOf(Profile(id = 9, name = "Uploader", enterTaskId = 1)),
+            tasks = listOf(
+                Task(
+                    id = 1,
+                    name = "Upload local file",
+                    actions = listOf(ActionSpec(type = "file.read"), ActionSpec(type = "http.post")),
+                ),
+            ),
+        )
+
+        val request = bundle.metadata.powerRequests.single()
+        assertEquals(OPEN_TASKER_BUNDLE_SCHEMA_VERSION, bundle.schemaVersion)
+        assertEquals(listOf("Uploader"), request.profileNames)
+        assertTrue(AutomationPower.DATA_ACCESS in request.powers)
+        assertTrue(AutomationPower.EXTERNAL_TRANSMISSION in request.powers)
+        assertEquals(DataToExternalChainRequest("file.read", "http.post"), request.dataToExternalChains.single())
+        assertTrue(bundle.metadata.warnings.any { it.contains("Potential data-to-external chain") })
+    }
+
+    @Test
+    fun buildFlagsDataToExternalChainAcrossReachableSubtask() {
+        val bundle = OpenTaskerBundleCodec.build(
+            appVersion = "0.2.75",
+            exportedAtEpochMs = 123L,
+            profiles = listOf(Profile(id = 9, name = "Nested uploader", enterTaskId = 1)),
+            tasks = listOf(
+                Task(
+                    id = 1,
+                    name = "Read parent",
+                    actions = listOf(
+                        ActionSpec(type = "file.read"),
+                        ActionSpec(type = "task.run", args = mapOf("task" to "2")),
+                    ),
+                ),
+                Task(id = 2, name = "Post child", actions = listOf(ActionSpec(type = "http.post"))),
+            ),
+        )
+
+        assertTrue(
+            bundle.metadata.warnings.any {
+                it.contains("profile 'Nested uploader'") && it.contains("file.read -> http.post")
+            },
+        )
+    }
+
+    @Test
+    fun validateBlocksUnknownUnclassifiedActions() {
+        val plan = OpenTaskerBundleCodec.validate(
+            OpenTaskerBundle(
+                appVersion = "future",
+                exportedAtEpochMs = 123L,
+                tasks = listOf(Task(id = 1, name = "Unknown", actions = listOf(ActionSpec(type = "future.action")))),
+            ),
+        )
+
+        assertFalse(plan.canImport)
+        assertTrue(plan.warnings.any { it.contains("unknown unclassified actions") })
+    }
+
+    @Test
+    fun validateRecomputesForgedVersion2Manifests() {
+        val plan = OpenTaskerBundleCodec.validate(
+            OpenTaskerBundle(
+                appVersion = "0.2.75",
+                exportedAtEpochMs = 123L,
+                tasks = listOf(Task(id = 1, name = "Notify", actions = listOf(ActionSpec(type = "notify.show")))),
+                metadata = BundleMetadata(
+                    capabilityRequirements = emptyList(),
+                    powerRequests = emptyList(),
+                ),
+            ),
+        )
+
+        assertTrue(plan.canImport)
+        assertEquals("notify.show", plan.capabilityRequirements.single().actionId)
+        assertTrue(plan.powerRequests.single().powers.contains(AutomationPower.DEVICE_CONTROL))
+        assertTrue(plan.warnings.count { it.contains("manifest did not match") } == 2)
+    }
+
+    @Test
+    fun validateReportsLossyReferencesAndUnsupportedActions() {
+        val bundle = OpenTaskerBundle(
+            appVersion = "0.2.13",
+            exportedAtEpochMs = 123L,
+            tasks = listOf(Task(id = 1, name = "Task", actions = listOf(ActionSpec(type = "reboot")))),
+            profiles = listOf(Profile(id = 1, name = "Broken", enterTaskId = 99, exitTaskId = 42)),
+        )
+
+        val plan = OpenTaskerBundleCodec.validate(bundle)
+
+        assertTrue(plan.canImport)
+        assertTrue(plan.warnings.any { it.contains("unsupported actions") })
+        assertTrue(plan.lossyWarnings.any { it.contains("missing enter task") })
+        assertTrue(plan.lossyWarnings.any { it.contains("missing exit task") })
+    }
+
+    @Test
+    fun validateBlocksAmbiguousDuplicateIdsAndVariableNames() {
+        val bundle = OpenTaskerBundle(
+            appVersion = "0.2.73",
+            exportedAtEpochMs = 123L,
+            tasks = listOf(
+                Task(id = 7, name = "First"),
+                Task(id = 7, name = "Second"),
+            ),
+            variables = listOf(
+                Variable(name = "%TOKEN", value = "first", isGlobal = true),
+                Variable(name = "%TOKEN", value = "second", isGlobal = true),
+            ),
+        )
+
+        val plan = OpenTaskerBundleCodec.validate(bundle)
+
+        assertFalse(plan.canImport)
+        assertTrue(plan.warnings.any { it.contains("duplicate task ids: 7") })
+        assertTrue(plan.warnings.any { it.contains("duplicate variable names: %TOKEN") })
+    }
+
+    @Test
+    fun jsonRoundTripPreservesBundle() {
+        val bundle = OpenTaskerBundleCodec.build(
+            appVersion = "0.2.13",
+            exportedAtEpochMs = 123L,
+            profiles = listOf(Profile(id = 1, name = "Profile", enterTaskId = 1, contexts = listOf(ContextSpec(ContextType.EVENT)))),
+            tasks = listOf(Task(id = 1, name = "Task", actions = listOf(ActionSpec(type = "log", args = mapOf("message" to "hello"))))),
+        )
+
+        val decoded = OpenTaskerBundleCodec.decode(OpenTaskerBundleCodec.encode(bundle))
+
+        assertEquals(bundle, decoded)
+    }
+
+    @Test
+    fun ordinaryBundleBuildOmitsSecretValuesAndRecordsReentryWarning() {
+        val bundle = OpenTaskerBundleCodec.build(
+            appVersion = "0.2.75",
+            exportedAtEpochMs = 123L,
+            profiles = emptyList(),
+            tasks = emptyList(),
+            variables = listOf(
+                Variable("COUNT", "7", isGlobal = true),
+                Variable("API_TOKEN", "must-not-export", isGlobal = true, isSecret = true),
+            ),
+        )
+
+        val encoded = OpenTaskerBundleCodec.encode(bundle)
+        assertEquals(listOf("COUNT"), bundle.variables.map { it.name })
+        assertFalse(encoded.contains("must-not-export"))
+        assertTrue(bundle.metadata.warnings.any { it.contains("must be re-entered") })
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun codecRejectsDirectSecretSerialization() {
+        OpenTaskerBundleCodec.encode(
+            OpenTaskerBundle(
+                appVersion = "0.2.75",
+                exportedAtEpochMs = 123L,
+                variables = listOf(
+                    Variable("API_TOKEN", "must-not-export", isGlobal = true, isSecret = true),
+                ),
+            ),
+        )
+    }
+}

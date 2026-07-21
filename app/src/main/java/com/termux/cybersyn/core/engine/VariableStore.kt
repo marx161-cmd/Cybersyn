@@ -1,0 +1,342 @@
+package com.termux.cybersyn.core.engine
+
+import com.termux.cybersyn.core.engine.variables.ArrayStore
+import com.termux.cybersyn.core.engine.variables.VariableExpander
+import com.termux.cybersyn.core.expressions.TemplateScope
+import com.termux.cybersyn.core.model.VariableNamePolicy
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.buildJsonObject
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicInteger
+
+data class TrackedExpansion(
+    val value: String,
+    val isSecretDerived: Boolean,
+)
+
+/**
+ * In-memory variable store with a global scope and stack of local scopes.
+ * Thread-safe for concurrent read/write access.
+ *
+ * Naming convention (matches Tasker):
+ *   - a name containing any uppercase letter → global, persistent
+ *   - an all-lowercase name → local to the current task invocation
+ *
+ * Enhanced with operator support:
+ *   - Math: %VAR(+5), %VAR(*2), %VAR(//), %VAR(/round)
+ *   - Strings: %VAR(upper), %VAR(lower), %VAR(trim), %VAR(substring:0:5)
+ *   - Linear-time regex: %VAR(regex:pattern:group), %VAR(replace:pattern:replacement)
+ *   - Arrays: %list(#), %list(1), %list()
+ *   - JSON: %json.path.to.field
+ */
+class VariableStore {
+    private val globals = ConcurrentHashMap<String, String>()
+    private val rootLocals = ConcurrentHashMap<String, String>()
+    private val localStack = java.util.Collections.synchronizedList(mutableListOf<MutableMap<String, String>>())
+    private val globalSensitiveNames = ConcurrentHashMap.newKeySet<String>()
+    private val declaredSecretGlobals = ConcurrentHashMap.newKeySet<String>()
+    private val rootLocalSensitiveNames = ConcurrentHashMap.newKeySet<String>()
+    private val localSensitiveStack = java.util.Collections.synchronizedList(mutableListOf<MutableSet<String>>())
+    private val sensitiveArrayNames = ConcurrentHashMap.newKeySet<String>()
+    private val sensitiveWriteDepth = AtomicInteger(0)
+    private val expander = VariableExpander()
+    private val arrayStore = ArrayStore()
+
+    fun pushScope() {
+        localStack.add(java.util.concurrent.ConcurrentHashMap())
+        localSensitiveStack.add(ConcurrentHashMap.newKeySet())
+    }
+    fun popScope() {
+        synchronized(localStack) {
+            if (localStack.isNotEmpty()) {
+                localStack.removeAt(localStack.size - 1)
+                localSensitiveStack.removeAt(localSensitiveStack.size - 1)
+            }
+        }
+    }
+
+    fun set(name: String, value: String, sensitive: Boolean = false) {
+        val normalizedName = VariableNamePolicy.normalize(name) ?: return
+        val shouldRemainSensitive = sensitive || sensitiveWriteDepth.get() > 0 || isSensitive(normalizedName)
+        if (VariableNamePolicy.isGlobal(normalizedName)) {
+            globals[normalizedName] = value
+            updateSensitivity(
+                globalSensitiveNames,
+                normalizedName,
+                shouldRemainSensitive || normalizedName in declaredSecretGlobals,
+            )
+        } else {
+            synchronized(localStack) {
+                val target = localStack.lastOrNull()
+                if (target == null) {
+                    rootLocals[normalizedName] = value
+                    updateSensitivity(rootLocalSensitiveNames, normalizedName, shouldRemainSensitive)
+                } else {
+                    target[normalizedName] = value
+                    updateSensitivity(localSensitiveStack.last(), normalizedName, shouldRemainSensitive)
+                }
+            }
+        }
+    }
+
+    fun get(name: String): String? {
+        val normalizedName = VariableNamePolicy.normalize(name) ?: return null
+        synchronized(localStack) {
+            for (i in localStack.indices.reversed()) {
+                localStack[i][normalizedName]?.let { return it }
+            }
+        }
+        return rootLocals[normalizedName] ?: globals[normalizedName]
+    }
+
+    fun isSensitive(name: String): Boolean {
+        val normalizedName = VariableNamePolicy.normalize(name) ?: return false
+        synchronized(localStack) {
+            for (index in localStack.indices.reversed()) {
+                if (normalizedName in localStack[index]) return normalizedName in localSensitiveStack[index]
+            }
+        }
+        if (rootLocals.containsKey(normalizedName)) return normalizedName in rootLocalSensitiveNames
+        return normalizedName in globalSensitiveNames
+    }
+
+    /**
+     * Seed the global scope with previously persisted values before a run starts. Only affects the
+     * global namespace; local task scopes are untouched.
+     */
+    fun seedGlobals(values: Map<String, String>, secretNames: Set<String> = emptySet()) {
+        values.forEach { (rawName, value) ->
+            VariableNamePolicy.promoteToGlobal(rawName)?.let { name -> globals[name] = value }
+        }
+        secretNames.mapNotNullTo(declaredSecretGlobals, VariableNamePolicy::promoteToGlobal)
+        globalSensitiveNames += declaredSecretGlobals
+    }
+
+    /** Snapshot of the current global scope, used to persist durable globals after a run. */
+    fun globalSnapshot(): Map<String, String> = globals.toMap()
+
+    /** Secret/taint metadata paired with [globalSnapshot] for encrypted durable persistence. */
+    fun globalSensitiveSnapshot(): Set<String> = globalSensitiveNames.toSet()
+
+    /**
+     * Store an array in the array storage.
+     * Arrays can be accessed via %arrayName(#) for length, %arrayName(0) for index, etc.
+     */
+    fun setArray(name: String, values: List<String>, sensitive: Boolean = false) {
+        arrayStore.put(name, values)
+        updateSensitivity(
+            sensitiveArrayNames,
+            name,
+            sensitive || sensitiveWriteDepth.get() > 0 || name in sensitiveArrayNames,
+        )
+    }
+
+    /**
+     * Returns the elements of a stored array by name, or null if no array with that name exists.
+     * Used by the `flow.foreach` control action to iterate over array variables.
+     */
+    fun getArrayItems(name: String): List<String>? =
+        arrayStore.snapshot()[name]
+
+    fun isArraySensitive(name: String): Boolean = name in sensitiveArrayNames
+
+    /** Expand all variable references in [s] using the current scope chain. */
+    fun expand(s: String): String {
+        return expander.expand(s, this, arrayStore)
+    }
+
+    /** Expands a legacy expression while retaining whether any referenced input was secret. */
+    fun expandTracked(s: String): TrackedExpansion = TrackedExpansion(
+        value = expand(s),
+        isSecretDerived = variableReference.findAll(s).any { match ->
+            val name = match.groupValues[1]
+            isSensitive(name) || name in sensitiveArrayNames
+        },
+    )
+
+    /**
+     * Expand with operator support. Examples:
+     * - "%VAR(+5)" → parse VAR as number, add 5
+     * - "%VAR(upper)" → uppercase VAR
+     * - "%VAR(regex:(\d+):1)" → extract first digit group
+     * - "(x > 5) ? yes : no" → conditional
+     */
+    fun expandWithOperators(expr: String): String {
+        return expand(expr)
+    }
+
+    fun evaluateCondition(expr: String): Boolean {
+        return expander.evaluateCondition(expr, this, arrayStore)
+    }
+
+    fun toTemplateScope(event: Map<String, String> = emptyMap()): TemplateScope {
+        val taskValues = rootLocals.toMutableMap()
+        synchronized(localStack) {
+            localStack.forEach { scope -> taskValues += scope }
+        }
+        return TemplateScope(
+            global = globals.toMap(),
+            task = taskValues.toMap(),
+            event = event.toMap(),
+            arrays = arrayStore.snapshot(),
+            sensitiveGlobal = globalSensitiveNames.toSet(),
+            sensitiveTask = synchronized(localStack) {
+                localSensitiveStack.flatMapTo(rootLocalSensitiveNames.toMutableSet()) { it }
+            },
+            sensitiveArrays = sensitiveArrayNames.toSet(),
+        )
+    }
+
+    suspend fun <T> withSensitiveWrites(sensitive: Boolean, block: suspend () -> T): T {
+        if (!sensitive) return block()
+        sensitiveWriteDepth.incrementAndGet()
+        return try {
+            block()
+        } finally {
+            sensitiveWriteDepth.decrementAndGet()
+        }
+    }
+
+    /**
+     * Set a value at a nested JSON path within an existing variable.
+     *
+     * `fullPath` is parsed as `base.key1.key2` or `base[0]` or `base.key[0].nested`.
+     * If no selectors are found, this falls through to a flat [set].
+     * If the base variable does not exist or is not valid JSON, a new JSON structure is created.
+     *
+     * Returns true if the write succeeded, false if the path is unparseable.
+     */
+    fun setAtPath(fullPath: String, value: String): Boolean {
+        val parsed = parsePathSelectors(fullPath) ?: return false
+        if (parsed.selectors.isEmpty()) {
+            set(parsed.base, value)
+            return true
+        }
+
+        val current = get(parsed.base)
+        val root: JsonElement = if (current != null) {
+            try { jsonCodec.parseToJsonElement(current) } catch (_: Exception) { JsonObject(emptyMap()) }
+        } else {
+            JsonObject(emptyMap())
+        }
+
+        val updated = setInJson(root, parsed.selectors, JsonPrimitive(value)) ?: return false
+        set(parsed.base, updated.toString())
+        return true
+    }
+
+    /**
+     * Set a value at a nested path within an array variable.
+     *
+     * `fullPath` is `arrayName[index]`. Sets the element at the given index,
+     * growing the array with empty strings if needed.
+     *
+     * Returns true if the write succeeded.
+     */
+    fun setArrayAtIndex(name: String, index: Int, value: String): Boolean {
+        if (index < 0 || index > MAX_ARRAY_INDEX) return false
+        val items = arrayStore.snapshot()[name]?.toMutableList() ?: mutableListOf()
+        while (items.size <= index) items.add("")
+        items[index] = value
+        arrayStore.put(name, items)
+        if (sensitiveWriteDepth.get() > 0) sensitiveArrayNames += name
+        return true
+    }
+
+    private fun setInJson(
+        element: JsonElement,
+        selectors: List<PathSelector>,
+        value: JsonElement,
+    ): JsonElement? {
+        if (selectors.isEmpty()) return value
+        val head = selectors.first()
+        val tail = selectors.drop(1)
+
+        return when (head) {
+            is PathSelector.Property -> {
+                val obj = (element as? JsonObject) ?: JsonObject(emptyMap())
+                val child = obj[head.name] ?: JsonObject(emptyMap())
+                val updated = setInJson(child, tail, value) ?: return null
+                buildJsonObject {
+                    obj.forEach { (k, v) -> put(k, v) }
+                    put(head.name, updated)
+                }
+            }
+            is PathSelector.Index -> {
+                val arr = (element as? JsonArray) ?: JsonArray(emptyList())
+                val items = arr.toMutableList()
+                while (items.size <= head.index) items.add(JsonPrimitive(""))
+                val child = items[head.index]
+                val updated = setInJson(child, tail, value) ?: return null
+                items[head.index] = updated
+                buildJsonArray { items.forEach(::add) }
+            }
+        }
+    }
+
+    private fun parsePathSelectors(fullPath: String): ParsedPath? {
+        if (fullPath.isBlank()) return null
+        var cursor = 0
+        while (cursor < fullPath.length && isPathBaseChar(fullPath[cursor])) cursor++
+        if (cursor == 0) return null
+        val base = fullPath.substring(0, cursor)
+        val selectors = mutableListOf<PathSelector>()
+
+        while (cursor < fullPath.length) {
+            when (fullPath[cursor]) {
+                '.' -> {
+                    cursor++
+                    val start = cursor
+                    while (cursor < fullPath.length && isPathBaseChar(fullPath[cursor])) cursor++
+                    if (cursor == start) return null
+                    selectors += PathSelector.Property(fullPath.substring(start, cursor))
+                }
+                '[' -> {
+                    val close = fullPath.indexOf(']', startIndex = cursor + 1)
+                    if (close == -1) return null
+                    val body = fullPath.substring(cursor + 1, close).trim()
+                    val index = body.toIntOrNull() ?: return null
+                    if (index < 0 || index > MAX_ARRAY_INDEX) return null
+                    selectors += PathSelector.Index(index)
+                    cursor = close + 1
+                }
+                else -> return null
+            }
+        }
+        return ParsedPath(base, selectors)
+    }
+
+    private fun isPathBaseChar(char: Char): Boolean =
+        char.isLetterOrDigit() || char == '_' || char == '-'
+
+    private fun updateSensitivity(target: MutableSet<String>, name: String, sensitive: Boolean) {
+        if (sensitive) target += name else target -= name
+    }
+
+    private sealed interface PathSelector {
+        data class Property(val name: String) : PathSelector
+        data class Index(val index: Int) : PathSelector
+    }
+
+    private data class ParsedPath(
+        val base: String,
+        val selectors: List<PathSelector>,
+    )
+
+    companion object {
+        private val jsonCodec = Json { ignoreUnknownKeys = true }
+        private val variableReference = Regex("%([A-Za-z][A-Za-z0-9_-]*)")
+
+        /**
+         * Upper bound for a nested/array write index. A `var.set` name such as `X[2000000000]`
+         * (reachable from an imported/shared profile) would otherwise grow a list ~2 billion
+         * entries, hanging the task thread and OOM-ing the process. Writes above this fail closed.
+         */
+        internal const val MAX_ARRAY_INDEX = 100_000
+    }
+}

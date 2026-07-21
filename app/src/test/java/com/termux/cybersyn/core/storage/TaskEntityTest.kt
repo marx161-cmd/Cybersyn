@@ -1,0 +1,43 @@
+package com.termux.cybersyn.core.storage
+
+import com.termux.cybersyn.core.model.CollisionMode
+import com.termux.cybersyn.core.model.Task
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertThrows
+import org.junit.Test
+
+class TaskEntityTest {
+    @Test
+    fun taskEntityRoundTripPreservesActions() {
+        val task = Task(
+            id = 8,
+            name = "Notify",
+            collisionMode = CollisionMode.WAIT,
+        )
+
+        assertEquals(task, task.toEntity().toDomain())
+    }
+
+    @Test
+    fun malformedActionsJsonReturnsFallbackWithDecodeIssue() {
+        val entity = TaskEntity(
+            id = 9,
+            name = "Corrupted task",
+            priority = 5,
+            collisionMode = CollisionMode.WAIT.name,
+            actionsJson = "{not-json",
+        )
+        val result = entity.toDomainDecodeResult()
+
+        assertEquals(emptyList<com.termux.cybersyn.core.model.ActionSpec>(), result.value.actions)
+        assertEquals(CollisionMode.WAIT, result.value.collisionMode)
+        val issue = result.issue
+        assertNotNull(issue)
+        issue!!
+        assertEquals(StorageRecordType.TASK, issue.recordType)
+        assertEquals(9L, issue.recordId)
+        assertEquals("actionsJson", issue.fieldName)
+        assertThrows(CorruptStoredRecordException::class.java) { entity.toDomain() }
+    }
+}

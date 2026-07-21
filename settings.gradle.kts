@@ -13,5 +13,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "OpenTasker"
+rootProject.name = "Cybersyn"
 include(":app")

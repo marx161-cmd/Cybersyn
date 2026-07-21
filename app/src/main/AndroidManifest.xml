@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools">
+    xmlns:tools="http://schemas.android.com/tools"
+    android:sharedUserId="com.termux">
 
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
@@ -46,7 +47,7 @@
         android:required="false" />
 
     <permission
-        android:name="com.opentasker.permission.AUTOMATION"
+        android:name="com.termux.cybersyn.permission.AUTOMATION"
         android:description="@string/permission_automation_description"
         android:label="@string/permission_automation_label"
         android:protectionLevel="signature" />
@@ -99,8 +100,18 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name="com.termux.cybersyn.input.TrackpadActivity"
+            android:exported="false"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
+            android:launchMode="singleTask"
+            android:resizeableActivity="true"
+            android:supportsPictureInPicture="false"
+            android:theme="@style/Theme.OpenTasker"
+            android:windowSoftInputMode="stateAlwaysHidden" />
+
         <service
-            android:name="com.opentasker.core.engine.AutomationService"
+            android:name="com.termux.cybersyn.core.engine.AutomationService"
             android:exported="false"
             android:foregroundServiceType="specialUse|location">
             <property
@@ -109,7 +120,7 @@
         </service>
 
         <service
-            android:name="com.opentasker.core.contexts.NotificationTriggerService"
+            android:name="com.termux.cybersyn.core.contexts.NotificationTriggerService"
             android:exported="true"
             android:label="@string/app_name"
             android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
@@ -119,7 +130,7 @@
         </service>
 
         <receiver
-            android:name="com.opentasker.core.engine.BootReceiver"
+            android:name="com.termux.cybersyn.core.engine.BootReceiver"
             android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
@@ -127,16 +138,16 @@
         </receiver>
 
         <receiver
-            android:name="com.opentasker.automation.receiver.TimeEventReceiver"
+            android:name="com.termux.cybersyn.automation.receiver.TimeEventReceiver"
             android:exported="false">
             <intent-filter>
-                <action android:name="com.opentasker.automation.TIME_TICK" />
+                <action android:name="com.termux.cybersyn.automation.TIME_TICK" />
                 <action android:name="android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED" />
             </intent-filter>
         </receiver>
 
         <service
-            android:name="com.opentasker.core.scenes.SceneOverlayService"
+            android:name="com.termux.cybersyn.core.scenes.SceneOverlayService"
             android:exported="false"
             android:foregroundServiceType="specialUse">
             <property
@@ -145,7 +156,7 @@
         </service>
 
         <service
-            android:name="com.opentasker.core.contexts.QuickSettingsTileService"
+            android:name="com.termux.cybersyn.core.contexts.QuickSettingsTileService"
             android:exported="true"
             android:icon="@android:drawable/ic_menu_compass"
             android:label="@string/app_name"
@@ -156,7 +167,7 @@
         </service>
 
         <activity
-            android:name="com.opentasker.widget.TaskRunActivity"
+            android:name="com.termux.cybersyn.widget.TaskRunActivity"
             android:exported="false"
             android:theme="@android:style/Theme.Translucent.NoTitleBar"
             android:excludeFromRecents="true"
@@ -164,7 +175,7 @@
             android:taskAffinity="" />
 
         <activity
-            android:name="com.opentasker.widget.TaskWidgetConfigActivity"
+            android:name="com.termux.cybersyn.widget.TaskWidgetConfigActivity"
             android:exported="true"
             android:theme="@style/Theme.OpenTasker">
             <intent-filter>
@@ -173,7 +184,7 @@
         </activity>
 
         <receiver
-            android:name="com.opentasker.widget.TaskWidgetProvider"
+            android:name="com.termux.cybersyn.widget.TaskWidgetProvider"
             android:exported="false">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
@@ -184,30 +195,30 @@
         </receiver>
 
         <receiver
-            android:name="com.opentasker.core.actions.NotificationActionReceiver"
+            android:name="com.termux.cybersyn.core.actions.NotificationActionReceiver"
             android:exported="false">
             <intent-filter>
-                <action android:name="com.opentasker.action.NOTIFICATION_BUTTON" />
+                <action android:name="com.termux.cybersyn.action.NOTIFICATION_BUTTON" />
             </intent-filter>
         </receiver>
 
         <receiver
-            android:name="com.opentasker.core.scripting.TermuxResultReceiver"
+            android:name="com.termux.cybersyn.core.scripting.TermuxResultReceiver"
             android:exported="false" />
 
         <receiver
-            android:name="com.opentasker.core.external.AutomationTargetReceiver"
+            android:name="com.termux.cybersyn.core.external.AutomationTargetReceiver"
             android:exported="true"
-            android:permission="com.opentasker.permission.AUTOMATION">
+            android:permission="com.termux.cybersyn.permission.AUTOMATION">
             <intent-filter>
-                <action android:name="com.opentasker.action.RUN_TASK" />
-                <action android:name="com.opentasker.action.SET_PROFILE_ENABLED" />
-                <action android:name="com.opentasker.action.QUERY_STATUS" />
+                <action android:name="com.termux.cybersyn.action.RUN_TASK" />
+                <action android:name="com.termux.cybersyn.action.SET_PROFILE_ENABLED" />
+                <action android:name="com.termux.cybersyn.action.QUERY_STATUS" />
             </intent-filter>
         </receiver>
 
         <activity
-            android:name="com.opentasker.core.plugins.locale.LocaleSettingEditActivity"
+            android:name="com.termux.cybersyn.core.plugins.locale.LocaleSettingEditActivity"
             android:exported="true"
             android:icon="@mipmap/ic_launcher"
             android:label="OpenTasker task"
@@ -218,7 +229,7 @@
         </activity>
 
         <receiver
-            android:name="com.opentasker.core.plugins.locale.LocaleSettingFireReceiver"
+            android:name="com.termux.cybersyn.core.plugins.locale.LocaleSettingFireReceiver"
             android:exported="true">
             <intent-filter>
                 <action android:name="com.twofortyfouram.locale.intent.action.FIRE_SETTING" />

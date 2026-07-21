@@ -1,0 +1,792 @@
+package com.termux.cybersyn.ui.screens
+
+import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
+import android.location.LocationManager
+import android.os.Build
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import com.termux.cybersyn.app.R
+import com.termux.cybersyn.ui.theme.DesignSystem
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.termux.cybersyn.core.contexts.ContextEventObservation
+import com.termux.cybersyn.core.contexts.ContextInspectionSnapshot
+import com.termux.cybersyn.core.contexts.ContextSourceRegistry
+import com.termux.cybersyn.core.contexts.ContextSourceSnapshot
+import com.termux.cybersyn.core.contexts.ContextSourceStatus
+import com.termux.cybersyn.core.contexts.ProfileInspection
+import com.termux.cybersyn.core.contexts.inspectProfiles
+import com.termux.cybersyn.core.contexts.toContextSourceLabel
+import com.termux.cybersyn.core.location.LocationDwellStateStore
+import com.termux.cybersyn.core.location.LocationPolicyDisclosures
+import com.termux.cybersyn.core.model.ContextType
+import com.termux.cybersyn.core.model.Profile
+import com.termux.cybersyn.core.permissions.OemBatteryGuidance
+import com.termux.cybersyn.core.permissions.UsageAccess
+import com.termux.cybersyn.core.scheduling.ExactAlarmSupport
+import com.termux.cybersyn.core.storage.AppDatabase
+import com.termux.cybersyn.core.storage.StorageDecodeIssue
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+
+class ContextInspectorViewModel(
+    db: AppDatabase,
+    private val appContext: Context,
+    private val clock: () -> Long = { System.currentTimeMillis() },
+) : ViewModel() {
+    private val latestEvents = MutableStateFlow<Map<String, ContextEventObservation>>(emptyMap())
+    private val sourceErrors = MutableStateFlow<Map<String, String>>(emptyMap())
+    private val refreshTick = MutableStateFlow(clock())
+    private val locationDwellStateStore = LocationDwellStateStore(appContext, clock)
+
+    private val profileDecodeResults = db.profileDao()
+        .getAllAsFlow()
+        .map { entities -> entities.map { it.toDomainDecodeResult() } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    private val profiles: StateFlow<List<Profile>> = profileDecodeResults
+        .map { results ->
+            results.mapNotNull { result -> result.value.takeIf { result.issue == null } }
+                .sortedBy { it.name.lowercase(Locale.US) }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val storageDecodeIssues: StateFlow<List<StorageDecodeIssue>> = profileDecodeResults
+        .map { results -> results.mapNotNull { it.issue } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val snapshot: StateFlow<ContextInspectionSnapshot> = combine(
+        profiles,
+        latestEvents,
+        sourceErrors,
+        refreshTick,
+    ) { profiles, observations, errors, now ->
+        val sources = buildContextSourceSnapshots(appContext, observations, errors)
+        ContextInspectionSnapshot(
+            generatedAtMs = now,
+            sources = sources,
+            profiles = inspectProfiles(profiles, sources) { profile, index, spec, observation ->
+                if (spec.type == ContextType.LOCATION) {
+                    // observe() is read-only: the Inspector must never persist or clear the
+                    // engine's dwell timers from its own independent location stream.
+                    observation.copy(event = locationDwellStateStore.observe(profile.id, index, spec, observation.event))
+                } else {
+                    observation
+                }
+            },
+        )
+    }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyContextInspectionSnapshot(clock()))
+
+    init {
+        startSourceCollectors()
+        viewModelScope.launch {
+            while (isActive) {
+                delay(5_000)
+                refresh()
+            }
+        }
+    }
+
+    fun refresh() {
+        refreshTick.value = clock()
+    }
+
+    private fun startSourceCollectors() {
+        requiredContextSourceKeys().forEach { key ->
+            val source = ContextSourceRegistry.get(key) ?: return@forEach
+            viewModelScope.launch {
+                source.events(appContext)
+                    .catch { error ->
+                        sourceErrors.update { current ->
+                            current + (key to (error.message ?: error::class.java.simpleName))
+                        }
+                    }
+                    .collect { event ->
+                        sourceErrors.update { current -> current - key }
+                        latestEvents.update { current ->
+                            current + (key to ContextEventObservation(event, clock()))
+                        }
+                        refresh()
+                    }
+            }
+        }
+    }
+}
+
+class ContextInspectorViewModelFactory(
+    private val db: AppDatabase,
+    private val appContext: Context,
+) : ViewModelProvider.Factory {
+    @Suppress("UNCHECKED_CAST")
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        if (modelClass.isAssignableFrom(ContextInspectorViewModel::class.java)) {
+            return ContextInspectorViewModel(db, appContext) as T
+        }
+        throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
+    }
+}
+
+@Composable
+fun ContextInspectorScreen(
+    db: AppDatabase,
+    contentPadding: PaddingValues,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current.applicationContext
+    val factory = remember(db, context) { ContextInspectorViewModelFactory(db, context) }
+    val viewModel: ContextInspectorViewModel = viewModel(factory = factory)
+    val snapshot by viewModel.snapshot.collectAsState()
+    val storageDecodeIssues by viewModel.storageDecodeIssues.collectAsState()
+
+    if (snapshot.sources.isEmpty() && snapshot.profiles.isEmpty() && storageDecodeIssues.isEmpty()) {
+        InspectorEmptyState(contentPadding)
+        return
+    }
+
+    val oem = remember { OemBatteryGuidance.forDevice(Build.MANUFACTURER, Build.BRAND) }
+
+    LazyColumn(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(contentPadding),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(DesignSystem.Spacing.md),
+    ) {
+        item {
+            ContextInspectorSummaryCard(snapshot = snapshot, onRefresh = viewModel::refresh)
+        }
+        if (storageDecodeIssues.isNotEmpty()) {
+            item {
+                StorageDecodeWarningCard(storageDecodeIssues)
+            }
+        }
+        if (oem.needsExtraSteps) {
+            item {
+                OemRiskNotice(oem)
+            }
+        }
+        item {
+            Text(
+                stringResource(R.string.inspector_sources_title),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        items(snapshot.sources, key = { it.key }) { source ->
+            ContextSourceCard(source = source, nowMs = snapshot.generatedAtMs)
+        }
+        item {
+            Text(
+                stringResource(R.string.inspector_match_title),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        if (snapshot.profiles.isEmpty()) {
+            item {
+                InspectorNotice(
+                    title = stringResource(R.string.empty_profiles_inspector),
+                    body = "Create a profile before reviewing match explanations.",
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+        } else {
+            items(snapshot.profiles, key = { it.profileId }) { profile ->
+                ProfileInspectorCard(profile = profile, nowMs = snapshot.generatedAtMs)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ContextInspectorSummaryCard(
+    snapshot: ContextInspectionSnapshot,
+    onRefresh: () -> Unit,
+) {
+    val activeSources = snapshot.sources.count { it.status == ContextSourceStatus.Active }
+    val attentionSources = snapshot.sources.count {
+        it.status == ContextSourceStatus.NeedsSetup ||
+            it.status == ContextSourceStatus.Missing ||
+            it.status == ContextSourceStatus.Error
+    }
+    val enabledProfiles = snapshot.profiles.count { it.enabled }
+    val matchingProfiles = snapshot.profiles.count { it.matching }
+    val healthColor = if (attentionSources == 0) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.64f)),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.52f)),
+        shape = RoundedCornerShape(com.termux.cybersyn.ui.theme.DesignSystem.Radii.xxl),
+    ) {
+        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(DesignSystem.Spacing.md)) {
+                Column(Modifier.weight(1f)) {
+                    Text(stringResource(R.string.title_context_inspector), style = MaterialTheme.typography.headlineSmall)
+                    Text(
+                        stringResource(R.string.inspector_body),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                InspectorStatusPill(
+                    label = if (attentionSources == 0) "Ready" else "$attentionSources attention",
+                    color = healthColor,
+                )
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(DesignSystem.Spacing.sm), modifier = Modifier.fillMaxWidth()) {
+                InspectorMetric("$activeSources", "Active sources", Modifier.weight(1f))
+                InspectorMetric("$matchingProfiles", "Matching", Modifier.weight(1f))
+                InspectorMetric("$enabledProfiles", "Enabled", Modifier.weight(1f))
+            }
+            OutlinedButton(onClick = onRefresh, modifier = Modifier.fillMaxWidth()) {
+                Icon(Icons.Filled.Refresh, contentDescription = "Refresh", modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(6.dp))
+                Text(stringResource(R.string.inspector_refresh))
+            }
+        }
+    }
+}
+
+@Composable
+private fun ContextSourceCard(source: ContextSourceSnapshot, nowMs: Long) {
+    val color = sourceStatusColor(source.status)
+    val observation = source.lastObservation
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = when (source.status) {
+                ContextSourceStatus.NeedsSetup,
+                ContextSourceStatus.Missing,
+                ContextSourceStatus.Error -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.20f)
+                else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.58f)
+            },
+        ),
+        border = BorderStroke(1.dp, color.copy(alpha = 0.28f)),
+        shape = RoundedCornerShape(16.dp),
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(DesignSystem.Spacing.md)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(DesignSystem.Spacing.md)) {
+                Icon(sourceStatusIcon(source.status), contentDescription = source.status.label, tint = color, modifier = Modifier.size(22.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(source.label, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    val lastUpdateLabel = stringResource(R.string.inspector_last_update)
+                    val noValueLabel = stringResource(R.string.inspector_no_value)
+                    Text(
+                        observation?.let { "$lastUpdateLabel ${formatRelativeTime(it.observedAtMs, nowMs)}" } ?: noValueLabel,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                InspectorStatusPill(source.status.label, color)
+            }
+            source.setupDetail?.let {
+                Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            source.error?.let {
+                InspectorNotice("Source error", it, MaterialTheme.colorScheme.error)
+            }
+            observation?.let {
+                ContextMetadataBlock(event = it, nowMs = nowMs)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProfileInspectorCard(profile: ProfileInspection, nowMs: Long) {
+    val color = when {
+        !profile.enabled -> MaterialTheme.colorScheme.onSurfaceVariant
+        profile.matching -> MaterialTheme.colorScheme.tertiary
+        else -> MaterialTheme.colorScheme.error
+    }
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = if (profile.matching) {
+                MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.22f)
+            } else {
+                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.58f)
+            },
+        ),
+        border = BorderStroke(1.dp, color.copy(alpha = 0.28f)),
+        shape = RoundedCornerShape(16.dp),
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(DesignSystem.Spacing.md)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(DesignSystem.Spacing.md)) {
+                Icon(
+                    if (profile.matching) Icons.Filled.CheckCircle else Icons.Filled.Info,
+                    contentDescription = if (profile.matching) stringResource(R.string.status_matching) else "Not matching",
+                    tint = color,
+                    modifier = Modifier.size(22.dp),
+                )
+                Column(Modifier.weight(1f)) {
+                    Text(profile.profileName, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(profile.summary, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                InspectorStatusPill(
+                    label = when {
+                        !profile.enabled -> stringResource(R.string.status_disabled)
+                        profile.matching -> stringResource(R.string.status_matching)
+                        else -> stringResource(R.string.status_blocked)
+                    },
+                    color = color,
+                )
+            }
+            if (profile.contexts.isEmpty()) {
+                InspectorNotice(
+                    title = stringResource(R.string.inspector_no_contexts),
+                    body = stringResource(R.string.inspector_no_contexts_body),
+                    color = MaterialTheme.colorScheme.error,
+                )
+            } else {
+                profile.contexts.forEach { check ->
+                    ContextCheckRow(check = check, nowMs = nowMs)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ContextCheckRow(
+    check: com.termux.cybersyn.core.contexts.ContextCheck,
+    nowMs: Long,
+) {
+    val color = if (check.effectiveMatched) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.64f),
+        shape = RoundedCornerShape(DesignSystem.Radii.lg),
+        border = BorderStroke(1.dp, color.copy(alpha = 0.20f)),
+    ) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(DesignSystem.Spacing.sm)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(DesignSystem.Spacing.sm)) {
+                InspectorStatusPill("#${check.index + 1}", MaterialTheme.colorScheme.secondary)
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        "${check.spec.type.name.lowercase(Locale.US).replaceFirstChar { it.titlecase(Locale.US) }} via ${check.sourceLabel}",
+                        style = MaterialTheme.typography.titleSmall,
+                    )
+                    Text(
+                        check.configSummary,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                InspectorStatusPill(if (check.effectiveMatched) "Match" else "No match", color)
+            }
+            Text(check.reason, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            locationDwellDetail(check, nowMs)?.let {
+                Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            check.lastObservation?.let {
+                Text(
+                    "Observed ${formatRelativeTime(it.observedAtMs, nowMs)}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ContextMetadataBlock(event: ContextEventObservation, nowMs: Long) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.62f),
+        shape = RoundedCornerShape(DesignSystem.Radii.lg),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.42f)),
+    ) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text("Latest value", style = MaterialTheme.typography.labelLarge)
+            Text(
+                "matched=${event.event.matched}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            event.event.metadata.entries.sortedBy { it.key }.forEach { (key, value) ->
+                Text(
+                    "$key=$value",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Text(
+                formatAbsoluteTime(event.observedAtMs, nowMs),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun InspectorMetric(value: String, label: String, modifier: Modifier = Modifier) {
+    Surface(
+        modifier = modifier,
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.62f),
+        shape = RoundedCornerShape(DesignSystem.Radii.lg),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.42f)),
+    ) {
+        Column(Modifier.padding(horizontal = 12.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(value, style = MaterialTheme.typography.titleMedium)
+            Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+@Composable
+private fun InspectorStatusPill(label: String, color: Color) {
+    Surface(
+        color = color.copy(alpha = 0.14f),
+        shape = RoundedCornerShape(8.dp),
+        border = BorderStroke(1.dp, color.copy(alpha = 0.32f)),
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.labelMedium,
+            color = color,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+@Composable
+private fun OemRiskNotice(oem: OemBatteryGuidance.Guidance) {
+    val color = when (oem.riskLevel) {
+        OemBatteryGuidance.RiskLevel.SEVERE, OemBatteryGuidance.RiskLevel.HIGH -> MaterialTheme.colorScheme.error
+        else -> MaterialTheme.colorScheme.primary
+    }
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = color.copy(alpha = 0.12f),
+        shape = RoundedCornerShape(DesignSystem.Radii.lg),
+        border = BorderStroke(1.dp, color.copy(alpha = 0.26f)),
+    ) {
+        Row(Modifier.padding(12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Icon(Icons.Filled.Error, contentDescription = "Warning", tint = color, modifier = Modifier.size(20.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    "${oem.oemName} background risk: ${oem.riskLevel.name.lowercase(Locale.US)}",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    "${oem.summary} Open the Setup tab for OEM-specific steps.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun InspectorNotice(title: String, body: String, color: Color) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = color.copy(alpha = 0.12f),
+        shape = RoundedCornerShape(DesignSystem.Radii.lg),
+        border = BorderStroke(1.dp, color.copy(alpha = 0.26f)),
+    ) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
+            Text(body, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+@Composable
+private fun InspectorEmptyState(contentPadding: PaddingValues) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(contentPadding)
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.64f),
+            shape = RoundedCornerShape(com.termux.cybersyn.ui.theme.DesignSystem.Radii.xxl),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.52f)),
+        ) {
+            Column(
+                modifier = Modifier.padding(18.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(DesignSystem.Spacing.md),
+            ) {
+                Icon(
+                    Icons.Filled.Info,
+                    contentDescription = "Context inspector unavailable",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(32.dp),
+                )
+                Text("Context inspector unavailable", style = MaterialTheme.typography.titleLarge)
+                Text(
+                    "Runtime context sources have not registered yet. Open Setup to confirm permissions, then refresh after sources begin reporting.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                )
+                InspectorStatusPill(
+                    label = "Waiting for sources",
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun sourceStatusColor(status: ContextSourceStatus): Color = when (status) {
+    ContextSourceStatus.Active -> MaterialTheme.colorScheme.tertiary
+    ContextSourceStatus.Waiting -> MaterialTheme.colorScheme.secondary
+    ContextSourceStatus.NeedsSetup,
+    ContextSourceStatus.Missing,
+    ContextSourceStatus.Error -> MaterialTheme.colorScheme.error
+}
+
+private fun sourceStatusIcon(status: ContextSourceStatus) = when (status) {
+    ContextSourceStatus.Active -> Icons.Filled.CheckCircle
+    ContextSourceStatus.Waiting -> Icons.Filled.Info
+    ContextSourceStatus.NeedsSetup,
+    ContextSourceStatus.Missing,
+    ContextSourceStatus.Error -> Icons.Filled.Error
+}
+
+private fun buildContextSourceSnapshots(
+    context: Context,
+    observations: Map<String, ContextEventObservation>,
+    errors: Map<String, String>,
+): List<ContextSourceSnapshot> {
+    val registeredKeys = ContextSourceRegistry.all().map { it.type }.toSet()
+    val keys = (requiredContextSourceKeys() + registeredKeys).sorted()
+    return keys.map { key ->
+        val setup = contextSourceSetup(context, key)
+        ContextSourceSnapshot(
+            key = key,
+            label = key.toContextSourceLabel(),
+            registered = key in registeredKeys,
+            setupReady = setup.ready,
+            setupDetail = setup.detail,
+            error = errors[key],
+            lastObservation = observations[key],
+        )
+    }
+}
+
+private data class ContextSourceSetup(val ready: Boolean, val detail: String)
+
+private fun contextSourceSetup(context: Context, key: String): ContextSourceSetup = when (key) {
+    "app" -> {
+        val granted = UsageAccess.hasUsageStatsAccess(context)
+        ContextSourceSetup(
+            ready = granted,
+            detail = if (granted) {
+                "Usage access is granted for foreground-app context checks."
+            } else {
+                "Usage access is missing; application contexts cannot report foreground packages."
+            },
+        )
+    }
+    "time" -> {
+        val exactReady = ExactAlarmSupport.canScheduleExactAlarms(context)
+        ContextSourceSetup(
+            ready = true,
+            detail = if (exactReady) {
+                "Clock source is registered and exact alarms are available for scheduled engine ticks."
+            } else {
+                "Clock source is registered; exact alarms are denied so scheduled engine ticks use the inexact fallback."
+            },
+        )
+    }
+    "state" -> {
+        val wifiReady = Build.VERSION.SDK_INT < 33 || hasPermission(context, Manifest.permission.NEARBY_WIFI_DEVICES)
+        val locationReady = hasPermission(context, Manifest.permission.ACCESS_FINE_LOCATION)
+        ContextSourceSetup(
+            ready = true,
+            detail = if (wifiReady && locationReady) {
+                "Battery, charging, screen, headset, and WiFi-related state checks have required runtime access."
+            } else {
+                "Battery, charging, screen, and headset checks are available; WiFi state may need location or nearby WiFi setup."
+            },
+        )
+    }
+    "event" -> {
+        val notificationReady = hasNotificationListenerAccess(context)
+        val calendarReady = hasPermission(context, Manifest.permission.READ_CALENDAR)
+        val calendarDetail = if (calendarReady) {
+            "Calendar events can be matched with redacted metadata."
+        } else {
+            "Calendar triggers need Calendar access in Setup; sunrise/sunset matching uses configured coordinates."
+        }
+        ContextSourceSetup(
+            ready = true,
+            detail = if (notificationReady) {
+                "Boot, system, notification, NFC, calendar, and sun events are registered. Notification text is kept in-memory for matching and is not written to run logs. $calendarDetail"
+            } else {
+                "Boot, system, NFC, calendar, and sun events are registered. Notification events need Notification Access in Setup before Android will bind the listener. $calendarDetail"
+            },
+        )
+    }
+    "location" -> {
+        val foreground = hasAnyLocationPermission(context)
+        val precise = hasPermission(context, Manifest.permission.ACCESS_FINE_LOCATION)
+        val background = Build.VERSION.SDK_INT < 29 || hasPermission(context, Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+        val providerEnabled = hasEnabledLocationProvider(context)
+        ContextSourceSetup(
+            ready = foreground && providerEnabled,
+            detail = LocationPolicyDisclosures.sourceSetupDetail(
+                foreground = foreground,
+                precise = precise,
+                background = background,
+                providerEnabled = providerEnabled,
+                apiLevel = Build.VERSION.SDK_INT,
+            ),
+        )
+    }
+    else -> ContextSourceSetup(ready = true, detail = "Source setup status is not specialized yet.")
+}
+
+private fun requiredContextSourceKeys(): Set<String> =
+    ContextType.entries.mapNotNull { com.termux.cybersyn.core.contexts.ContextMatchEvaluator.sourceKey(it) }.toSet()
+
+private fun hasPermission(context: Context, permission: String): Boolean =
+    ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
+
+private fun hasAnyLocationPermission(context: Context): Boolean =
+    hasPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) ||
+        hasPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION)
+
+private fun hasEnabledLocationProvider(context: Context): Boolean {
+    val locationManager = context.getSystemService(LocationManager::class.java) ?: return false
+    return runCatching { locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) }.getOrDefault(false) ||
+        runCatching { locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER) }.getOrDefault(false)
+}
+
+private fun hasNotificationListenerAccess(context: Context): Boolean {
+    val enabledListeners = android.provider.Settings.Secure.getString(context.contentResolver, "enabled_notification_listeners")
+    return enabledListeners?.contains(context.packageName, ignoreCase = true) == true
+}
+
+private fun emptyContextInspectionSnapshot(nowMs: Long): ContextInspectionSnapshot =
+    ContextInspectionSnapshot(generatedAtMs = nowMs, sources = emptyList(), profiles = emptyList())
+
+private fun formatRelativeTime(observedAtMs: Long, nowMs: Long): String {
+    val seconds = ((nowMs - observedAtMs) / 1000L).coerceAtLeast(0)
+    return when {
+        seconds < 5 -> "just now"
+        seconds < 60 -> "${seconds}s ago"
+        seconds < 3_600 -> "${seconds / 60}m ago"
+        else -> "${seconds / 3_600}h ago"
+    }
+}
+
+private fun formatAbsoluteTime(observedAtMs: Long, nowMs: Long): String {
+    val formatted = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date(observedAtMs))
+    return "$formatted - ${formatRelativeTime(observedAtMs, nowMs)}"
+}
+
+private fun locationDwellDetail(check: com.termux.cybersyn.core.contexts.ContextCheck, nowMs: Long): String? {
+    if (check.spec.type != ContextType.LOCATION) return null
+    val observation = check.lastObservation ?: return null
+    val metadata = observation.event.metadata
+    val state = metadata["dwellState"] ?: return null
+    val dwellMillis = parseDwellMillis(check.spec.config)
+    val target = dwellMillis.takeIf { it > 0L }?.let { " of ${formatDuration(it)}" }.orEmpty()
+    val observedAt = metadata["observedAtEpochMs"]?.toLongOrNull() ?: observation.observedAtMs
+    val insideSince = metadata["insideSinceEpochMs"]?.toLongOrNull()
+    val insideFor = insideSince?.let { formatDuration((observedAt - it).coerceAtLeast(0L)) }
+
+    return when (state) {
+        "inside" -> insideFor?.let { "Dwell: inside for $it$target." } ?: "Dwell: inside; waiting for a stable entry time."
+        "accuracy_blocked" -> insideFor?.let {
+            "Dwell: latest fix is inside but blocked by accuracy; retained timer at $it$target."
+        } ?: "Dwell: latest fix is inside but blocked by accuracy."
+        "outside" -> "Dwell: outside radius; timer reset."
+        "unknown" -> "Dwell: waiting for valid geofence config and location metadata."
+        else -> null
+    }
+}
+
+private fun parseDwellMillis(config: Map<String, String>): Long {
+    val millis = firstConfig(config, "dwellMillis", "dwellMs").toLongOrNull()
+    if (millis != null) return millis.coerceAtLeast(0L)
+    val seconds = firstConfig(config, "dwellSeconds", "dwellSec").toLongOrNull()
+    return seconds?.coerceAtLeast(0L)?.times(1_000L) ?: 0L
+}
+
+private fun firstConfig(config: Map<String, String>, vararg keys: String): String =
+    keys.firstNotNullOfOrNull { config[it]?.trim()?.takeIf(String::isNotBlank) }.orEmpty()
+
+private fun formatDuration(ms: Long): String {
+    val seconds = (ms / 1000L).coerceAtLeast(0L)
+    return when {
+        seconds < 60 -> "${seconds}s"
+        seconds < 3_600 -> "${seconds / 60}m ${seconds % 60}s"
+        else -> "${seconds / 3_600}h ${(seconds % 3_600) / 60}m"
+    }
+}

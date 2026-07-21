@@ -1,0 +1,760 @@
+package com.termux.cybersyn.ui.screens
+
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewModelScope
+import com.termux.cybersyn.core.capabilities.ImportedProfileEnablePolicy
+import com.termux.cybersyn.core.contexts.NfcTagWriteSession
+import com.termux.cybersyn.core.diagnostics.DiagnosticExport
+import com.termux.cybersyn.core.diagnostics.CrashLogHandler
+import com.termux.cybersyn.core.diagnostics.CrashLogRecord
+import com.termux.cybersyn.core.diagnostics.EngineHealthReader
+import com.termux.cybersyn.core.diagnostics.EngineHealthStatus
+import com.termux.cybersyn.core.engine.executeAndLogTask
+import com.termux.cybersyn.core.location.LocationDwellStateStore
+import com.termux.cybersyn.core.model.AutomationMode
+import com.termux.cybersyn.core.model.Profile
+import com.termux.cybersyn.core.model.RunLogEntry
+import com.termux.cybersyn.core.model.Scene
+import com.termux.cybersyn.core.model.Task
+import com.termux.cybersyn.core.model.Variable
+import com.termux.cybersyn.core.model.VariableNamePolicy
+import com.termux.cybersyn.core.logging.AppLogEntry
+import com.termux.cybersyn.core.logging.AppLogger
+import com.termux.cybersyn.core.plugins.locale.LocaleGrantStore
+import com.termux.cybersyn.core.storage.AppDatabase
+import com.termux.cybersyn.core.storage.DatabaseBackupManager
+import com.termux.cybersyn.core.storage.EditHistoryDao
+import com.termux.cybersyn.core.storage.EditHistoryEntity
+import com.termux.cybersyn.core.storage.RunLogRetentionPolicy
+import com.termux.cybersyn.core.storage.RunLogRetentionSettings
+import com.termux.cybersyn.core.storage.StorageDecodeIssue
+import com.termux.cybersyn.core.storage.VariableRepository
+import com.termux.cybersyn.core.storage.minimumTimestamp
+import com.termux.cybersyn.core.storage.normalized
+import com.termux.cybersyn.core.storage.toEntity
+import com.termux.cybersyn.core.templates.ProfileTemplate
+import com.termux.cybersyn.core.transfer.BundleImportPlan
+import com.termux.cybersyn.core.transfer.OpenTaskerBundle
+import com.termux.cybersyn.core.transfer.OpenTaskerBundleCodec
+import com.termux.cybersyn.core.transfer.OpenTaskerBundleRepository
+import com.termux.cybersyn.core.transfer.TaskerImportPlanner
+import com.termux.cybersyn.core.transfer.TaskerImportPreview
+import com.termux.cybersyn.core.transfer.TaskerXmlImportReport
+import com.termux.cybersyn.core.transfer.TaskerXmlImporter
+import com.termux.cybersyn.widget.TaskShortcutHelper
+import androidx.room.withTransaction
+import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.toImmutableList
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.ByteArrayOutputStream
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+
+internal const val TASKER_XML_IMPORT_MAX_BYTES = 4 * 1024 * 1024
+internal const val OPEN_TASKER_BUNDLE_IMPORT_MAX_BYTES = 8 * 1024 * 1024
+internal val TASKER_XML_MIME_TYPES = arrayOf("application/xml", "text/xml", "text/*", "*/*")
+internal val OPEN_TASKER_BUNDLE_MIME_TYPES = arrayOf("application/json", "text/json", "text/*", "*/*")
+internal val DATABASE_BACKUP_MIME_TYPES = arrayOf(
+    "application/octet-stream",
+    "application/x-sqlite3",
+    "application/vnd.sqlite3",
+    "*/*",
+)
+
+internal fun databaseBackupExportName(): String =
+    "opentasker_backup_${SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.US).format(Date())}.db"
+
+internal fun openTaskerBundleExportName(): String =
+    "opentasker_bundle_${SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.US).format(Date())}.json"
+
+internal data class TaskerImportReviewState(
+    val report: TaskerXmlImportReport,
+    val preview: TaskerImportPreview,
+)
+
+internal data class OpenTaskerBundleReviewState(
+    val bundle: OpenTaskerBundle,
+    val plan: BundleImportPlan,
+)
+
+data class DiagnosticsUiState(
+    val health: EngineHealthStatus? = null,
+    val crashLogs: List<CrashLogRecord> = emptyList(),
+    val appLogs: List<AppLogEntry> = emptyList(),
+    val loadedAtMillis: Long = 0L,
+)
+
+/**
+ * Thrown when a normal editor save would overwrite a record whose stored payload currently fails
+ * to decode. Blocking the write keeps the corrupt bytes intact for recovery instead of clobbering
+ * them with an empty fallback (fail closed).
+ */
+internal class CorruptRecordOverwriteException(issue: StorageDecodeIssue) : IllegalStateException(
+    "Can't save ${issue.recordType.label.lowercase()} \"${issue.recordName}\": its stored " +
+        "${issue.fieldName} is corrupt. Recover it (undo or restore a backup) or delete it first.",
+)
+
+class ActiveAutomationViewModel(
+    private val db: AppDatabase,
+    private val appContext: Context,
+) : ViewModel() {
+    private val locationDwellStateStore = LocationDwellStateStore(appContext)
+    private val variableRepository = VariableRepository(db.variableDao())
+    private val bundleRepository = OpenTaskerBundleRepository(db, variableRepository)
+    private val runLogRetentionSettings = RunLogRetentionSettings(appContext)
+    private val databaseBackupManager = DatabaseBackupManager(appContext, db)
+
+    private val profileDecodeResults = db.profileDao()
+        .getAllAsFlow()
+        .map { entities -> entities.map { it.toDomainDecodeResult() } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    private val taskDecodeResults = db.taskDao()
+        .getAllAsFlow()
+        .map { entities -> entities.map { it.toDomainDecodeResult() } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val profiles: StateFlow<ImmutableList<Profile>> = profileDecodeResults
+        .map { results ->
+            results.mapNotNull { result -> result.value.takeIf { result.issue == null } }
+                .sortedBy { it.name.lowercase() }
+                .toImmutableList()
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), persistentListOf())
+
+    val tasks: StateFlow<ImmutableList<Task>> = taskDecodeResults
+        .map { results ->
+            results.mapNotNull { result -> result.value.takeIf { result.issue == null } }
+                .sortedBy { it.name.lowercase() }
+                .toImmutableList()
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), persistentListOf())
+
+    private val sceneDecodeResults = db.sceneDao()
+        .getAllAsFlow()
+        .map { entities -> entities.map { it.toDomainDecodeResult() } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val storageDecodeIssues: StateFlow<ImmutableList<StorageDecodeIssue>> = combine(
+        profileDecodeResults,
+        taskDecodeResults,
+        sceneDecodeResults,
+    ) { profileResults, taskResults, sceneResults ->
+        (profileResults.mapNotNull { it.issue } + taskResults.mapNotNull { it.issue } + sceneResults.mapNotNull { it.issue })
+            .sortedWith(compareBy<StorageDecodeIssue> { it.recordType.label }.thenBy { it.recordName.lowercase() })
+            .toImmutableList()
+    }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), persistentListOf())
+
+    val scenes: StateFlow<ImmutableList<Scene>> = sceneDecodeResults
+        .map { results ->
+            results.mapNotNull { result -> result.value.takeIf { result.issue == null } }
+                .sortedBy { it.name.lowercase() }
+                .toImmutableList()
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), persistentListOf())
+
+    val runLogs: StateFlow<ImmutableList<RunLogEntry>> = db.runLogDao()
+        .getRecentFlow()
+        .map { entities -> entities.map { it.toDomain() }.toImmutableList() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), persistentListOf())
+
+    val globalVariables: StateFlow<ImmutableList<Variable>> = variableRepository
+        .observeGlobals()
+        .map { variables -> variables.toImmutableList() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), persistentListOf())
+
+    private val events = Channel<String>(Channel.BUFFERED)
+    val messages = events.receiveAsFlow()
+
+    private val _runLogRetentionPolicy = MutableStateFlow(runLogRetentionSettings.load())
+    val runLogRetentionPolicy: StateFlow<RunLogRetentionPolicy> = _runLogRetentionPolicy.asStateFlow()
+
+    // Starts with a cheap placeholder; the real state (which enumerates the filesystem) is
+    // loaded off the main thread in init and refreshed after each backup operation.
+    private val _backupSetupState = MutableStateFlow(BackupSetupState(busy = false))
+    val backupSetupState: StateFlow<BackupSetupState> = _backupSetupState.asStateFlow()
+
+    private val _diagnosticsState = MutableStateFlow(DiagnosticsUiState())
+    val diagnosticsState: StateFlow<DiagnosticsUiState> = _diagnosticsState.asStateFlow()
+    private var diagnosticsRefreshJob: Job? = null
+
+    private val _taskerImportReview = MutableStateFlow<TaskerImportReviewState?>(null)
+    internal val taskerImportReview: StateFlow<TaskerImportReviewState?> = _taskerImportReview.asStateFlow()
+
+    private val _taskerImportBusy = MutableStateFlow(false)
+    val taskerImportBusy: StateFlow<Boolean> = _taskerImportBusy.asStateFlow()
+
+    private val _openTaskerBundleReview = MutableStateFlow<OpenTaskerBundleReviewState?>(null)
+    internal val openTaskerBundleReview: StateFlow<OpenTaskerBundleReviewState?> = _openTaskerBundleReview.asStateFlow()
+
+    private val _openTaskerBundleBusy = MutableStateFlow(false)
+    val openTaskerBundleBusy: StateFlow<Boolean> = _openTaskerBundleBusy.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            runCatching { pruneRunLogs(_runLogRetentionPolicy.value) }
+        }
+        viewModelScope.launch {
+            runCatching { refreshBackupSetupState(busy = false) }
+        }
+        refreshDiagnostics()
+    }
+
+    fun refreshDiagnostics() {
+        if (diagnosticsRefreshJob?.isActive == true) return
+        diagnosticsRefreshJob = viewModelScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    DiagnosticsUiState(
+                        health = EngineHealthReader.read(appContext),
+                        crashLogs = CrashLogHandler.listCrashLogs(appContext),
+                        appLogs = AppLogger.snapshot().takeLast(100).map { entry ->
+                            entry.copy(message = DiagnosticExport.redactSensitive(entry.message))
+                        },
+                        loadedAtMillis = System.currentTimeMillis(),
+                    )
+                }
+            }.onSuccess { state ->
+                _diagnosticsState.value = state
+            }.onFailure { error ->
+                events.send("Error: ${error.message ?: "Diagnostics could not be refreshed"}")
+            }
+        }
+    }
+
+    fun createTask(name: String, priority: Int) = launchWithMessage("Task created") {
+        db.taskDao().insert(Task(name = name.trim(), priority = priority.coerceIn(0, 10)).toEntity())
+    }
+
+    fun updateTask(task: Task, message: String = "Task updated") = launchWithMessage(message) {
+        // Wrapped like updateScene: the corrupt-record check, history snapshot, prune, and
+        // update must be atomic so a concurrent writer can't interleave and lose a revision.
+        db.withTransaction {
+            val previous = db.taskDao().getById(task.id)
+            if (previous != null) {
+                previous.toDomainDecodeResult().issue?.let { issue ->
+                    throw CorruptRecordOverwriteException(issue)
+                }
+                db.editHistoryDao().insert(
+                    EditHistoryEntity(
+                        entityType = EditHistoryDao.TYPE_TASK,
+                        entityId = task.id,
+                        previousJson = previous.actionsJson,
+                    ),
+                )
+                db.editHistoryDao().pruneOld(EditHistoryDao.TYPE_TASK, task.id)
+            }
+            db.taskDao().update(task.toEntity())
+        }
+    }
+
+    fun deleteTask(task: Task) {
+        viewModelScope.launch {
+            runCatching {
+                val profilesUsingTask = db.profileDao().getAll().map { it.toDomain() }
+                    .filter { it.enterTaskId == task.id || it.exitTaskId == task.id }
+                if (profilesUsingTask.isNotEmpty()) {
+                    events.send("Task is used by ${profilesUsingTask.size} profile(s). Reassign or delete those profiles first.")
+                    return@launch
+                }
+                db.taskDao().delete(task.toEntity())
+                LocaleGrantStore(appContext).revokeAllForTask(task.id)
+            }
+                .onSuccess { events.send("Task deleted") }
+                .onFailure { events.send("Error: ${it.message ?: "Task delete failed"}") }
+        }
+    }
+
+    fun createScene(name: String, widthDp: Int, heightDp: Int) = launchWithMessage("Scene created") {
+        db.sceneDao().insert(
+            Scene(
+                name = name.trim(),
+                widthDp = widthDp.coerceIn(120, 1440),
+                heightDp = heightDp.coerceIn(80, 2560),
+            ).toEntity()
+        )
+    }
+
+    fun updateScene(scene: Scene, message: String = "Scene updated") = launchWithMessage(message) {
+        db.withTransaction {
+            val previous = scene.id.takeIf { it > 0L }?.let { db.sceneDao().getById(it) }
+            if (previous != null) {
+                previous.toDomainDecodeResult().issue?.let { issue ->
+                    throw CorruptRecordOverwriteException(issue)
+                }
+                db.editHistoryDao().insert(
+                    EditHistoryEntity(
+                        entityType = EditHistoryDao.TYPE_SCENE,
+                        entityId = scene.id,
+                        previousJson = previous.elementsJson,
+                    ),
+                )
+                db.editHistoryDao().pruneOld(EditHistoryDao.TYPE_SCENE, scene.id)
+            }
+            db.sceneDao().update(scene.toEntity())
+        }
+    }
+
+    fun deleteScene(scene: Scene) = launchWithMessage("Scene deleted") {
+        db.sceneDao().delete(scene.toEntity())
+    }
+
+    fun createProfile(name: String, enabled: Boolean, enterTaskId: Long, cooldownSec: Int, automationMode: AutomationMode, group: String? = null) =
+        launchWithMessage("Profile created") {
+            db.profileDao().insert(
+                Profile(
+                    name = name.trim(),
+                    enabled = enabled,
+                    enterTaskId = enterTaskId,
+                    cooldownSec = cooldownSec.coerceAtLeast(0),
+                    automationMode = automationMode,
+                    group = group,
+                ).toEntity()
+            )
+        }
+
+    fun updateProfile(profile: Profile, message: String = "Profile updated") =
+        launchWithMessage(message) {
+            // Atomic read-check-snapshot-update, matching updateScene, so racing writers
+            // (dialog save vs. notification/external-intent path) can't lose a revision.
+            db.withTransaction {
+                val previousEntity = profile.id.takeIf { it > 0L }
+                    ?.let { db.profileDao().getById(it) }
+                previousEntity?.toDomainDecodeResult()?.issue?.let { issue ->
+                    throw CorruptRecordOverwriteException(issue)
+                }
+                val previous = previousEntity?.toDomain()
+                if (
+                    previous?.requiresRiskAcknowledgement == true &&
+                    (profile.enabled || !profile.requiresRiskAcknowledgement)
+                ) {
+                    throw IllegalStateException("Review imported automation powers before enabling this profile.")
+                }
+                if (previousEntity != null) {
+                    db.editHistoryDao().insert(
+                        EditHistoryEntity(
+                            entityType = EditHistoryDao.TYPE_PROFILE,
+                            entityId = profile.id,
+                            previousJson = previousEntity.contextsJson,
+                        ),
+                    )
+                    db.editHistoryDao().pruneOld(EditHistoryDao.TYPE_PROFILE, profile.id)
+                }
+                if (previous != null && previous.contexts != profile.contexts) {
+                    locationDwellStateStore.clearProfile(profile.id)
+                }
+                db.profileDao().update(profile.toEntity())
+            }
+        }
+
+    fun acknowledgeAndEnableImportedProfile(profileId: Long) =
+        launchWithMessage("Imported profile reviewed and enabled") {
+            val current = db.profileDao().getById(profileId)?.toDomain()
+                ?: throw IllegalStateException("Profile no longer exists.")
+            check(current.requiresRiskAcknowledgement) { "Profile review is no longer required." }
+            val tasks = db.taskDao().getAll().map { it.toDomain() }
+            val review = ImportedProfileEnablePolicy.review(current, tasks)
+            check(review.canAcknowledge) {
+                "Remove unsupported or unknown actions before enabling this imported profile."
+            }
+            db.profileDao().update(
+                current.copy(
+                    enabled = true,
+                    requiresRiskAcknowledgement = false,
+                ).toEntity(),
+            )
+        }
+
+    fun deleteProfile(profile: Profile) = launchWithMessage("Profile deleted") {
+        db.profileDao().delete(profile.toEntity())
+        locationDwellStateStore.clearProfile(profile.id)
+    }
+
+    fun installProfileTemplate(template: ProfileTemplate, slotValues: Map<String, String>) =
+        launchWithMessage("Template installed as a disabled profile") {
+            val applied = template.instantiate(slotValues)
+            db.withTransaction {
+                val taskId = db.taskDao().insert(applied.task.toEntity())
+                db.profileDao().insert(applied.profile.copy(enterTaskId = taskId).toEntity())
+            }
+        }
+
+    fun previewTaskerXml(uri: Uri, appVersion: String) {
+        viewModelScope.launch {
+            if (_taskerImportBusy.value) return@launch
+            _taskerImportBusy.value = true
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    val rawXml = readBoundedTaskerXml(appContext, uri)
+                    val report = TaskerXmlImporter.parse(rawXml = rawXml, appVersion = appVersion)
+                    TaskerImportReviewState(report = report, preview = TaskerImportPlanner.preview(report))
+                }
+            }
+                .onSuccess {
+                    _taskerImportReview.value = it
+                    events.send("Tasker XML ready for review")
+                }
+                .onFailure { events.send("Error: ${it.message ?: "Tasker XML import preview failed"}") }
+            _taskerImportBusy.value = false
+        }
+    }
+
+    fun clearTaskerImportReview() {
+        if (!_taskerImportBusy.value) {
+            _taskerImportReview.value = null
+        }
+    }
+
+    fun confirmTaskerImport(report: TaskerXmlImportReport) {
+        viewModelScope.launch {
+            if (_taskerImportBusy.value) return@launch
+            _taskerImportBusy.value = true
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    bundleRepository.importBundle(TaskerImportPlanner.confirmedBundle(report))
+                }
+            }
+                .onSuccess { importReport ->
+                    _taskerImportReview.value = null
+                    events.send(
+                        "Imported ${importReport.insertedTasks} task${plural(importReport.insertedTasks)}, " +
+                            "${importReport.insertedProfiles} disabled profile${plural(importReport.insertedProfiles)}"
+                    )
+                }
+                .onFailure { events.send("Error: ${it.message ?: "Tasker XML import failed"}") }
+            _taskerImportBusy.value = false
+        }
+    }
+
+    fun exportOpenTaskerBundle(uri: Uri, appVersion: String) {
+        viewModelScope.launch {
+            if (_openTaskerBundleBusy.value) return@launch
+            _openTaskerBundleBusy.value = true
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    val bundle = bundleRepository.exportBundle(
+                        appVersion = appVersion,
+                        name = "OpenTasker Workspace Export",
+                        description = "Profiles, tasks, variables, and scenes exported from OpenTasker.",
+                    )
+                    val encoded = OpenTaskerBundleCodec.encode(bundle)
+                    val stream = appContext.contentResolver.openOutputStream(uri)
+                        ?: error("Unable to open export destination")
+                    stream.bufferedWriter(Charsets.UTF_8).use { writer -> writer.write(encoded) }
+                    bundle
+                }
+            }
+                .onSuccess { bundle ->
+                    events.send(
+                        "Exported ${bundle.tasks.size} task${plural(bundle.tasks.size)}, " +
+                            "${bundle.profiles.size} profile${plural(bundle.profiles.size)}, " +
+                            "${bundle.scenes.size} scene${plural(bundle.scenes.size)}"
+                    )
+                }
+                .onFailure { events.send("Error: ${it.message ?: "OpenTasker bundle export failed"}") }
+            _openTaskerBundleBusy.value = false
+        }
+    }
+
+    fun previewOpenTaskerBundle(uri: Uri) {
+        viewModelScope.launch {
+            if (_openTaskerBundleBusy.value) return@launch
+            _openTaskerBundleBusy.value = true
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    val rawJson = readBoundedOpenTaskerBundle(appContext, uri)
+                    val bundle = OpenTaskerBundleCodec.decode(rawJson)
+                    OpenTaskerBundleReviewState(bundle = bundle, plan = OpenTaskerBundleCodec.validate(bundle))
+                }
+            }
+                .onSuccess {
+                    _openTaskerBundleReview.value = it
+                    events.send("OpenTasker bundle ready for review")
+                }
+                .onFailure { events.send("Error: ${it.message ?: "OpenTasker bundle preview failed"}") }
+            _openTaskerBundleBusy.value = false
+        }
+    }
+
+    fun clearOpenTaskerBundleReview() {
+        if (!_openTaskerBundleBusy.value) {
+            _openTaskerBundleReview.value = null
+        }
+    }
+
+    fun confirmOpenTaskerBundleImport(bundle: OpenTaskerBundle) {
+        viewModelScope.launch {
+            if (_openTaskerBundleBusy.value) return@launch
+            _openTaskerBundleBusy.value = true
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    bundleRepository.importBundle(bundle)
+                }
+            }
+                .onSuccess { importReport ->
+                    _openTaskerBundleReview.value = null
+                    events.send(
+                        "Imported ${importReport.insertedTasks} task${plural(importReport.insertedTasks)}, " +
+                            "${importReport.insertedProfiles} disabled profile${plural(importReport.insertedProfiles)}, " +
+                            "${importReport.insertedScenes} scene${plural(importReport.insertedScenes)}"
+                    )
+                }
+                .onFailure { events.send("Error: ${it.message ?: "OpenTasker bundle import failed"}") }
+            _openTaskerBundleBusy.value = false
+        }
+    }
+
+    fun updateRunLogRetention(policy: RunLogRetentionPolicy) {
+        viewModelScope.launch {
+            val normalized = policy.normalized()
+            runCatching {
+                runLogRetentionSettings.save(normalized)
+                _runLogRetentionPolicy.value = normalized
+                pruneRunLogs(normalized)
+            }
+                .onSuccess { deleted ->
+                    val suffix = if (deleted > 0) "; pruned $deleted old entry${plural(deleted)}" else ""
+                    events.send("Run log retention updated$suffix")
+                }
+                .onFailure { events.send("Error: ${it.message ?: "Run log retention update failed"}") }
+        }
+    }
+
+    private suspend fun pruneRunLogs(policy: RunLogRetentionPolicy): Int =
+        db.runLogDao().pruneRetention(
+            maxEntries = policy.maxEntries,
+            minimumTimestamp = policy.minimumTimestamp(System.currentTimeMillis()),
+        )
+
+    fun shareDiagnosticReport() {
+        viewModelScope.launch {
+            try {
+                val report = DiagnosticExport.buildReport(appContext, db)
+                val intent = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_SUBJECT, "OpenTasker Diagnostic Report")
+                    putExtra(Intent.EXTRA_TEXT, report)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                appContext.startActivity(Intent.createChooser(intent, "Share diagnostic report").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            } catch (ex: Exception) {
+                events.send("Error: ${ex.message ?: "Failed to share diagnostic report"}")
+            }
+        }
+    }
+
+    fun createDatabaseBackup() {
+        launchBackupOperation {
+            databaseBackupManager.backup()
+                .onSuccess { backup ->
+                    events.send("Backup created: ${backup.name}")
+                }
+                .onFailure { events.send("Error: ${it.message ?: "Database backup failed"}") }
+        }
+    }
+
+    fun exportDatabaseBackup(uri: Uri) {
+        launchBackupOperation {
+            val backup = databaseBackupManager.backup().getOrElse {
+                events.send("Error: ${it.message ?: "Database backup failed"}")
+                return@launchBackupOperation
+            }
+            databaseBackupManager.exportBackup(backup, uri)
+                .onSuccess { events.send("Backup exported: ${backup.name}") }
+                .onFailure { events.send("Error: ${it.message ?: "Database backup export failed"}") }
+        }
+    }
+
+    fun importDatabaseBackup(uri: Uri) {
+        launchBackupOperation {
+            databaseBackupManager.stageRestore(uri)
+                .onSuccess { events.send("Backup imported. Restart OpenTasker to apply the restore.") }
+                .onFailure { events.send("Error: ${it.message ?: "Database backup import failed"}") }
+        }
+    }
+
+    private fun launchBackupOperation(block: suspend () -> Unit) {
+        viewModelScope.launch {
+            _backupSetupState.value = _backupSetupState.value.copy(busy = true)
+            try {
+                block()
+            } finally {
+                refreshBackupSetupState(busy = false)
+            }
+        }
+    }
+
+    private suspend fun refreshBackupSetupState(busy: Boolean) {
+        // Backup enumeration and pending-restore checks hit the filesystem; keep them off
+        // the main thread (debug StrictMode flags them otherwise).
+        val loaded = withContext(Dispatchers.IO) {
+            BackupSetupState(
+                busy = busy,
+                latestBackupName = databaseBackupManager.listBackups().firstOrNull()?.name,
+                pendingRestore = databaseBackupManager.hasPendingRestore(),
+            )
+        }
+        _backupSetupState.value = loaded
+    }
+
+    fun runTaskNow(task: Task) {
+        viewModelScope.launch {
+            val result = executeAndLogTask(
+                appContext = appContext,
+                db = db,
+                task = task,
+                source = "Manual run",
+            )
+            val status = if (result.report.success) "succeeded" else "failed"
+            events.send("${task.name} $status (${result.report.durationMs}ms)")
+        }
+    }
+
+    fun pinTaskShortcut(task: Task) {
+        viewModelScope.launch {
+            if (!TaskShortcutHelper.canPinShortcut(appContext)) {
+                events.send("Launcher does not support pinned shortcuts")
+                return@launch
+            }
+            val requested = TaskShortcutHelper.requestPinShortcut(appContext, task)
+            if (requested) {
+                events.send("Pinning \"${task.name}\" to home screen")
+            } else {
+                events.send("Failed to pin shortcut")
+            }
+        }
+    }
+
+    fun undoLastTaskEdit(taskId: Long) {
+        viewModelScope.launch {
+            runCatching {
+                val snapshot = db.editHistoryDao().getLatest(EditHistoryDao.TYPE_TASK, taskId)
+                    ?: return@runCatching false
+                val current = db.taskDao().getById(taskId) ?: return@runCatching false
+                db.taskDao().update(current.copy(actionsJson = snapshot.previousJson))
+                db.editHistoryDao().deleteFor(EditHistoryDao.TYPE_TASK, taskId)
+                true
+            }.onSuccess { undone ->
+                events.send(if (undone) "Edit undone" else "No edit history available")
+            }.onFailure { events.send("Error: ${it.message ?: "Undo failed"}") }
+        }
+    }
+
+    fun undoLastProfileEdit(profileId: Long) {
+        viewModelScope.launch {
+            runCatching {
+                val snapshot = db.editHistoryDao().getLatest(EditHistoryDao.TYPE_PROFILE, profileId)
+                    ?: return@runCatching false
+                val current = db.profileDao().getById(profileId) ?: return@runCatching false
+                db.profileDao().update(current.copy(contextsJson = snapshot.previousJson))
+                db.editHistoryDao().deleteFor(EditHistoryDao.TYPE_PROFILE, profileId)
+                true
+            }.onSuccess { undone ->
+                events.send(if (undone) "Edit undone" else "No edit history available")
+            }.onFailure { events.send("Error: ${it.message ?: "Undo failed"}") }
+        }
+    }
+
+    fun updateVariable(name: String, value: String, isSecret: Boolean, successMessage: String) {
+        viewModelScope.launch {
+            runCatching {
+                val globalName = requireNotNull(VariableNamePolicy.promoteToGlobal(name)) {
+                    "Invalid variable name"
+                }
+                variableRepository.upsert(Variable(globalName, value, isGlobal = true, isSecret = isSecret))
+                events.send(successMessage)
+            }.onFailure { error ->
+                events.send("Error: ${error.message ?: "Variable could not be saved"}")
+            }
+        }
+    }
+
+    fun deleteVariable(name: String, successMessage: String) {
+        viewModelScope.launch {
+            runCatching { variableRepository.delete(name) }
+                .onSuccess { events.send(successMessage) }
+                .onFailure { events.send("Error: ${it.message ?: "Variable could not be deleted"}") }
+        }
+    }
+
+    private fun launchWithMessage(successMessage: String, block: suspend () -> Unit) {
+        viewModelScope.launch {
+            runCatching { block() }
+                .onSuccess { events.send(successMessage) }
+                .onFailure { events.send("Error: ${it.message ?: "Operation failed"}") }
+        }
+    }
+}
+
+class ActiveAutomationViewModelFactory(
+    private val db: AppDatabase,
+    private val appContext: Context,
+) : ViewModelProvider.Factory {
+    @Suppress("UNCHECKED_CAST")
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        if (modelClass.isAssignableFrom(ActiveAutomationViewModel::class.java)) {
+            return ActiveAutomationViewModel(db, appContext) as T
+        }
+        throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
+    }
+}
+
+internal fun readBoundedTaskerXml(context: Context, uri: Uri): String {
+    return readBoundedDocumentText(
+        context = context,
+        uri = uri,
+        maxBytes = TASKER_XML_IMPORT_MAX_BYTES,
+        label = "Tasker XML file",
+    )
+}
+
+internal fun readBoundedOpenTaskerBundle(context: Context, uri: Uri): String {
+    return readBoundedDocumentText(
+        context = context,
+        uri = uri,
+        maxBytes = OPEN_TASKER_BUNDLE_IMPORT_MAX_BYTES,
+        label = "OpenTasker bundle",
+    )
+}
+
+internal fun readBoundedDocumentText(context: Context, uri: Uri, maxBytes: Int, label: String): String {
+    val stream = context.contentResolver.openInputStream(uri)
+        ?: error("Unable to open selected $label")
+    ByteArrayOutputStream().use { output ->
+        stream.use { input ->
+            val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+            var totalBytes = 0
+            while (true) {
+                val read = input.read(buffer)
+                if (read == -1) break
+                totalBytes += read
+                require(totalBytes <= maxBytes) {
+                    "$label is larger than ${maxBytes / (1024 * 1024)} MB"
+                }
+                output.write(buffer, 0, read)
+            }
+        }
+        return output.toString(Charsets.UTF_8.name())
+    }
+}
+
+private fun plural(count: Int): String = if (count == 1) "" else "s"

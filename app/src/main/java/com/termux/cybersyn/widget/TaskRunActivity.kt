@@ -1,0 +1,78 @@
+package com.termux.cybersyn.widget
+
+import android.app.Activity
+import android.os.Bundle
+import android.widget.Toast
+import com.termux.cybersyn.app.OpenTaskerApp_NoHilt
+import com.termux.cybersyn.core.engine.executeAndLogTask
+import com.termux.cybersyn.core.engine.logSkippedRun
+import com.termux.cybersyn.core.logging.AppLogger
+import com.termux.cybersyn.core.storage.recoveryMessage
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+
+class TaskRunActivity : Activity() {
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+
+        val taskId = intent.getLongExtra(EXTRA_TASK_ID, -1L)
+        val source = intent.getStringExtra(EXTRA_SOURCE) ?: SOURCE_SHORTCUT
+        if (taskId < 0) {
+            finishWithMessage("Invalid task")
+            return
+        }
+
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        scope.launch {
+            val message = try {
+                val db = OpenTaskerApp_NoHilt.db
+                val entity = db.taskDao().getById(taskId)
+                if (entity == null) {
+                    "Task not found"
+                } else {
+                    val decoded = entity.toDomainDecodeResult()
+                    val issue = decoded.issue
+                    if (issue != null) {
+                        val reason = issue.recoveryMessage()
+                        AppLogger.error(TAG, reason)
+                        logSkippedRun(db, decoded.value, source, reason)
+                        "${decoded.value.name} is corrupt; restore a database backup"
+                    } else {
+                        val task = decoded.value
+                        val result = executeAndLogTask(
+                            appContext = applicationContext,
+                            db = db,
+                            task = task,
+                            source = source,
+                            visibleActivity = true,
+                        )
+                        val status = if (result.report.success) "succeeded" else "failed"
+                        "${task.name} $status (${result.report.durationMs}ms)"
+                    }
+                }
+            } catch (e: Exception) {
+                AppLogger.error(TAG, "Task run failed", e)
+                "Task run failed"
+            }
+            runOnUiThread {
+                finishWithMessage(message)
+            }
+        }
+    }
+
+    private fun finishWithMessage(message: String) {
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+        finish()
+    }
+
+    companion object {
+        const val EXTRA_TASK_ID = "com.termux.cybersyn.widget.TASK_ID"
+        const val EXTRA_SOURCE = "com.termux.cybersyn.widget.SOURCE"
+        const val SOURCE_WIDGET = "Widget"
+        const val SOURCE_SHORTCUT = "Shortcut"
+        private const val TAG = "TaskRunActivity"
+    }
+}

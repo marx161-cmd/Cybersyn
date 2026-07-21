@@ -380,6 +380,16 @@
     <string name="catalog_action_wol_field_broadcast_hint" formatted="false">Default: 255.255.255.255</string>
     <string name="catalog_action_wol_field_port_label" formatted="false">Port</string>
     <string name="catalog_action_wol_field_port_hint" formatted="false">Default: 9</string>
+    <string name="catalog_action_mqtt_publish_name" formatted="false">MQTT Publish</string>
+    <string name="catalog_action_mqtt_publish_description" formatted="false">Publish a message to an MQTT broker (drives Cybersyn relay actions on comrade/comintern)</string>
+    <string name="catalog_action_mqtt_publish_field_topic_label" formatted="false">Topic</string>
+    <string name="catalog_action_mqtt_publish_field_topic_hint" formatted="false">e.g. cybersyn/comrade/action</string>
+    <string name="catalog_action_mqtt_publish_field_message_label" formatted="false">Message</string>
+    <string name="catalog_action_mqtt_publish_field_message_hint" formatted="false">Payload, e.g. notify:hello or ping</string>
+    <string name="catalog_action_mqtt_publish_field_broker_label" formatted="false">Broker</string>
+    <string name="catalog_action_mqtt_publish_field_broker_hint" formatted="false">Default: 100.108.8.60 (comrade)</string>
+    <string name="catalog_action_mqtt_publish_field_port_label" formatted="false">Port</string>
+    <string name="catalog_action_mqtt_publish_field_port_hint" formatted="false">Default: 1883</string>
     <string name="catalog_action_sound_play_name" formatted="false">Play Sound</string>
     <string name="catalog_action_sound_play_description" formatted="false">Play a sound file</string>
     <string name="catalog_category_media" formatted="false">Media</string>
