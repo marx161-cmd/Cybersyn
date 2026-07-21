@@ -13,15 +13,42 @@ layer on top (RECON §1.6).
 
 An action payload is `command` or `command:argument`:
 
-| payload            | effect                                              |
-|--------------------|-----------------------------------------------------|
-| `ping`             | publishes `pong` to the event topic (no display needed) |
-| `notify:hello`     | `notify-send "Cybersyn" "hello"`                    |
+| payload                  | effect                                                  |
+|--------------------------|---------------------------------------------------------|
+| `ping`                   | publishes `pong` to the event topic (no display needed)  |
+| `notify:hello`           | `notify-send "Cybersyn" "hello"`                         |
+| `capabilities`           | lists this node's script names — the catalog source      |
+| `script:<name>`          | runs `<script-dir>/<name>`                               |
+| `script:<name> a b`      | same, with whitespace-split arguments                    |
+| `shell:<command>`        | arbitrary `sh -c`. **Disabled unless `--allow-shell`**   |
 
 Everything else publishes `error:unknown-command:<cmd>`.
 
-New host capabilities are added as one match arm in `dispatch()` in
-`src/main.rs` — that is the entire extension surface.
+## Adding a capability
+
+Drop an executable file in the script dir
+(`--script-dir`, `$CYBERSYN_SCRIPT_DIR`, default `~/.config/cybersyn/scripts`).
+That is the whole workflow — no rebuild, no redeploy, and `capabilities`
+picks it up immediately so the MCP catalog can be generated from what the
+node actually has.
+
+This mirrors the phone side, where the brain invokes named Termux scripts
+(`hidkey.sh`, `click.sh`) rather than composing shell over the wire. The
+scripts are ordinary shell, so nothing is less expressive than `shell:` —
+the difference is that *you* write the command here, ahead of time, instead
+of the caller composing a string that was never reviewed.
+
+`script:` names are bare filenames only (alphanumeric, `_`, `-`, `.`; no
+separators, no `..`, no leading dot). A name that fails validation or does
+not exist fails closed and executes nothing.
+
+### On `shell:` being off by default
+
+Anything able to publish to this node's action topic can reach this arm —
+including an LLM composing a command string through the MCP bridge, and any
+rule you wrote months ago and no longer remember. `script:` bounds that to a
+vocabulary you curated; `shell:` does not. Turn it on deliberately while
+debugging (`--allow-shell` / `CYBERSYN_ALLOW_SHELL=1`), not as a standing door.
 
 ## Build
 
