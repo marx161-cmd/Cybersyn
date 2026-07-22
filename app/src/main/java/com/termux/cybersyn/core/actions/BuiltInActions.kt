@@ -4,6 +4,7 @@ import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
@@ -11,6 +12,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.termux.cybersyn.app.CybersynApp_NoHilt
+import com.termux.cybersyn.core.external.IntentLaunchBridgeActivity
 import kotlinx.coroutines.suspendCancellableCoroutine
 import com.termux.cybersyn.core.engine.Action
 import com.termux.cybersyn.core.engine.ActionCategory
@@ -331,30 +333,80 @@ class WaitAction : Action {
  *   - "package": target package
  *   - "action": intent action (optional, defaults to MAIN)
  *   - "category": intent category (optional)
+ *   - "uri" / "intentUri": full Android intent URI, e.g. #Intent;...;end
+ *   - "component": explicit package/class component (optional)
  */
 class LaunchIntentAction : Action {
     override val id = "intent.launch"
     override val category = ActionCategory.APP
 
     override suspend fun run(ctx: ActionContext, args: Map<String, String>): ActionResult {
-        val pkg = args["package"] ?: return ActionResult.Failure("missing package")
+        val intentUri = args["uri"] ?: args["intentUri"] ?: args["intent_uri"]
+        val pkg = args["package"]?.ifBlank { null }
         val action = args["action"]?.ifBlank { null }
         val category = args["category"]?.ifBlank { null }
+        val component = args["component"]?.ifBlank { null }
         return try {
-            val intent = if (action == null) {
-                ctx.app.packageManager.getLaunchIntentForPackage(pkg)
-                    ?: return ActionResult.Failure("app not found: $pkg")
+            val intent = if (intentUri != null) {
+                parseSimpleIntentUri(intentUri) ?: Intent.parseUri(intentUri, Intent.URI_INTENT_SCHEME).normalizedForActivityLaunch()
+            } else if (action == null) {
+                val targetPackage = pkg ?: return ActionResult.Failure("missing package")
+                ctx.app.packageManager.getLaunchIntentForPackage(targetPackage)
+                    ?: return ActionResult.Failure("app not found: $targetPackage")
             } else {
-                Intent(action).setPackage(pkg)
+                Intent(action).apply { pkg?.let(::setPackage) }
             }.apply {
                 category?.let(::addCategory)
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                component?.let { ComponentName.unflattenFromString(it)?.let(::setComponent) }
+                flags = flags or Intent.FLAG_ACTIVITY_NEW_TASK
+                selector?.flags = (selector?.flags ?: 0) or Intent.FLAG_ACTIVITY_NEW_TASK
             }
-            ctx.app.startActivity(intent)
-            ctx.logger("Intent launch: $pkg")
+            if (intentUri != null || component != null) {
+                ctx.app.startActivity(
+                    Intent(ctx.app, IntentLaunchBridgeActivity::class.java).apply {
+                        putExtra(IntentLaunchBridgeActivity.EXTRA_INTENT_URI, intentUri)
+                        putExtra(IntentLaunchBridgeActivity.EXTRA_PACKAGE, pkg)
+                        putExtra(IntentLaunchBridgeActivity.EXTRA_ACTION, action)
+                        putExtra(IntentLaunchBridgeActivity.EXTRA_COMPONENT, component)
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION
+                    },
+                )
+            } else {
+                ctx.app.startActivity(intent)
+            }
+            ctx.logger("Intent launch: ${intent.component?.flattenToShortString() ?: intent.action ?: pkg ?: intentUri}")
             ActionResult.Success
         } catch (ex: Exception) {
             ActionResult.Failure("intent launch failed: ${ex.message}", ex)
+        }
+    }
+
+    private fun Intent.normalizedForActivityLaunch(): Intent {
+        val parsed = this
+        return Intent(parsed.action).apply {
+            data = parsed.data
+            type = parsed.type
+            parsed.component?.let(::setComponent)
+            parsed.`package`?.let(::setPackage)
+            parsed.categories?.forEach(::addCategory)
+            parsed.extras?.let(::putExtras)
+        }
+    }
+
+    private fun parseSimpleIntentUri(uri: String): Intent? {
+        if (!uri.startsWith("#Intent;") || !uri.endsWith(";end")) return null
+        val fields = uri.removePrefix("#Intent;").removeSuffix(";end")
+            .split(';')
+            .mapNotNull { field ->
+                val idx = field.indexOf('=')
+                if (idx <= 0) null else field.substring(0, idx) to field.substring(idx + 1)
+            }
+            .toMap()
+        val action = fields["action"]
+        val component = fields["component"]?.let(ComponentName::unflattenFromString)
+        if (action == null && component == null) return null
+        return Intent(action).apply {
+            component?.let(::setComponent)
         }
     }
 }

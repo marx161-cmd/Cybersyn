@@ -8,9 +8,15 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import java.io.ByteArrayOutputStream
+import java.io.File
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 
 internal object TermuxCommandBroker {
@@ -20,6 +26,9 @@ internal object TermuxCommandBroker {
     private val pending = ConcurrentHashMap<String, CompletableDeferred<TermuxCommandResult>>()
 
     suspend fun execute(context: Context, request: TermuxCommandRequest): TermuxCommandResult {
+        if (canExecuteDirectly()) {
+            return executeDirect(request)
+        }
         val requestId = UUID.randomUUID().toString()
         val deferred = CompletableDeferred<TermuxCommandResult>()
         synchronized(pending) {
@@ -61,6 +70,64 @@ internal object TermuxCommandBroker {
             pending.remove(requestId)
             callback.cancel()
         }
+    }
+
+    private fun canExecuteDirectly(): Boolean = File(TERMUX_PREFIX, "bin/sh").canExecute()
+
+    private suspend fun executeDirect(request: TermuxCommandRequest): TermuxCommandResult = withContext(Dispatchers.IO) {
+        withTimeout(request.timeoutMs) {
+            val executable = resolveTermuxPath(request.executable)
+            val process = ProcessBuilder(listOf(executable) + request.arguments)
+                .directory(request.workingDirectory?.let(::resolveTermuxPath)?.let(::File) ?: File(TERMUX_HOME))
+                .redirectErrorStream(false)
+                .apply {
+                    environment()["HOME"] = TERMUX_HOME
+                    environment()["PREFIX"] = TERMUX_PREFIX
+                    environment()["PATH"] = "$TERMUX_PREFIX/bin:/system/bin:/system/xbin:/vendor/bin:/vendor/xbin"
+                }
+                .start()
+            request.stdin?.let { stdin ->
+                process.outputStream.bufferedWriter().use { it.write(stdin) }
+            } ?: process.outputStream.close()
+            coroutineScope {
+                val stdout = async { process.inputStream.readCapped(TermuxScriptPolicy.MAX_OUTPUT_BYTES + 1) }
+                val stderr = async { process.errorStream.readCapped(TermuxScriptPolicy.MAX_OUTPUT_BYTES + 1) }
+                val exit = process.waitFor()
+                val out = stdout.await()
+                val err = stderr.await()
+                TermuxCommandResult(
+                    stdout = out.text,
+                    stderr = err.text,
+                    exitCode = exit,
+                    stdoutOriginalLength = out.length,
+                    stderrOriginalLength = err.length,
+                    errorCode = 0,
+                )
+            }
+        }
+    }
+
+    private fun resolveTermuxPath(path: String): String = when {
+        path == "\$PREFIX" -> TERMUX_PREFIX
+        path.startsWith("\$PREFIX/") -> TERMUX_PREFIX + path.removePrefix("\$PREFIX")
+        path == "~" -> TERMUX_HOME
+        path.startsWith("~/") -> TERMUX_HOME + path.removePrefix("~")
+        else -> path
+    }
+
+    private fun java.io.InputStream.readCapped(limit: Int): CappedOutput {
+        val buffer = ByteArray(4096)
+        val output = ByteArrayOutputStream()
+        var total = 0
+        while (true) {
+            val read = read(buffer)
+            if (read < 0) break
+            total += read
+            if (output.size() < limit) {
+                output.write(buffer, 0, minOf(read, limit - output.size()))
+            }
+        }
+        return CappedOutput(output.toString(Charsets.UTF_8.name()), total)
     }
 
     internal fun deliver(intent: Intent) {
@@ -111,7 +178,11 @@ internal object TermuxCommandBroker {
     private const val RESULT_ERROR_CODE = "err"
     private const val RESULT_STDOUT_ORIGINAL_LENGTH = "stdout_original_length"
     private const val RESULT_STDERR_ORIGINAL_LENGTH = "stderr_original_length"
+    private const val TERMUX_HOME = "/data/data/com.termux/files/home"
+    private const val TERMUX_PREFIX = "/data/data/com.termux/files/usr"
 }
+
+private data class CappedOutput(val text: String, val length: Int)
 
 class TermuxResultReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {

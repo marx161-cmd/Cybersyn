@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 2,
+  "appVersion": "0.2.76",
+  "exportedAtEpochMs": 1784736000000,
+  "metadata": {
+    "name": "Quick Tap sidebar toggle",
+    "description": "Route Pixel Quick Tap relay events to the Smart Edge sidebar toggle intent.",
+    "capabilityRequirements": [],
+    "powerRequests": [],
+    "warnings": []
+  },
+  "tasks": [
+    {
+      "id": 1,
+      "name": "QuickTap Toggle Sidebar",
+      "priority": 6,
+      "collisionMode": "ABORT_NEW",
+      "actions": [
+        {
+          "id": 1,
+          "type": "intent.launch",
+          "label": "Toggle Smart Edge sidebar",
+          "args": {
+            "uri": "#Intent;action=com.imi.smartedge.sidebar.panel.TOGGLE;extendedLaunchFlags=0x4;component=com.imi.smartedge.sidebar.panel/.ToggleActivity;end"
+          },
+          "continueOnError": false
+        }
+      ]
+    }
+  ],
+  "profiles": [
+    {
+      "id": 1,
+      "name": "QuickTapSidebarTrigger",
+      "enabled": true,
+      "contexts": [
+        {
+          "type": "EVENT",
+          "config": {
+            "event": "external_trigger",
+            "trigger": "quick_tap"
+          },
+          "invert": false
+        }
+      ],
+      "enterTaskId": 1,
+      "exitTaskId": null,
+      "cooldownSec": 0,
+      "automationMode": "RESTART",
+      "group": "Input",
+      "requiresRiskAcknowledgement": false
+    }
+  ],
+  "variables": [],
+  "scenes": []
+}

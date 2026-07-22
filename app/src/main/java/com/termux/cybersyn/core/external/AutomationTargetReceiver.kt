@@ -5,9 +5,12 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.util.Base64
 import com.termux.cybersyn.app.CybersynApp_NoHilt
 import com.termux.cybersyn.core.engine.executeAndLogTask
 import com.termux.cybersyn.core.logging.AppLogger
+import com.termux.cybersyn.core.transfer.OpenTaskerBundleCodec
+import com.termux.cybersyn.core.transfer.OpenTaskerBundleRepository
 import com.termux.cybersyn.core.storage.toEntity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -20,6 +23,7 @@ object AutomationTargetContract {
     const val ACTION_RUN_TASK = "com.termux.cybersyn.action.RUN_TASK"
     const val ACTION_SET_PROFILE_ENABLED = "com.termux.cybersyn.action.SET_PROFILE_ENABLED"
     const val ACTION_QUERY_STATUS = "com.termux.cybersyn.action.QUERY_STATUS"
+    const val ACTION_IMPORT_BUNDLE = "com.termux.cybersyn.action.IMPORT_BUNDLE"
 
     const val EXTRA_TASK_ID = "com.termux.cybersyn.extra.TASK_ID"
     const val EXTRA_TASK_NAME = "com.termux.cybersyn.extra.TASK_NAME"
@@ -35,6 +39,12 @@ object AutomationTargetContract {
     const val EXTRA_TASK_COUNT = "com.termux.cybersyn.extra.TASK_COUNT"
     const val EXTRA_PROFILE_COUNT = "com.termux.cybersyn.extra.PROFILE_COUNT"
     const val EXTRA_ENABLED_PROFILE_COUNT = "com.termux.cybersyn.extra.ENABLED_PROFILE_COUNT"
+    const val EXTRA_BUNDLE_JSON = "com.termux.cybersyn.extra.BUNDLE_JSON"
+    const val EXTRA_BUNDLE_BASE64 = "com.termux.cybersyn.extra.BUNDLE_BASE64"
+    const val EXTRA_ACKNOWLEDGE_RISK = "com.termux.cybersyn.extra.ACKNOWLEDGE_RISK"
+    const val EXTRA_INSERTED_TASKS = "com.termux.cybersyn.extra.INSERTED_TASKS"
+    const val EXTRA_INSERTED_PROFILES = "com.termux.cybersyn.extra.INSERTED_PROFILES"
+    const val EXTRA_IMPORT_WARNINGS = "com.termux.cybersyn.extra.IMPORT_WARNINGS"
 
     const val VARIABLE_EXTRA_PREFIX = "com.termux.cybersyn.var."
     private val variableNamePattern = Regex("^[A-Za-z][A-Za-z0-9_]{0,63}$")
@@ -56,6 +66,7 @@ class AutomationTargetReceiver : BroadcastReceiver() {
                     AutomationTargetContract.ACTION_RUN_TASK -> runTask(context.applicationContext, intent)
                     AutomationTargetContract.ACTION_SET_PROFILE_ENABLED -> setProfileEnabled(intent)
                     AutomationTargetContract.ACTION_QUERY_STATUS -> queryStatus(intent)
+                    AutomationTargetContract.ACTION_IMPORT_BUNDLE -> importBundle(intent)
                     else -> failure("Unsupported action: ${intent.action}")
                 }
             }.getOrElse { failure(it.message ?: "Automation target request failed") }
@@ -134,6 +145,36 @@ class AutomationTargetReceiver : BroadcastReceiver() {
                 }
             },
         )
+    }
+
+    private suspend fun importBundle(intent: Intent): TargetResponse {
+        val rawJson = intent.getStringExtra(AutomationTargetContract.EXTRA_BUNDLE_JSON)
+            ?: intent.getStringExtra(AutomationTargetContract.EXTRA_BUNDLE_BASE64)
+                ?.let { encoded -> String(Base64.decode(encoded, Base64.DEFAULT), Charsets.UTF_8) }
+            ?: return failure("Bundle import needs ${AutomationTargetContract.EXTRA_BUNDLE_JSON} or ${AutomationTargetContract.EXTRA_BUNDLE_BASE64}.")
+        val bundle = OpenTaskerBundleCodec.decode(rawJson)
+        val report = OpenTaskerBundleRepository(CybersynApp_NoHilt.db).importBundle(bundle)
+        if (intent.getBooleanExtra(AutomationTargetContract.EXTRA_ACKNOWLEDGE_RISK, false)) {
+            acknowledgeImportedProfiles(bundle.profiles.map { it.name }.toSet(), enable = intent.getBooleanExtra(AutomationTargetContract.EXTRA_ENABLED, false))
+        }
+        return TargetResponse(
+            Activity.RESULT_OK,
+            Bundle().apply {
+                putInt(AutomationTargetContract.EXTRA_INSERTED_TASKS, report.insertedTasks)
+                putInt(AutomationTargetContract.EXTRA_INSERTED_PROFILES, report.insertedProfiles)
+                putString(AutomationTargetContract.EXTRA_IMPORT_WARNINGS, (report.warnings + report.lossyWarnings).joinToString("\n"))
+            },
+        )
+    }
+
+    private suspend fun acknowledgeImportedProfiles(profileNames: Set<String>, enable: Boolean) {
+        if (profileNames.isEmpty()) return
+        val db = CybersynApp_NoHilt.db
+        db.profileDao().getAll()
+            .filter { it.name in profileNames && it.requiresRiskAcknowledgement }
+            .forEach { profile ->
+                db.profileDao().update(profile.copy(enabled = enable, requiresRiskAcknowledgement = false))
+            }
     }
 
     private suspend fun resolveTask(intent: Intent) =

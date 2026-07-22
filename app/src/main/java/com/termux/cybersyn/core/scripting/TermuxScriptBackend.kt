@@ -3,6 +3,7 @@ package com.termux.cybersyn.core.scripting
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
+import java.io.File
 
 object TermuxScriptBackend {
     const val ACTION_ID = "script.termux.run"
@@ -13,6 +14,14 @@ object TermuxScriptBackend {
     const val SETUP_URL = "https://github.com/termux/termux-app/wiki/RUN_COMMAND-Intent"
 
     fun inspect(context: Context): TermuxScriptStatus {
+        if (File("/data/data/com.termux/files/usr/bin/sh").canExecute()) {
+            return statusFor(
+                termuxInstalled = true,
+                permissionGranted = true,
+                resultProtocolSupported = true,
+                directExecution = true,
+            )
+        }
         val versionName = packageVersionName(context, TERMUX_PACKAGE)
         val termuxInstalled = versionName != null
         return statusFor(
@@ -32,6 +41,7 @@ object TermuxScriptBackend {
         termuxInstalled: Boolean,
         permissionGranted: Boolean,
         resultProtocolSupported: Boolean = true,
+        directExecution: Boolean = false,
     ): TermuxScriptStatus {
         val state = when {
             !termuxInstalled -> TermuxScriptState.TermuxMissing
@@ -43,7 +53,11 @@ object TermuxScriptBackend {
             TermuxScriptState.TermuxMissing -> "Termux is not installed."
             TermuxScriptState.VersionUnsupported -> "Termux $MINIMUM_RESULT_VERSION or newer is required for bounded results."
             TermuxScriptState.PermissionRequired -> "Termux is installed, but Cybersyn lacks RUN_COMMAND permission."
-            TermuxScriptState.Ready -> "Termux is installed and RUN_COMMAND permission is granted."
+            TermuxScriptState.Ready -> if (directExecution) {
+                "Termux script execution is ready via shared-UID direct exec."
+            } else {
+                "Termux is installed and RUN_COMMAND permission is granted."
+            }
         }
         return TermuxScriptStatus(
             state = state,
