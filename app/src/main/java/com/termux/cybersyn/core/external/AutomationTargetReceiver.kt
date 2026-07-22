@@ -5,7 +5,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
-import com.termux.cybersyn.app.OpenTaskerApp_NoHilt
+import com.termux.cybersyn.app.CybersynApp_NoHilt
 import com.termux.cybersyn.core.engine.executeAndLogTask
 import com.termux.cybersyn.core.logging.AppLogger
 import com.termux.cybersyn.core.storage.toEntity
@@ -71,7 +71,7 @@ class AutomationTargetReceiver : BroadcastReceiver() {
     }
 
     private suspend fun runTask(appContext: Context, intent: Intent): TargetResponse {
-        val db = OpenTaskerApp_NoHilt.db
+        val db = CybersynApp_NoHilt.db
         val task = resolveTask(intent)
             ?: return failure("Task not found. Provide ${AutomationTargetContract.EXTRA_TASK_ID} or ${AutomationTargetContract.EXTRA_TASK_NAME}.")
 
@@ -96,7 +96,7 @@ class AutomationTargetReceiver : BroadcastReceiver() {
     }
 
     private suspend fun setProfileEnabled(intent: Intent): TargetResponse {
-        val db = OpenTaskerApp_NoHilt.db
+        val db = CybersynApp_NoHilt.db
         val profile = resolveProfile(intent)
             ?: return failure("Profile not found. Provide ${AutomationTargetContract.EXTRA_PROFILE_ID} or ${AutomationTargetContract.EXTRA_PROFILE_NAME}.")
         val enabled = intent.getBooleanExtra(AutomationTargetContract.EXTRA_ENABLED, profile.enabled)
@@ -114,7 +114,7 @@ class AutomationTargetReceiver : BroadcastReceiver() {
     }
 
     private suspend fun queryStatus(intent: Intent): TargetResponse {
-        val db = OpenTaskerApp_NoHilt.db
+        val db = CybersynApp_NoHilt.db
         val profileEntities = db.profileDao().getAll()
         val tasks = db.taskDao().getAll()
         val profile = resolveProfileEntity(intent, profileEntities)?.toDomain()
@@ -139,18 +139,18 @@ class AutomationTargetReceiver : BroadcastReceiver() {
     private suspend fun resolveTask(intent: Intent) =
         intent.getLongExtra(AutomationTargetContract.EXTRA_TASK_ID, 0L)
             .takeIf { it > 0 }
-            ?.let { OpenTaskerApp_NoHilt.db.taskDao().getById(it)?.toDomain() }
+            ?.let { CybersynApp_NoHilt.db.taskDao().getById(it)?.toDomain() }
             ?: intent.getStringExtra(AutomationTargetContract.EXTRA_TASK_NAME)
                 ?.trim()
                 ?.takeIf { it.isNotBlank() }
                 ?.let { name ->
-                    OpenTaskerApp_NoHilt.db.taskDao().getAll()
+                    CybersynApp_NoHilt.db.taskDao().getAll()
                         .firstOrNull { it.name.equals(name, ignoreCase = true) }
                         ?.toDomain()
                 }
 
     private suspend fun resolveProfile(intent: Intent) =
-        resolveProfileEntity(intent, OpenTaskerApp_NoHilt.db.profileDao().getAll())?.toDomain()
+        resolveProfileEntity(intent, CybersynApp_NoHilt.db.profileDao().getAll())?.toDomain()
 
     private fun resolveProfileEntity(
         intent: Intent,

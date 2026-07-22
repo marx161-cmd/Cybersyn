@@ -143,7 +143,7 @@ class ShizukuPowerBackendTest {
         ).first(Files::exists)
         val setup = root.resolve("com/termux/cybersyn/ui/screens/PermissionOnboardingScreen.kt").readText()
         val capabilities = root.resolve("com/termux/cybersyn/core/capabilities/ActionCapabilities.kt").readText()
-        val application = root.resolve("com/termux/cybersyn/app/OpenTaskerApp_NoHilt.kt").readText()
+        val application = root.resolve("com/termux/cybersyn/app/CybersynApp_NoHilt.kt").readText()
 
         assertTrue(setup.contains("PermissionAction.ShizukuPermission"))
         assertTrue(setup.contains("PermissionAction.ShizukuKillSwitch"))

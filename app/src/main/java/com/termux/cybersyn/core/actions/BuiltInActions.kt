@@ -10,7 +10,7 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
-import com.termux.cybersyn.app.OpenTaskerApp_NoHilt
+import com.termux.cybersyn.app.CybersynApp_NoHilt
 import kotlinx.coroutines.suspendCancellableCoroutine
 import com.termux.cybersyn.core.engine.Action
 import com.termux.cybersyn.core.engine.ActionCategory
@@ -73,7 +73,7 @@ class NotifyAction : Action {
         val taskCandidates = if (taskReferences.isEmpty()) {
             emptyList()
         } else {
-            OpenTaskerApp_NoHilt.db.taskDao().getAll().map { NotificationTaskCandidate(it.id, it.name) }
+            CybersynApp_NoHilt.db.taskDao().getAll().map { NotificationTaskCandidate(it.id, it.name) }
         }
 
         for ((i, reference) in taskReferences) {
@@ -156,9 +156,9 @@ internal object NotificationChannels {
     )
 
     private val channels = mapOf(
-        "quiet" to ChannelDef("opentasker.quiet", "OpenTasker quiet", NotificationManager.IMPORTANCE_LOW),
-        "default" to ChannelDef("opentasker.actions", "OpenTasker actions", NotificationManager.IMPORTANCE_DEFAULT),
-        "urgent" to ChannelDef("opentasker.urgent", "OpenTasker urgent", NotificationManager.IMPORTANCE_HIGH),
+        "quiet" to ChannelDef("opentasker.quiet", "Cybersyn quiet", NotificationManager.IMPORTANCE_LOW),
+        "default" to ChannelDef("opentasker.actions", "Cybersyn actions", NotificationManager.IMPORTANCE_DEFAULT),
+        "urgent" to ChannelDef("opentasker.urgent", "Cybersyn urgent", NotificationManager.IMPORTANCE_HIGH),
     )
 
     fun resolve(key: String): ChannelDef =

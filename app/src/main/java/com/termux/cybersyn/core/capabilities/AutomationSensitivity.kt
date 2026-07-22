@@ -4,7 +4,7 @@ import com.termux.cybersyn.core.model.Profile
 import com.termux.cybersyn.core.model.Task
 import kotlinx.serialization.Serializable
 
-/** User-reviewable powers that an action can exercise under OpenTasker's app-wide grants. */
+/** User-reviewable powers that an action can exercise under Cybersyn's app-wide grants. */
 @Serializable
 enum class AutomationPower {
     DATA_ACCESS,

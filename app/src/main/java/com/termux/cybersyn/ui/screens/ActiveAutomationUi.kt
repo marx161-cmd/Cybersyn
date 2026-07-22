@@ -182,7 +182,7 @@ private const val DELETE_TARGET_ACTION = "action"
 private const val DELETE_TARGET_CONTEXT = "context"
 
 
-private enum class OpenTaskerScreen(val label: String) {
+private enum class CybersynScreen(val label: String) {
     Profiles("Profiles"),
     Tasks("Tasks"),
     Vars("Variables"),
@@ -195,24 +195,24 @@ private enum class OpenTaskerScreen(val label: String) {
 }
 
 private val primaryNavigationScreens = listOf(
-    OpenTaskerScreen.Profiles,
-    OpenTaskerScreen.Tasks,
-    OpenTaskerScreen.Setup,
-    OpenTaskerScreen.RunLog,
+    CybersynScreen.Profiles,
+    CybersynScreen.Tasks,
+    CybersynScreen.Setup,
+    CybersynScreen.RunLog,
 )
 
-private val secondaryNavigationScreens = OpenTaskerScreen.entries.filterNot { it in primaryNavigationScreens }
+private val secondaryNavigationScreens = CybersynScreen.entries.filterNot { it in primaryNavigationScreens }
 
-private fun OpenTaskerScreen.icon(): ImageVector = when (this) {
-    OpenTaskerScreen.Profiles -> Icons.Filled.CheckCircle
-    OpenTaskerScreen.Tasks -> Icons.Filled.Edit
-    OpenTaskerScreen.Vars -> Icons.Filled.Menu
-    OpenTaskerScreen.Flow -> Icons.Filled.Info
-    OpenTaskerScreen.Scenes -> Icons.Filled.Edit
-    OpenTaskerScreen.Inspector -> Icons.Filled.Info
-    OpenTaskerScreen.Setup -> Icons.Filled.Settings
-    OpenTaskerScreen.RunLog -> Icons.Filled.Info
-    OpenTaskerScreen.Diagnostics -> Icons.Filled.Error
+private fun CybersynScreen.icon(): ImageVector = when (this) {
+    CybersynScreen.Profiles -> Icons.Filled.CheckCircle
+    CybersynScreen.Tasks -> Icons.Filled.Edit
+    CybersynScreen.Vars -> Icons.Filled.Menu
+    CybersynScreen.Flow -> Icons.Filled.Info
+    CybersynScreen.Scenes -> Icons.Filled.Edit
+    CybersynScreen.Inspector -> Icons.Filled.Info
+    CybersynScreen.Setup -> Icons.Filled.Settings
+    CybersynScreen.RunLog -> Icons.Filled.Info
+    CybersynScreen.Diagnostics -> Icons.Filled.Error
 }
 
 internal data class ActionEditState(
@@ -251,7 +251,7 @@ fun ActiveAutomationUi(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     var screenOrdinal by rememberSaveable { mutableIntStateOf(0) }
-    val screen = OpenTaskerScreen.entries.getOrElse(screenOrdinal) { OpenTaskerScreen.Profiles }
+    val screen = CybersynScreen.entries.getOrElse(screenOrdinal) { CybersynScreen.Profiles }
     var taskDialogId by rememberSaveable { mutableLongStateOf(NO_DIALOG_ENTITY_ID) }
     var showCreateTaskDialog by rememberSaveable { mutableStateOf(false) }
     var profileDialogId by rememberSaveable { mutableLongStateOf(NO_DIALOG_ENTITY_ID) }
@@ -430,7 +430,7 @@ fun ActiveAutomationUi(
         when (target) {
             is AutomationFlowTarget.Profile -> {
                 profiles.firstOrNull { it.id == target.profileId }?.let { profile ->
-                    screenOrdinal = OpenTaskerScreen.Profiles.ordinal
+                    screenOrdinal = CybersynScreen.Profiles.ordinal
                     openProfileDialog(profile)
                 } ?: run { opened = false }
             }
@@ -439,7 +439,7 @@ fun ActiveAutomationUi(
                 val profile = profiles.firstOrNull { it.id == target.profileId }
                 val contextSpec = profile?.contexts?.getOrNull(target.index)
                 if (profile != null && contextSpec != null) {
-                    screenOrdinal = OpenTaskerScreen.Profiles.ordinal
+                    screenOrdinal = CybersynScreen.Profiles.ordinal
                     openContextEdit(profile, contextSpec.type, target.index)
                 } else {
                     opened = false
@@ -448,7 +448,7 @@ fun ActiveAutomationUi(
 
             is AutomationFlowTarget.Task -> {
                 tasks.firstOrNull { it.id == target.taskId }?.let { task ->
-                    screenOrdinal = OpenTaskerScreen.Tasks.ordinal
+                    screenOrdinal = CybersynScreen.Tasks.ordinal
                     openTaskDialog(task)
                 } ?: run { opened = false }
             }
@@ -458,7 +458,7 @@ fun ActiveAutomationUi(
                 val action = task?.actions?.getOrNull(target.index)
                 val metadata = action?.let { ActionMetadataRegistry.get(it.type) }
                 if (task != null && action != null && metadata != null) {
-                    screenOrdinal = OpenTaskerScreen.Tasks.ordinal
+                    screenOrdinal = CybersynScreen.Tasks.ordinal
                     openActionEdit(task, metadata, target.index)
                 } else {
                     opened = false
@@ -475,7 +475,7 @@ fun ActiveAutomationUi(
     }
     val lifecycleOwner = LocalLifecycleOwner.current
     LaunchedEffect(screen) {
-        if (screen == OpenTaskerScreen.Diagnostics) {
+        if (screen == CybersynScreen.Diagnostics) {
             // repeatOnLifecycle: LaunchedEffect is composition-scoped, so without it the
             // 5-second file/crash-log polling kept running while the app sat backgrounded
             // with Diagnostics selected.
@@ -490,15 +490,15 @@ fun ActiveAutomationUi(
 
     var showMoreDestinations by rememberSaveable { mutableStateOf(false) }
     val headerDetail = when (screen) {
-        OpenTaskerScreen.Profiles -> "${profiles.count { it.enabled }} enabled - ${profiles.size} total"
-        OpenTaskerScreen.Tasks -> "${tasks.sumOf { it.actions.size }} actions - ${tasks.size} tasks"
-        OpenTaskerScreen.Vars -> "${globalVariables.size} global variables"
-        OpenTaskerScreen.Flow -> "${profiles.size} profiles - ${tasks.size} tasks"
-        OpenTaskerScreen.Scenes -> "${scenes.sumOf { it.elements.size }} elements - ${scenes.size} scenes"
-        OpenTaskerScreen.Inspector -> "Live context health"
-        OpenTaskerScreen.Setup -> "Permission and reliability checks"
-        OpenTaskerScreen.RunLog -> "${runLogs.size} recent entries"
-        OpenTaskerScreen.Diagnostics -> "Engine, crashes, and app logs"
+        CybersynScreen.Profiles -> "${profiles.count { it.enabled }} enabled - ${profiles.size} total"
+        CybersynScreen.Tasks -> "${tasks.sumOf { it.actions.size }} actions - ${tasks.size} tasks"
+        CybersynScreen.Vars -> "${globalVariables.size} global variables"
+        CybersynScreen.Flow -> "${profiles.size} profiles - ${tasks.size} tasks"
+        CybersynScreen.Scenes -> "${scenes.sumOf { it.elements.size }} elements - ${scenes.size} scenes"
+        CybersynScreen.Inspector -> "Live context health"
+        CybersynScreen.Setup -> "Permission and reliability checks"
+        CybersynScreen.RunLog -> "${runLogs.size} recent entries"
+        CybersynScreen.Diagnostics -> "Engine, crashes, and app logs"
     }
 
     Scaffold(
@@ -510,7 +510,7 @@ fun ActiveAutomationUi(
             TopAppBar(
                 title = {
                     Column {
-                        Text("OpenTasker", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text("Cybersyn", maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Text(
                             "${screen.label} - $headerDetail",
                             style = MaterialTheme.typography.labelMedium,
@@ -527,7 +527,7 @@ fun ActiveAutomationUi(
         },
         floatingActionButton = {
             when (screen) {
-                OpenTaskerScreen.Profiles -> {
+                CybersynScreen.Profiles -> {
                     val createLabel = stringResource(if (tasks.isEmpty()) R.string.task_new else R.string.profile_new)
                     ExtendedFloatingActionButton(
                         onClick = {
@@ -548,20 +548,20 @@ fun ActiveAutomationUi(
                     )
                 }
 
-                OpenTaskerScreen.Tasks -> ExtendedFloatingActionButton(
+                CybersynScreen.Tasks -> ExtendedFloatingActionButton(
                     onClick = { showCreateTaskDialog = true },
                     shape = RoundedCornerShape(DesignSystem.Radii.lg),
                     icon = { Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.task_new)) },
                     text = { Text(stringResource(R.string.task_new)) },
                 )
 
-                OpenTaskerScreen.Vars,
-                OpenTaskerScreen.Flow,
-                OpenTaskerScreen.Scenes,
-                OpenTaskerScreen.Inspector,
-                OpenTaskerScreen.Setup,
-                OpenTaskerScreen.RunLog -> Unit
-                OpenTaskerScreen.Diagnostics -> Unit
+                CybersynScreen.Vars,
+                CybersynScreen.Flow,
+                CybersynScreen.Scenes,
+                CybersynScreen.Inspector,
+                CybersynScreen.Setup,
+                CybersynScreen.RunLog -> Unit
+                CybersynScreen.Diagnostics -> Unit
             }
         },
         bottomBar = {
@@ -570,7 +570,7 @@ fun ActiveAutomationUi(
                 tonalElevation = 0.dp,
             ) {
                 primaryNavigationScreens.forEach { destination ->
-                    OpenTaskerNavigationItem(
+                    CybersynNavigationItem(
                         selected = screen == destination,
                         onClick = {
                             screenOrdinal = destination.ordinal
@@ -582,7 +582,7 @@ fun ActiveAutomationUi(
                     )
                 }
                 Box(Modifier.weight(1f)) {
-                    OpenTaskerNavigationItem(
+                    CybersynNavigationItem(
                         selected = screen in secondaryNavigationScreens,
                         onClick = { showMoreDestinations = true },
                         icon = Icons.Filled.Menu,
@@ -610,13 +610,13 @@ fun ActiveAutomationUi(
         },
     ) { innerPadding ->
         when (screen) {
-            OpenTaskerScreen.Profiles -> ProfilesScreen(
+            CybersynScreen.Profiles -> ProfilesScreen(
                 profiles = profiles,
                 tasks = tasks,
                 runLogs = runLogs,
                 storageDecodeIssues = storageDecodeIssues,
                 onCreateTaskFirst = {
-                    screenOrdinal = OpenTaskerScreen.Tasks.ordinal
+                    screenOrdinal = CybersynScreen.Tasks.ordinal
                     showCreateTaskDialog = true
                 },
                 onCreateProfile = { showCreateProfileDialog = true },
@@ -651,7 +651,7 @@ fun ActiveAutomationUi(
                 contentPadding = innerPadding,
             )
 
-            OpenTaskerScreen.Tasks -> TasksScreen(
+            CybersynScreen.Tasks -> TasksScreen(
                 tasks = tasks,
                 storageDecodeIssues = storageDecodeIssues,
                 onCreateTask = { showCreateTaskDialog = true },
@@ -680,7 +680,7 @@ fun ActiveAutomationUi(
                 contentPadding = innerPadding,
             )
 
-            OpenTaskerScreen.Flow -> AutomationFlowScreen(
+            CybersynScreen.Flow -> AutomationFlowScreen(
                 profiles = profiles,
                 tasks = tasks,
                 contentPadding = innerPadding,
@@ -688,7 +688,7 @@ fun ActiveAutomationUi(
                 onAddContext = { profileId ->
                     val profile = profiles.firstOrNull { it.id == profileId }
                     if (profile != null) {
-                        screenOrdinal = OpenTaskerScreen.Profiles.ordinal
+                        screenOrdinal = CybersynScreen.Profiles.ordinal
                         openContextPicker(profile)
                     } else {
                         scope.launch { snackbarHostState.showSnackbar("Flow target no longer exists") }
@@ -697,7 +697,7 @@ fun ActiveAutomationUi(
                 onAddAction = { taskId ->
                     val task = tasks.firstOrNull { it.id == taskId }
                     if (task != null) {
-                        screenOrdinal = OpenTaskerScreen.Tasks.ordinal
+                        screenOrdinal = CybersynScreen.Tasks.ordinal
                         openActionPicker(task)
                     } else {
                         scope.launch { snackbarHostState.showSnackbar("Flow target no longer exists") }
@@ -705,7 +705,7 @@ fun ActiveAutomationUi(
                 },
             )
 
-            OpenTaskerScreen.Vars -> VariablesScreen(
+            CybersynScreen.Vars -> VariablesScreen(
                 variables = globalVariables,
                 contentPadding = innerPadding,
                 onUpdate = viewModel::updateVariable,
@@ -713,7 +713,7 @@ fun ActiveAutomationUi(
                 onMessage = { message -> scope.launch { snackbarHostState.showSnackbar(message) } },
             )
 
-            OpenTaskerScreen.Scenes -> SceneLibraryScreen(
+            CybersynScreen.Scenes -> SceneLibraryScreen(
                 scenes = scenes,
                 tasks = tasks,
                 onCreateScene = viewModel::createScene,
@@ -722,7 +722,7 @@ fun ActiveAutomationUi(
                 contentPadding = innerPadding,
             )
 
-            OpenTaskerScreen.Setup -> PermissionOnboardingScreen(
+            CybersynScreen.Setup -> PermissionOnboardingScreen(
                 contentPadding = innerPadding,
                 onMessage = { message -> scope.launch { snackbarHostState.showSnackbar(message) } },
                 backupState = backupSetupState,
@@ -731,9 +731,9 @@ fun ActiveAutomationUi(
                 onImportBackup = { databaseBackupImportLauncher.launch(DATABASE_BACKUP_MIME_TYPES) },
             )
 
-            OpenTaskerScreen.Inspector -> ContextInspectorScreen(db = db, contentPadding = innerPadding)
+            CybersynScreen.Inspector -> ContextInspectorScreen(db = db, contentPadding = innerPadding)
 
-            OpenTaskerScreen.RunLog -> RunLogScreenContent(
+            CybersynScreen.RunLog -> RunLogScreenContent(
                 logs = runLogs,
                 tasks = tasks,
                 retentionPolicy = runLogRetentionPolicy,
@@ -742,7 +742,7 @@ fun ActiveAutomationUi(
                 contentPadding = innerPadding,
             )
 
-            OpenTaskerScreen.Diagnostics -> DiagnosticsScreen(
+            CybersynScreen.Diagnostics -> DiagnosticsScreen(
                 state = diagnosticsState,
                 contentPadding = innerPadding,
                 onRefresh = viewModel::refreshDiagnostics,
@@ -872,7 +872,7 @@ fun ActiveAutomationUi(
             onInstall = { values ->
                 viewModel.installProfileTemplate(template, values)
                 selectedTemplateId = null
-                screenOrdinal = OpenTaskerScreen.Profiles.ordinal
+                screenOrdinal = CybersynScreen.Profiles.ordinal
                 if (onboardingTemplateFlow && shouldCompleteOnboarding(OnboardingExit.InstalledTemplate)) {
                     onboardingTemplateFlow = false
                     scope.launch { OnboardingPreference.markCompleted(context) }
@@ -958,7 +958,7 @@ fun ActiveAutomationUi(
 private const val DIAGNOSTICS_REFRESH_INTERVAL_MS = 5_000L
 
 @Composable
-private fun OpenTaskerNavigationItem(
+private fun CybersynNavigationItem(
     selected: Boolean,
     onClick: () -> Unit,
     icon: ImageVector,

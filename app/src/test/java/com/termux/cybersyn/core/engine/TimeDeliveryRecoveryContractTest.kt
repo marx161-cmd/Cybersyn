@@ -33,7 +33,7 @@ class TimeDeliveryRecoveryContractTest {
 
     @Test
     fun applicationInstallsPeriodicEngineWatchdog() {
-        val source = source("com/termux/cybersyn/app/OpenTaskerApp_NoHilt.kt")
+        val source = source("com/termux/cybersyn/app/CybersynApp_NoHilt.kt")
         val worker = source("com/termux/cybersyn/core/engine/EngineWatchdogWorker.kt")
 
         assertTrue(source.contains("EngineWatchdogWorker.enqueue(this)"))

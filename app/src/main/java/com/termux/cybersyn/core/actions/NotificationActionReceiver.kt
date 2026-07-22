@@ -3,7 +3,7 @@ package com.termux.cybersyn.core.actions
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import com.termux.cybersyn.app.OpenTaskerApp_NoHilt
+import com.termux.cybersyn.app.CybersynApp_NoHilt
 import com.termux.cybersyn.core.engine.executeAndLogTask
 import com.termux.cybersyn.core.engine.logSkippedRun
 import com.termux.cybersyn.core.logging.AppLogger
@@ -29,7 +29,7 @@ class NotificationActionReceiver : BroadcastReceiver() {
         val pending = goAsync()
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             try {
-                val db = OpenTaskerApp_NoHilt.db
+                val db = CybersynApp_NoHilt.db
                 val entities = if (taskId != null) {
                     listOfNotNull(db.taskDao().getById(taskId))
                 } else {
@@ -86,6 +86,6 @@ class NotificationActionReceiver : BroadcastReceiver() {
         const val EXTRA_TASK_NAME = "com.termux.cybersyn.extra.TASK_NAME"
         const val EXTRA_BUTTON_LABEL = "com.termux.cybersyn.extra.BUTTON_LABEL"
         const val SOURCE = "Notification action"
-        private const val TAG = "OpenTasker"
+        private const val TAG = "Cybersyn"
     }
 }

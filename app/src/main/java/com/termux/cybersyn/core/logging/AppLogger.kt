@@ -14,7 +14,7 @@ data class AppLogEntry(
 
 /** Android logging plus a bounded process-local ring for in-app diagnostics. */
 object AppLogger {
-    private const val DEFAULT_TAG = "OpenTasker"
+    private const val DEFAULT_TAG = "Cybersyn"
     internal const val MAX_BUFFERED_ENTRIES = 300
 
     enum class Level {

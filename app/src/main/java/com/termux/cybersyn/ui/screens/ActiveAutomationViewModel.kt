@@ -453,8 +453,8 @@ class ActiveAutomationViewModel(
                 withContext(Dispatchers.IO) {
                     val bundle = bundleRepository.exportBundle(
                         appVersion = appVersion,
-                        name = "OpenTasker Workspace Export",
-                        description = "Profiles, tasks, variables, and scenes exported from OpenTasker.",
+                        name = "Cybersyn Workspace Export",
+                        description = "Profiles, tasks, variables, and scenes exported from Cybersyn.",
                     )
                     val encoded = OpenTaskerBundleCodec.encode(bundle)
                     val stream = appContext.contentResolver.openOutputStream(uri)
@@ -470,7 +470,7 @@ class ActiveAutomationViewModel(
                             "${bundle.scenes.size} scene${plural(bundle.scenes.size)}"
                     )
                 }
-                .onFailure { events.send("Error: ${it.message ?: "OpenTasker bundle export failed"}") }
+                .onFailure { events.send("Error: ${it.message ?: "Cybersyn bundle export failed"}") }
             _openTaskerBundleBusy.value = false
         }
     }
@@ -488,9 +488,9 @@ class ActiveAutomationViewModel(
             }
                 .onSuccess {
                     _openTaskerBundleReview.value = it
-                    events.send("OpenTasker bundle ready for review")
+                    events.send("Cybersyn bundle ready for review")
                 }
-                .onFailure { events.send("Error: ${it.message ?: "OpenTasker bundle preview failed"}") }
+                .onFailure { events.send("Error: ${it.message ?: "Cybersyn bundle preview failed"}") }
             _openTaskerBundleBusy.value = false
         }
     }
@@ -518,7 +518,7 @@ class ActiveAutomationViewModel(
                             "${importReport.insertedScenes} scene${plural(importReport.insertedScenes)}"
                     )
                 }
-                .onFailure { events.send("Error: ${it.message ?: "OpenTasker bundle import failed"}") }
+                .onFailure { events.send("Error: ${it.message ?: "Cybersyn bundle import failed"}") }
             _openTaskerBundleBusy.value = false
         }
     }
@@ -551,7 +551,7 @@ class ActiveAutomationViewModel(
                 val report = DiagnosticExport.buildReport(appContext, db)
                 val intent = Intent(Intent.ACTION_SEND).apply {
                     type = "text/plain"
-                    putExtra(Intent.EXTRA_SUBJECT, "OpenTasker Diagnostic Report")
+                    putExtra(Intent.EXTRA_SUBJECT, "Cybersyn Diagnostic Report")
                     putExtra(Intent.EXTRA_TEXT, report)
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 }
@@ -587,7 +587,7 @@ class ActiveAutomationViewModel(
     fun importDatabaseBackup(uri: Uri) {
         launchBackupOperation {
             databaseBackupManager.stageRestore(uri)
-                .onSuccess { events.send("Backup imported. Restart OpenTasker to apply the restore.") }
+                .onSuccess { events.send("Backup imported. Restart Cybersyn to apply the restore.") }
                 .onFailure { events.send("Error: ${it.message ?: "Database backup import failed"}") }
         }
     }
@@ -732,7 +732,7 @@ internal fun readBoundedOpenTaskerBundle(context: Context, uri: Uri): String {
         context = context,
         uri = uri,
         maxBytes = OPEN_TASKER_BUNDLE_IMPORT_MAX_BYTES,
-        label = "OpenTasker bundle",
+        label = "Cybersyn bundle",
     )
 }
 

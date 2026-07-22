@@ -67,7 +67,7 @@ enum class ShareTrustLevel {
 
 object ProfileShareLibrary {
     const val SUBMISSION_CHANNEL = "GitHub Discussions"
-    const val SUBMISSION_URL = "https://github.com/SysAdminDoc/OpenTasker/discussions"
+    const val SUBMISSION_URL = "https://github.com/SysAdminDoc/Cybersyn/discussions"
 
     private val slugPattern = Regex("^[a-z0-9][a-z0-9-]{2,63}$")
 

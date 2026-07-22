@@ -9,8 +9,8 @@ import com.termux.cybersyn.core.external.AutomationTargetReceiver
 import com.termux.cybersyn.core.logging.AppLogger
 
 /**
- * Exposes OpenTasker as a Locale-compatible setting plugin so Tasker, MacroDroid,
- * and other Locale hosts can invoke approved OpenTasker tasks.
+ * Exposes Cybersyn as a Locale-compatible setting plugin so Tasker, MacroDroid,
+ * and other Locale hosts can invoke approved Cybersyn tasks.
  *
  * Protocol:
  * - Host starts [LocaleSettingEditActivity] with ACTION_EDIT_SETTING

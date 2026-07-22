@@ -69,7 +69,7 @@ class ShakeDetector(context: Context) {
     }
 
     companion object {
-        private const val TAG = "OpenTasker"
+        private const val TAG = "Cybersyn"
         private const val SHAKE_THRESHOLD_G = 2.5f
         private const val DEBOUNCE_MS = 1000L
     }

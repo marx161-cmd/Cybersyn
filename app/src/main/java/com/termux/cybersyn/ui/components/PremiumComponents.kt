@@ -52,7 +52,7 @@ import com.termux.cybersyn.app.R
 import com.termux.cybersyn.ui.theme.DesignSystem
 
 /**
- * Premium UI components for OpenTasker with consistent design system.
+ * Premium UI components for Cybersyn with consistent design system.
  */
 
 // ========== Text Field with Error Support ==========

@@ -16,7 +16,7 @@ object DiagnosticExport {
         val now = System.currentTimeMillis()
         val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss Z", Locale.ROOT)
 
-        sb.appendLine("=== OpenTasker Diagnostic Report ===")
+        sb.appendLine("=== Cybersyn Diagnostic Report ===")
         sb.appendLine("Generated: ${dateFormat.format(Date(now))}")
         sb.appendLine()
 

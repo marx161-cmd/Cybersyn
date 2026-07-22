@@ -17,7 +17,7 @@ class BootReceiver : BroadcastReceiver() {
                         .setAction(AutomationService.ACTION_BOOT_COMPLETED_TRIGGER),
                 )
             }.onFailure { error ->
-                AppLogger.error("OpenTasker", "Failed to start automation service after boot", error)
+                AppLogger.error("Cybersyn", "Failed to start automation service after boot", error)
             }
         }
     }

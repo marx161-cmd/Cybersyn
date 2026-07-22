@@ -6,7 +6,7 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
-import com.termux.cybersyn.app.OpenTaskerApp_NoHilt
+import com.termux.cybersyn.app.CybersynApp_NoHilt
 import com.termux.cybersyn.core.logging.AppLogger
 import com.termux.cybersyn.core.storage.RunLogRetentionSettings
 import com.termux.cybersyn.core.storage.minimumTimestamp
@@ -18,7 +18,7 @@ class RunLogPruneWorker(
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result {
-        val db = OpenTaskerApp_NoHilt.db
+        val db = CybersynApp_NoHilt.db
         val policy = RunLogRetentionSettings(applicationContext).load()
         val now = System.currentTimeMillis()
         return try {

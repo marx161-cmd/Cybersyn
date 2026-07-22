@@ -97,7 +97,7 @@
     <string name="widget_choose_task_subtitle" formatted="false">Tap a task to assign it to this home-screen widget</string>
     <string name="widget_setup_required" formatted="false">Setup required</string>
     <string name="widget_empty_title" formatted="false">Create a task first</string>
-    <string name="widget_empty_body" formatted="false">Widgets run saved OpenTasker tasks from your home screen. Build a task in the app, then return here to assign it.</string>
+    <string name="widget_empty_body" formatted="false">Widgets run saved Cybersyn tasks from your home screen. Build a task in the app, then return here to assign it.</string>
     <string name="widget_selectable_task" formatted="false">Selectable task</string>
     <string name="widget_assign" formatted="false">Assign</string>
     <string name="widget_action_title" formatted="false">Widget action</string>
@@ -140,13 +140,13 @@
     <string name="capability_screen_off_unsupported" formatted="false">Screen-off requires privileged power-management access. No privileged transport is available in this build.</string>
     <string name="capability_wake_unsupported" formatted="false">Wake requires a foreground activity or privileged wake flow. No privileged transport is available in this build.</string>
     <string name="capability_termux_setup" formatted="false">Requires Termux 0.109 or newer, RUN_COMMAND permission, and an approved script hash.</string>
-    <string name="capability_tasker_import_unsupported" formatted="false">The imported Tasker action could not be mapped to a supported OpenTasker action.</string>
+    <string name="capability_tasker_import_unsupported" formatted="false">The imported Tasker action could not be mapped to a supported Cybersyn action.</string>
     <string name="capability_sms_permission" formatted="false">Requires SMS permission; Play builds omit SMS actions for policy compliance.</string>
     <string name="capability_sms_distribution_unsupported" formatted="false">SMS is unavailable in this distribution because SMS and phone-state permissions are omitted for Play policy compliance.</string>
-    <string name="capability_audio_output_restricted" formatted="false">Android 17 restricts audio output unless OpenTasker has a while-in-use eligible foreground-service path.</string>
+    <string name="capability_audio_output_restricted" formatted="false">Android 17 restricts audio output unless Cybersyn has a while-in-use eligible foreground-service path.</string>
     <string name="capability_audio_output_ready" formatted="false">Audio output is available.</string>
-    <string name="capability_media_key_restricted" formatted="false">Android 17 restricts media-key dispatch unless OpenTasker has a while-in-use eligible foreground-service path.</string>
+    <string name="capability_media_key_restricted" formatted="false">Android 17 restricts media-key dispatch unless Cybersyn has a while-in-use eligible foreground-service path.</string>
     <string name="capability_media_key_ready" formatted="false">Media-key dispatch is available.</string>
-    <string name="capability_volume_restricted" formatted="false">Android 17 restricts volume changes unless OpenTasker has a while-in-use eligible foreground-service path.</string>
+    <string name="capability_volume_restricted" formatted="false">Android 17 restricts volume changes unless Cybersyn has a while-in-use eligible foreground-service path.</string>
     <string name="capability_volume_policy" formatted="false">May require Do Not Disturb policy access.</string>
 </resources>

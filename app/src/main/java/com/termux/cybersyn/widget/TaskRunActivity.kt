@@ -3,7 +3,7 @@ package com.termux.cybersyn.widget
 import android.app.Activity
 import android.os.Bundle
 import android.widget.Toast
-import com.termux.cybersyn.app.OpenTaskerApp_NoHilt
+import com.termux.cybersyn.app.CybersynApp_NoHilt
 import com.termux.cybersyn.core.engine.executeAndLogTask
 import com.termux.cybersyn.core.engine.logSkippedRun
 import com.termux.cybersyn.core.logging.AppLogger
@@ -28,7 +28,7 @@ class TaskRunActivity : Activity() {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         scope.launch {
             val message = try {
-                val db = OpenTaskerApp_NoHilt.db
+                val db = CybersynApp_NoHilt.db
                 val entity = db.taskDao().getById(taskId)
                 if (entity == null) {
                     "Task not found"

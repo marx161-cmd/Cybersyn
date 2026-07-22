@@ -109,6 +109,15 @@ object ContextMatchEvaluator {
             if (actualTopic !in topicAllowlist) return false
         }
 
+        val triggerAllowlist = firstConfig(spec, "trigger", "triggers", "name", "names")
+            .splitCsv()
+            .map { it.lowercase(Locale.US) }
+            .toSet()
+        if (triggerAllowlist.isNotEmpty()) {
+            val actualTrigger = event.metadata["trigger"].orEmpty().lowercase(Locale.US)
+            if (actualTrigger !in triggerAllowlist) return false
+        }
+
         val expectedStates = firstConfig(spec, "state", "calendarState")
             .splitCsv()
             .map { it.lowercase(Locale.US) }

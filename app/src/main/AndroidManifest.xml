@@ -73,11 +73,11 @@
     </queries>
 
     <application
-        android:name=".OpenTaskerApp_NoHilt"
+        android:name=".CybersynApp_NoHilt"
         android:label="@string/app_name"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
-        android:theme="@style/Theme.OpenTasker"
+        android:theme="@style/Theme.Cybersyn"
         android:supportsRtl="true"
         android:allowBackup="false"
         android:networkSecurityConfig="@xml/network_security_config"
@@ -89,7 +89,7 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:theme="@style/Theme.OpenTasker">
+            android:theme="@style/Theme.Cybersyn">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -101,13 +101,33 @@
         </activity>
 
         <activity
+            android:name="com.termux.cybersyn.core.external.QuickTapRelayActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
+        <activity-alias
+            android:name="com.termux.cybersyn.QuickTapRelay"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher"
+            android:label="@string/quick_tap_relay_name"
+            android:targetActivity="com.termux.cybersyn.core.external.QuickTapRelayActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity
             android:name="com.termux.cybersyn.input.TrackpadActivity"
             android:exported="false"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
             android:launchMode="singleTask"
             android:resizeableActivity="true"
             android:supportsPictureInPicture="false"
-            android:theme="@style/Theme.OpenTasker"
+            android:theme="@style/Theme.Cybersyn"
             android:windowSoftInputMode="stateAlwaysHidden" />
 
         <service
@@ -116,7 +136,7 @@
             android:foregroundServiceType="specialUse|location">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="OpenTasker automation engine — runs user-defined profiles when their contexts match" />
+                android:value="Cybersyn automation engine — runs user-defined profiles when their contexts match" />
         </service>
 
         <service
@@ -177,7 +197,7 @@
         <activity
             android:name="com.termux.cybersyn.widget.TaskWidgetConfigActivity"
             android:exported="true"
-            android:theme="@style/Theme.OpenTasker">
+            android:theme="@style/Theme.Cybersyn">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
             </intent-filter>
@@ -217,12 +237,21 @@
             </intent-filter>
         </receiver>
 
+        <receiver
+            android:name="com.termux.cybersyn.core.external.ExternalTriggerReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.termux.cybersyn.action.EXTERNAL_TRIGGER" />
+                <action android:name="com.termux.cybersyn.action.QUICK_TAP" />
+            </intent-filter>
+        </receiver>
+
         <activity
             android:name="com.termux.cybersyn.core.plugins.locale.LocaleSettingEditActivity"
             android:exported="true"
             android:icon="@mipmap/ic_launcher"
-            android:label="OpenTasker task"
-            android:theme="@style/Theme.OpenTasker">
+            android:label="Cybersyn task"
+            android:theme="@style/Theme.Cybersyn">
             <intent-filter>
                 <action android:name="com.twofortyfouram.locale.intent.action.EDIT_SETTING" />
             </intent-filter>

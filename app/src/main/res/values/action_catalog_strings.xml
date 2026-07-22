@@ -316,7 +316,7 @@
     <string name="catalog_action_http_request_field_authorization_hint" formatted="false">For example, Bearer %SECRET_TOKEN; always redacted from logs</string>
     <string name="catalog_action_http_request_field_body_label" formatted="false">Inline request body</string>
     <string name="catalog_action_http_request_field_body_file_label" formatted="false">Request body file</string>
-    <string name="catalog_action_http_request_field_body_file_hint" formatted="false">Relative path inside OpenTasker Files; cannot be combined with an inline body</string>
+    <string name="catalog_action_http_request_field_body_file_hint" formatted="false">Relative path inside Cybersyn Files; cannot be combined with an inline body</string>
     <string name="catalog_action_http_request_field_content_type_label" formatted="false">Content type</string>
     <string name="catalog_action_http_request_field_content_type_hint" formatted="false">For example, application/json</string>
     <string name="catalog_action_http_request_field_response_var_label" formatted="false">Store response body in</string>
@@ -326,7 +326,7 @@
     <string name="catalog_action_http_request_field_headers_var_label" formatted="false">Store response headers in</string>
     <string name="catalog_action_http_request_field_headers_var_hint" formatted="false">Optional variable; one Name: Value per line</string>
     <string name="catalog_action_http_request_field_output_file_label" formatted="false">Response output file</string>
-    <string name="catalog_action_http_request_field_output_file_hint" formatted="false">Relative path inside OpenTasker Files; published atomically</string>
+    <string name="catalog_action_http_request_field_output_file_hint" formatted="false">Relative path inside Cybersyn Files; published atomically</string>
     <string name="catalog_action_http_request_field_max_response_bytes_label" formatted="false">Maximum response bytes</string>
     <string name="catalog_action_http_request_field_max_response_bytes_hint" formatted="false">Up to 1 MiB for a variable or 50 MiB for a file</string>
     <string name="catalog_action_http_request_field_redirects_label" formatted="false">Redirect policy</string>

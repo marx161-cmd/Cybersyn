@@ -11,7 +11,7 @@ import com.termux.cybersyn.core.diagnostics.CrashLogRecord
 import com.termux.cybersyn.core.diagnostics.EngineHealthStatus
 import com.termux.cybersyn.core.logging.AppLogEntry
 import com.termux.cybersyn.core.logging.AppLogger
-import com.termux.cybersyn.ui.theme.OpenTaskerTheme
+import com.termux.cybersyn.ui.theme.CybersynTheme
 import java.util.concurrent.atomic.AtomicBoolean
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -39,7 +39,7 @@ class DiagnosticsScreenTest {
             appLogs = listOf(AppLogEntry(1_789_000_000_000L, AppLogger.Level.INFO, "Test", "engine ready")),
         )
         composeTestRule.setContent {
-            OpenTaskerTheme {
+            CybersynTheme {
                 DiagnosticsScreen(
                     state = state,
                     contentPadding = PaddingValues(0.dp),

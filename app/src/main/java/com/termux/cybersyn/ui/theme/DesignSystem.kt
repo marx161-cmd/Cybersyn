@@ -3,7 +3,7 @@ package com.termux.cybersyn.ui.theme
 import androidx.compose.ui.unit.dp
 
 /**
- * OpenTasker design system: Unified spacing, radius, and component utilities.
+ * Cybersyn design system: Unified spacing, radius, and component utilities.
  */
 
 object DesignSystem {

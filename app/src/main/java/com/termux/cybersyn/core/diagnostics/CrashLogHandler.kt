@@ -40,7 +40,7 @@ object CrashLogHandler {
             val file = File(dir, "crash-${dateFormat.format(Date())}.txt")
 
             file.bufferedWriter().use { writer ->
-                writer.appendLine("=== OpenTasker Crash Log ===")
+                writer.appendLine("=== Cybersyn Crash Log ===")
                 writer.appendLine("Time: ${SimpleDateFormat("yyyy-MM-dd HH:mm:ss Z", Locale.ROOT).format(Date())}")
                 writer.appendLine("Version: ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})")
                 writer.appendLine("Device: ${Build.MANUFACTURER} ${Build.MODEL}")

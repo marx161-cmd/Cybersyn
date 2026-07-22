@@ -22,7 +22,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 
 // Application singleton keeps startup deterministic while Hilt is not active.
-class OpenTaskerApp_NoHilt : Application() {
+class CybersynApp_NoHilt : Application() {
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     companion object {
@@ -49,10 +49,10 @@ class OpenTaskerApp_NoHilt : Application() {
         if (_db == null) {
             when (val restoreResult = DatabaseBackupManager.applyPendingRestoreIfPresent(this)) {
                 is PendingRestoreApplyResult.Applied -> {
-                    AppLogger.info("OpenTasker", "Applied pending database restore from ${restoreResult.databaseFile.name}")
+                    AppLogger.info("Cybersyn", "Applied pending database restore from ${restoreResult.databaseFile.name}")
                 }
                 is PendingRestoreApplyResult.Failed -> {
-                    AppLogger.error("OpenTasker", "Pending database restore failed", restoreResult.exception)
+                    AppLogger.error("Cybersyn", "Pending database restore failed", restoreResult.exception)
                 }
                 PendingRestoreApplyResult.NoPending -> Unit
             }
@@ -70,7 +70,7 @@ class OpenTaskerApp_NoHilt : Application() {
             runCatching {
                 VariableRepository(db.variableDao()).migrateLegacySensitiveVariables()
             }.onFailure { error ->
-                AppLogger.error("OpenTasker", "Legacy secret migration failed", error)
+                AppLogger.error("Cybersyn", "Legacy secret migration failed", error)
             }
         }
 

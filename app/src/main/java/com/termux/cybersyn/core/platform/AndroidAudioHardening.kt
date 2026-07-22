@@ -47,7 +47,7 @@ internal object AndroidAudioHardening {
             return AudioHardeningDecision(allowed = true, reason = "Android audio hardening does not apply")
         }
         if (eligibility.appVisible) {
-            return AudioHardeningDecision(allowed = true, reason = "OpenTasker has a visible activity")
+            return AudioHardeningDecision(allowed = true, reason = "Cybersyn has a visible activity")
         }
         if (targetSdkInt < ANDROID_17_API && eligibility.foregroundService != AudioForegroundServiceEligibility.NONE) {
             return AudioHardeningDecision(allowed = true, reason = "A foreground service is running")
@@ -68,10 +68,10 @@ internal object AndroidAudioHardening {
         val recovery = when (eligibility.foregroundService) {
             AudioForegroundServiceEligibility.BACKGROUND_STARTED ->
                 "The automation service was started in the background and lacks while-in-use eligibility. " +
-                    "Open OpenTasker, then retry the task from the visible app."
+                    "Open Cybersyn, then retry the task from the visible app."
             AudioForegroundServiceEligibility.NONE ->
                 "No eligible foreground service or visible activity is active. " +
-                    "Open OpenTasker, then retry the task from the visible app."
+                    "Open Cybersyn, then retry the task from the visible app."
             AudioForegroundServiceEligibility.WHILE_IN_USE -> error("handled above")
         }
         val alarmHint = if (usage == AudioUsageEligibility.ALARM && !eligibility.exactAlarmPermission) {
@@ -109,14 +109,14 @@ internal object AndroidAudioHardening {
     }
 
     fun outputCapabilityReason(reason: String): String =
-        "Android 17+ allows this only while OpenTasker is visible, from a while-in-use eligible foreground service, " +
+        "Android 17+ allows this only while Cybersyn is visible, from a while-in-use eligible foreground service, " +
             "or for alarm-usage audio with exact-alarm access. $reason"
 
     fun mediaKeyCapabilityReason(reason: String): String =
-        "Android 17+ allows media-key dispatch only while OpenTasker is visible or from a while-in-use eligible " +
+        "Android 17+ allows media-key dispatch only while Cybersyn is visible or from a while-in-use eligible " +
             "foreground service. $reason"
 
     fun volumeCapabilityReason(reason: String): String =
-        "Android 17+ allows volume changes only while OpenTasker is visible, from a while-in-use eligible foreground " +
+        "Android 17+ allows volume changes only while Cybersyn is visible, from a while-in-use eligible foreground " +
             "service, or on the alarm stream with exact-alarm access. $reason"
 }

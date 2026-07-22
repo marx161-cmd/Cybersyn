@@ -21,7 +21,7 @@ import com.termux.cybersyn.core.contexts.NfcContextEvents
 import com.termux.cybersyn.core.contexts.NfcTagWriteSession
 import com.termux.cybersyn.core.engine.AutomationService
 import com.termux.cybersyn.ui.screens.ActiveAutomationUi
-import com.termux.cybersyn.ui.theme.OpenTaskerTheme
+import com.termux.cybersyn.ui.theme.CybersynTheme
 import com.termux.cybersyn.ui.theme.ThemeMode
 import com.termux.cybersyn.ui.theme.ThemePreference
 
@@ -38,12 +38,12 @@ class MainActivity : ComponentActivity() {
                 ThemeMode.HighContrast -> true
                 ThemeMode.System -> isSystemInDarkTheme()
             }
-            OpenTaskerTheme(darkTheme = darkTheme, highContrast = themeMode == ThemeMode.HighContrast) {
+            CybersynTheme(darkTheme = darkTheme, highContrast = themeMode == ThemeMode.HighContrast) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    ActiveAutomationUi(db = OpenTaskerApp_NoHilt.db)
+                    ActiveAutomationUi(db = CybersynApp_NoHilt.db)
                 }
             }
         }
@@ -84,7 +84,7 @@ class MainActivity : ComponentActivity() {
                     .putExtra(AutomationService.EXTRA_STARTED_FROM_VISIBLE_UI, true),
             )
         }.onFailure { error ->
-            AppLogger.error("MainActivity", "Failed to start OpenTasker automation service", error)
+            AppLogger.error("MainActivity", "Failed to start Cybersyn automation service", error)
         }
     }
 }

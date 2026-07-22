@@ -126,7 +126,7 @@ private val HighContrast = darkColorScheme(
     outlineVariant = Color(0xFFE0E0E0),
 )
 
-private val OpenTaskerTypography = Typography(
+private val CybersynTypography = Typography(
     headlineSmall = TextStyle(
         fontWeight = FontWeight.SemiBold,
         fontSize = 24.sp,
@@ -174,14 +174,14 @@ private val OpenTaskerTypography = Typography(
     ),
 )
 
-private val OpenTaskerShapes = Shapes(
+private val CybersynShapes = Shapes(
     small = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
     medium = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
     large = androidx.compose.foundation.shape.RoundedCornerShape(18.dp),
 )
 
 @Composable
-fun OpenTaskerTheme(
+fun CybersynTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     highContrast: Boolean = false,
     content: @Composable () -> Unit,
@@ -205,8 +205,8 @@ fun OpenTaskerTheme(
     }
     MaterialTheme(
         colorScheme = colors,
-        typography = OpenTaskerTypography,
-        shapes = OpenTaskerShapes,
+        typography = CybersynTypography,
+        shapes = CybersynShapes,
         content = content,
     )
 }

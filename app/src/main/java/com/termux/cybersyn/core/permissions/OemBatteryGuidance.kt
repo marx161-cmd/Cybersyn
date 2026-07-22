@@ -88,12 +88,12 @@ object OemBatteryGuidance {
     private fun samsung() = Guidance(
         oemName = "Samsung One UI",
         riskLevel = RiskLevel.MEDIUM,
-        summary = "One UI may put OpenTasker to sleep. Exclude it from sleeping apps for reliable automation.",
+        summary = "One UI may put Cybersyn to sleep. Exclude it from sleeping apps for reliable automation.",
         steps = listOf(
             "Settings > Battery and device care > Battery > Background usage limits.",
-            "Turn off \"Put unused apps to sleep\" or add OpenTasker to \"Never sleeping apps\".",
-            "Remove OpenTasker from \"Sleeping apps\" and \"Deep sleeping apps\" if listed.",
-            "Settings > Apps > OpenTasker > Battery: set to \"Unrestricted\".",
+            "Turn off \"Put unused apps to sleep\" or add Cybersyn to \"Never sleeping apps\".",
+            "Remove Cybersyn from \"Sleeping apps\" and \"Deep sleeping apps\" if listed.",
+            "Settings > Apps > Cybersyn > Battery: set to \"Unrestricted\".",
         ),
         dontKillMyAppUrl = "$DKMA_BASE/samsung",
         settingsTargets = listOf(
@@ -107,9 +107,9 @@ object OemBatteryGuidance {
         riskLevel = RiskLevel.HIGH,
         summary = "MIUI/HyperOS blocks background autostart by default. Grant Autostart or automations will not fire.",
         steps = listOf(
-            "Security > Permissions > Autostart: enable OpenTasker.",
-            "Settings > Apps > OpenTasker > Battery saver: set to \"No restrictions\".",
-            "Recent apps: lock OpenTasker (pull down on the card) so it is not killed.",
+            "Security > Permissions > Autostart: enable Cybersyn.",
+            "Settings > Apps > Cybersyn > Battery saver: set to \"No restrictions\".",
+            "Recent apps: lock Cybersyn (pull down on the card) so it is not killed.",
             "Disable \"MIUI optimization\" only if automations still fail after the above.",
         ),
         dontKillMyAppUrl = "$DKMA_BASE/xiaomi",
@@ -123,9 +123,9 @@ object OemBatteryGuidance {
         riskLevel = RiskLevel.HIGH,
         summary = "OxygenOS aggressively manages background apps. Disable optimization and enable auto-launch.",
         steps = listOf(
-            "Settings > Battery > Battery optimization > OpenTasker: \"Don't optimize\".",
-            "Settings > Apps > Auto-launch / Startup manager: enable OpenTasker where present.",
-            "Recent apps: lock OpenTasker so deep optimization does not kill it.",
+            "Settings > Battery > Battery optimization > Cybersyn: \"Don't optimize\".",
+            "Settings > Apps > Auto-launch / Startup manager: enable Cybersyn where present.",
+            "Recent apps: lock Cybersyn so deep optimization does not kill it.",
             "Disable \"Advanced optimization\" / \"Sleep standby optimization\" if available.",
         ),
         dontKillMyAppUrl = "$DKMA_BASE/oneplus",
@@ -139,10 +139,10 @@ object OemBatteryGuidance {
         riskLevel = RiskLevel.SEVERE,
         summary = "ColorOS startup management blocks background apps. Enable auto-startup and allow background.",
         steps = listOf(
-            "Settings > App management > OpenTasker > Allow auto startup.",
-            "Settings > Battery > OpenTasker > Allow background activity / High background power.",
-            "Phone Manager > Privacy permissions > Startup manager: enable OpenTasker.",
-            "Recent apps: lock OpenTasker so it is not cleared.",
+            "Settings > App management > Cybersyn > Allow auto startup.",
+            "Settings > Battery > Cybersyn > Allow background activity / High background power.",
+            "Phone Manager > Privacy permissions > Startup manager: enable Cybersyn.",
+            "Recent apps: lock Cybersyn so it is not cleared.",
         ),
         dontKillMyAppUrl = "$DKMA_BASE/oppo",
         settingsTargets = listOf(
@@ -157,10 +157,10 @@ object OemBatteryGuidance {
         riskLevel = RiskLevel.SEVERE,
         summary = "Realme UI (ColorOS-based) blocks background autostart. Enable startup and background activity.",
         steps = listOf(
-            "Settings > App management > OpenTasker > Allow auto startup.",
-            "Settings > Battery > OpenTasker > Allow background activity.",
-            "Phone Manager > Startup manager: enable OpenTasker.",
-            "Recent apps: lock OpenTasker so it survives memory cleanup.",
+            "Settings > App management > Cybersyn > Allow auto startup.",
+            "Settings > Battery > Cybersyn > Allow background activity.",
+            "Phone Manager > Startup manager: enable Cybersyn.",
+            "Recent apps: lock Cybersyn so it survives memory cleanup.",
         ),
         dontKillMyAppUrl = "$DKMA_BASE/realme",
         settingsTargets = listOf(
@@ -174,10 +174,10 @@ object OemBatteryGuidance {
         riskLevel = RiskLevel.SEVERE,
         summary = "Vivo blocks background startup by default. Allow auto-start and high background power.",
         steps = listOf(
-            "Settings > Battery > Background power consumption management: allow OpenTasker.",
-            "i Manager > App manager > Autostart manager: enable OpenTasker.",
-            "Settings > Apps > OpenTasker > Battery: allow background activity.",
-            "Recent apps: lock OpenTasker so it is not cleared.",
+            "Settings > Battery > Background power consumption management: allow Cybersyn.",
+            "i Manager > App manager > Autostart manager: enable Cybersyn.",
+            "Settings > Apps > Cybersyn > Battery: allow background activity.",
+            "Recent apps: lock Cybersyn so it is not cleared.",
         ),
         dontKillMyAppUrl = "$DKMA_BASE/vivo",
         settingsTargets = listOf(
@@ -189,11 +189,11 @@ object OemBatteryGuidance {
     private fun huawei() = Guidance(
         oemName = "Huawei/Honor (EMUI/MagicOS)",
         riskLevel = RiskLevel.SEVERE,
-        summary = "EMUI/MagicOS uses Protected apps and manual app launch. Set OpenTasker to manage manually.",
+        summary = "EMUI/MagicOS uses Protected apps and manual app launch. Set Cybersyn to manage manually.",
         steps = listOf(
-            "Settings > Apps > OpenTasker > Battery > App launch: turn off \"Manage automatically\".",
+            "Settings > Apps > Cybersyn > Battery > App launch: turn off \"Manage automatically\".",
             "Enable Auto-launch, Secondary launch, and Run in background manually.",
-            "Phone Manager > Protected apps: enable OpenTasker (older EMUI).",
+            "Phone Manager > Protected apps: enable Cybersyn (older EMUI).",
             "Settings > Battery: disable aggressive power-saving modes.",
         ),
         dontKillMyAppUrl = "$DKMA_BASE/huawei",
@@ -206,11 +206,11 @@ object OemBatteryGuidance {
     private fun meizu() = Guidance(
         oemName = "Meizu (Flyme)",
         riskLevel = RiskLevel.HIGH,
-        summary = "Flyme restricts background apps. Allow background running and standby for OpenTasker.",
+        summary = "Flyme restricts background apps. Allow background running and standby for Cybersyn.",
         steps = listOf(
-            "Settings > Apps > OpenTasker > permissions: allow run in background.",
-            "Phone Manager > Permissions > Background management: allow OpenTasker.",
-            "Battery: disable standby intelligent power saving for OpenTasker.",
+            "Settings > Apps > Cybersyn > permissions: allow run in background.",
+            "Phone Manager > Permissions > Background management: allow Cybersyn.",
+            "Battery: disable standby intelligent power saving for Cybersyn.",
         ),
         dontKillMyAppUrl = "$DKMA_BASE/meizu",
         settingsTargets = listOf(
@@ -221,11 +221,11 @@ object OemBatteryGuidance {
     private fun asus() = Guidance(
         oemName = "Asus (ZenUI)",
         riskLevel = RiskLevel.MEDIUM,
-        summary = "ZenUI Auto-start Manager can block OpenTasker. Allow auto-start and disable cleanup.",
+        summary = "ZenUI Auto-start Manager can block Cybersyn. Allow auto-start and disable cleanup.",
         steps = listOf(
-            "Auto-start Manager / Mobile Manager: allow OpenTasker.",
-            "Settings > Battery: disable aggressive cleanup for OpenTasker.",
-            "Settings > Apps > OpenTasker > Battery: do not optimize.",
+            "Auto-start Manager / Mobile Manager: allow Cybersyn.",
+            "Settings > Battery: disable aggressive cleanup for Cybersyn.",
+            "Settings > Apps > Cybersyn > Battery: do not optimize.",
         ),
         dontKillMyAppUrl = "$DKMA_BASE/asus",
         settingsTargets = listOf(
@@ -238,7 +238,7 @@ object OemBatteryGuidance {
         riskLevel = RiskLevel.LOW,
         summary = "This device follows stock Android battery behavior. The battery-optimization exemption is usually enough.",
         steps = listOf(
-            "Settings > Apps > OpenTasker > Battery: set to \"Unrestricted\".",
+            "Settings > Apps > Cybersyn > Battery: set to \"Unrestricted\".",
             "Keep the battery-optimization exemption granted above.",
         ),
         dontKillMyAppUrl = "$DKMA_BASE/general",
@@ -252,7 +252,7 @@ object OemBatteryGuidance {
         steps = listOf(
             "Keep the battery-optimization exemption granted above.",
             "Look for an \"Autostart\", \"Auto-launch\", or \"Background activity\" toggle in app or battery settings.",
-            "Lock OpenTasker in recent apps so the system does not clear it.",
+            "Lock Cybersyn in recent apps so the system does not clear it.",
         ),
         dontKillMyAppUrl = "$DKMA_BASE/general",
         settingsTargets = emptyList(),

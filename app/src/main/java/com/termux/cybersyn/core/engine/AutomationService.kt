@@ -15,7 +15,7 @@ import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.termux.cybersyn.app.MainActivity
-import com.termux.cybersyn.app.OpenTaskerApp_NoHilt
+import com.termux.cybersyn.app.CybersynApp_NoHilt
 import com.termux.cybersyn.automation.app.AppUsageMonitor
 import com.termux.cybersyn.automation.network.ConnectivityMonitor
 import com.termux.cybersyn.automation.network.WiFiNetworkMonitor
@@ -69,7 +69,7 @@ class AutomationService : Service() {
     // dispatch to Room's own executor, and task execution hops to Dispatchers.IO inside
     // executeAndLogTask, so no automation work blocks the UI thread.
     private val scope = CoroutineScope(Dispatchers.Default + job)
-    private val db by lazy { OpenTaskerApp_NoHilt.db }
+    private val db by lazy { CybersynApp_NoHilt.db }
     private val timeEventScheduler by lazy { TimeEventScheduler(this) }
     private val wifiNetworkMonitor by lazy { WiFiNetworkMonitor(this) }
     private val connectivityMonitor by lazy { ConnectivityMonitor(this) }
@@ -600,7 +600,7 @@ class AutomationService : Service() {
 
     private fun startForegroundCompat() {
         val nm = getSystemService(NotificationManager::class.java)
-        val channel = NotificationChannel(CHANNEL, "OpenTasker engine", NotificationManager.IMPORTANCE_MIN)
+        val channel = NotificationChannel(CHANNEL, "Cybersyn engine", NotificationManager.IMPORTANCE_MIN)
         nm.createNotificationChannel(channel)
         val pendingIntent = PendingIntent.getActivity(
             this,
@@ -609,7 +609,7 @@ class AutomationService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         val n: Notification = NotificationCompat.Builder(this, CHANNEL)
-            .setContentTitle("OpenTasker is running")
+            .setContentTitle("Cybersyn is running")
             .setContentText("Tap to open automation status")
             .setSmallIcon(android.R.drawable.ic_menu_compass)
             .setContentIntent(pendingIntent)

@@ -15,3 +15,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "Cybersyn"
 include(":app")
+include(":quicktap-stub")

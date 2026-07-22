@@ -21,7 +21,7 @@ import com.termux.cybersyn.core.model.Profile
 import com.termux.cybersyn.core.model.Task
 import com.termux.cybersyn.core.transfer.BundleImportPlan
 import com.termux.cybersyn.core.transfer.OpenTaskerBundle
-import com.termux.cybersyn.ui.theme.OpenTaskerTheme
+import com.termux.cybersyn.ui.theme.CybersynTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -210,6 +210,6 @@ class CriticalFlowComposeTest {
 
     @Composable
     private fun TestTheme(content: @Composable () -> Unit) {
-        OpenTaskerTheme(content = content)
+        CybersynTheme(content = content)
     }
 }

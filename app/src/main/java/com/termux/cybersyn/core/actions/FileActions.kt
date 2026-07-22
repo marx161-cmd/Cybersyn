@@ -22,7 +22,7 @@ class ReadFileAction : Action {
         val path = args["path"] ?: return ActionResult.Failure("missing path")
         val varName = args["var"] ?: args["variable"] ?: "result"
         return try {
-            val file = safeUserFile(ctx, path, mustExist = true) ?: return ActionResult.Failure("path is outside OpenTasker files")
+            val file = safeUserFile(ctx, path, mustExist = true) ?: return ActionResult.Failure("path is outside Cybersyn files")
             if (file.length() > MAX_READ_BYTES) {
                 return ActionResult.Failure("file exceeds ${MAX_READ_BYTES / 1024 / 1024} MB read limit (${file.length()} bytes)")
             }
@@ -55,7 +55,7 @@ class WriteFileAction : Action {
         val path = args["path"] ?: return ActionResult.Failure("missing path")
         val text = args["text"] ?: args["content"] ?: ""
         return try {
-            val file = safeUserFile(ctx, path) ?: return ActionResult.Failure("path is outside OpenTasker files")
+            val file = safeUserFile(ctx, path) ?: return ActionResult.Failure("path is outside Cybersyn files")
             val bytes = text.toByteArray(Charsets.UTF_8).size
             if (bytes > MAX_FILE_BYTES) {
                 return ActionResult.Failure("content exceeds ${MAX_FILE_BYTES / 1024 / 1024} MB write limit ($bytes bytes)")
@@ -85,7 +85,7 @@ class AppendFileAction : Action {
         val path = args["path"] ?: return ActionResult.Failure("missing path")
         val text = args["text"] ?: args["content"] ?: ""
         return try {
-            val file = safeUserFile(ctx, path) ?: return ActionResult.Failure("path is outside OpenTasker files")
+            val file = safeUserFile(ctx, path) ?: return ActionResult.Failure("path is outside Cybersyn files")
             val bytes = text.toByteArray(Charsets.UTF_8).size
             if (bytes > MAX_FILE_BYTES) {
                 return ActionResult.Failure("append content exceeds ${MAX_FILE_BYTES / 1024 / 1024} MB write limit ($bytes bytes)")
@@ -117,7 +117,7 @@ class DeleteFileAction : Action {
     override suspend fun run(ctx: ActionContext, args: Map<String, String>): ActionResult {
         val path = args["path"] ?: return ActionResult.Failure("missing path")
         return try {
-            val file = safeUserFile(ctx, path, mustExist = true) ?: return ActionResult.Failure("path is outside OpenTasker files")
+            val file = safeUserFile(ctx, path, mustExist = true) ?: return ActionResult.Failure("path is outside Cybersyn files")
             if (!file.isFile) return ActionResult.Failure("delete only supports files")
             if (file.delete()) {
                 ctx.logger("Delete ${file.name}")
@@ -148,7 +148,7 @@ class ListFilesAction : Action {
         val varName = args["var"] ?: args["variable"] ?: "result"
         val pattern = args["pattern"].orEmpty().trim()
         return try {
-            val dir = safeUserFile(ctx, path, mustExist = true) ?: return ActionResult.Failure("path is outside OpenTasker files")
+            val dir = safeUserFile(ctx, path, mustExist = true) ?: return ActionResult.Failure("path is outside Cybersyn files")
             if (!dir.isDirectory) return ActionResult.Failure("path is not a directory")
             val matcher = if (pattern.isEmpty()) {
                 null

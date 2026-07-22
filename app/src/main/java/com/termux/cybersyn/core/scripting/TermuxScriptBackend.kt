@@ -42,7 +42,7 @@ object TermuxScriptBackend {
         val summary = when (state) {
             TermuxScriptState.TermuxMissing -> "Termux is not installed."
             TermuxScriptState.VersionUnsupported -> "Termux $MINIMUM_RESULT_VERSION or newer is required for bounded results."
-            TermuxScriptState.PermissionRequired -> "Termux is installed, but OpenTasker lacks RUN_COMMAND permission."
+            TermuxScriptState.PermissionRequired -> "Termux is installed, but Cybersyn lacks RUN_COMMAND permission."
             TermuxScriptState.Ready -> "Termux is installed and RUN_COMMAND permission is granted."
         }
         return TermuxScriptStatus(

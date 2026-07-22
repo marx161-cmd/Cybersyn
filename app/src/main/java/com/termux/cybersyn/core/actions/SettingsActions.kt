@@ -370,7 +370,7 @@ class TileStateAction : Action {
         // planned feature; until it lands this action fails honestly like the other
         // unsupported device-control stubs.
         return ActionResult.Failure(
-            "tile.set is not functional yet: OpenTasker does not publish updatable Quick Settings tiles",
+            "tile.set is not functional yet: Cybersyn does not publish updatable Quick Settings tiles",
         )
     }
 }

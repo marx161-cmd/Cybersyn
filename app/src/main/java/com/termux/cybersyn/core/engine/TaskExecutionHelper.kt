@@ -209,4 +209,4 @@ suspend fun insertRunLog(db: AppDatabase, entry: RunLogEntry): Boolean =
         .onFailure { e -> AppLogger.error(TAG, "Failed to write run log for task ${entry.taskId}", e) }
         .isSuccess
 
-private const val TAG = "OpenTasker"
+private const val TAG = "Cybersyn"

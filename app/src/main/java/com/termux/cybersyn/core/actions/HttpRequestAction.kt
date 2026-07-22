@@ -292,7 +292,7 @@ private data class HttpRequestConfig(
                 }
                 bodyFilePath != null -> {
                     val file = safeHttpUserFile(ctx, bodyFilePath, mustExist = true)
-                        ?: throw IllegalArgumentException("body_file is outside OpenTasker files or missing")
+                        ?: throw IllegalArgumentException("body_file is outside Cybersyn files or missing")
                     require(file.isFile) { "body_file is not a file" }
                     require(file.length() <= MAX_FILE_REQUEST_BYTES) {
                         "body_file exceeds $MAX_FILE_REQUEST_BYTES byte limit"
@@ -311,7 +311,7 @@ private data class HttpRequestConfig(
                 "response_var and output_file are mutually exclusive"
             }
             val outputFile = outputPath?.let { path ->
-                safeHttpUserFile(ctx, path) ?: throw IllegalArgumentException("output_file is outside OpenTasker files")
+                safeHttpUserFile(ctx, path) ?: throw IllegalArgumentException("output_file is outside Cybersyn files")
             }
             val responseCap = if (outputFile == null) MAX_VARIABLE_RESPONSE_BYTES else MAX_FILE_RESPONSE_BYTES
             val maxResponseBytes = args["max_response_bytes"]?.let { raw ->

@@ -4,7 +4,7 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 /**
- * Database schema migrations for OpenTasker.
+ * Database schema migrations for Cybersyn.
  * Add new migrations here as the schema evolves.
  */
 object DatabaseMigrations {

@@ -45,12 +45,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.isSystemInDarkTheme
 import com.termux.cybersyn.app.R
-import com.termux.cybersyn.app.OpenTaskerApp_NoHilt
+import com.termux.cybersyn.app.CybersynApp_NoHilt
 import com.termux.cybersyn.core.model.Task
 import com.termux.cybersyn.core.storage.StorageDecodeIssue
 import com.termux.cybersyn.ui.screens.StorageDecodeWarningCard
 import com.termux.cybersyn.ui.theme.DesignSystem
-import com.termux.cybersyn.ui.theme.OpenTaskerTheme
+import com.termux.cybersyn.ui.theme.CybersynTheme
 import com.termux.cybersyn.ui.theme.ThemeMode
 import com.termux.cybersyn.ui.theme.ThemePreference
 import kotlinx.coroutines.flow.map
@@ -73,7 +73,7 @@ class TaskWidgetConfigActivity : ComponentActivity() {
             return
         }
 
-        val tasksFlow = OpenTaskerApp_NoHilt.db.taskDao().getAllAsFlow()
+        val tasksFlow = CybersynApp_NoHilt.db.taskDao().getAllAsFlow()
             .map { entities ->
                 val results = entities.map { it.toDomainDecodeResult() }
                 WidgetTaskState(
@@ -90,7 +90,7 @@ class TaskWidgetConfigActivity : ComponentActivity() {
                 ThemeMode.HighContrast -> true
                 ThemeMode.System -> isSystemInDarkTheme()
             }
-            OpenTaskerTheme(darkTheme = darkTheme, highContrast = themeMode == ThemeMode.HighContrast) {
+            CybersynTheme(darkTheme = darkTheme, highContrast = themeMode == ThemeMode.HighContrast) {
                 val taskState by tasksFlow.collectAsState(initial = WidgetTaskState())
                 ConfigScreen(
                     tasks = taskState.tasks,

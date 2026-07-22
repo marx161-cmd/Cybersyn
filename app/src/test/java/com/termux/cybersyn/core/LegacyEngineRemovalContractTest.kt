@@ -7,7 +7,7 @@ import org.junit.Test
 class LegacyEngineRemovalContractTest {
     @Test
     fun appStartupDoesNotConstructLegacyEngineOrDatabase() {
-        val source = existingRepoFile("src/main/java/com/termux/cybersyn/app/OpenTaskerApp_NoHilt.kt").readText()
+        val source = existingRepoFile("src/main/java/com/termux/cybersyn/app/CybersynApp_NoHilt.kt").readText()
 
         assertFalse("Startup must not construct the legacy engine", "AutomationEngine" in source)
         assertFalse("Startup must not open the legacy automation database", "AutomationDatabase" in source)

@@ -149,7 +149,7 @@ class DatabaseBackupManager(
                     temp.delete()
                     throw error
                 }
-                AppLogger.warn(tag, "Encrypted restore staged; restart OpenTasker to apply it")
+                AppLogger.warn(tag, "Encrypted restore staged; restart Cybersyn to apply it")
                 pending
             }.onFailure { error ->
                 if (error is CancellationException) throw error
@@ -244,7 +244,7 @@ class DatabaseBackupManager(
             temp.delete()
             throw error
         }
-        AppLogger.warn(tag, "Restore staged at ${pending.absolutePath}; restart OpenTasker to apply it")
+        AppLogger.warn(tag, "Restore staged at ${pending.absolutePath}; restart Cybersyn to apply it")
         return pending
     }
 
@@ -252,7 +252,7 @@ class DatabaseBackupManager(
         val canonicalBackupDir = backupDir.canonicalFile
         val canonicalBackup = backupFile.canonicalFile
         if (!canonicalBackup.path.startsWith(canonicalBackupDir.path + File.separator)) {
-            throw SecurityException("Backup file is outside the OpenTasker backup directory")
+            throw SecurityException("Backup file is outside the Cybersyn backup directory")
         }
         if (!canonicalBackup.exists()) {
             throw IOException("Backup file not found: ${backupFile.absolutePath}")

@@ -70,7 +70,7 @@ object ShizukuPowerBackend {
         )
         !permissionGranted -> ShizukuPowerStatus(
             state = ShizukuPowerState.PermissionNeeded,
-            summary = "Shizuku is running but OpenTasker needs permission.",
+            summary = "Shizuku is running but Cybersyn needs permission.",
         )
         !privilegedTransportAvailable -> ShizukuPowerStatus(
             state = ShizukuPowerState.BackendUnavailable,

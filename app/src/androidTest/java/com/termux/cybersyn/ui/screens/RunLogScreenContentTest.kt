@@ -10,7 +10,7 @@ import androidx.compose.ui.unit.dp
 import com.termux.cybersyn.core.model.RunLogEntry
 import com.termux.cybersyn.core.model.Task
 import com.termux.cybersyn.core.storage.RunLogRetentionPolicy
-import com.termux.cybersyn.ui.theme.OpenTaskerTheme
+import com.termux.cybersyn.ui.theme.CybersynTheme
 import org.junit.Rule
 import org.junit.Test
 
@@ -22,7 +22,7 @@ class RunLogScreenContentTest {
     @Test
     fun emptyRunLogShowsEmptyState() {
         composeTestRule.setContent {
-            OpenTaskerTheme {
+            CybersynTheme {
                 RunLogScreenContent(
                     logs = emptyList(),
                     tasks = emptyList(),
@@ -52,7 +52,7 @@ class RunLogScreenContentTest {
         val tasks = listOf(Task(id = 10, name = "Morning Routine", priority = 5, actions = emptyList()))
 
         composeTestRule.setContent {
-            OpenTaskerTheme {
+            CybersynTheme {
                 RunLogScreenContent(
                     logs = entries,
                     tasks = tasks,
@@ -83,7 +83,7 @@ class RunLogScreenContentTest {
         )
 
         composeTestRule.setContent {
-            OpenTaskerTheme {
+            CybersynTheme {
                 RunLogScreenContent(
                     logs = entries,
                     tasks = emptyList(),

@@ -28,10 +28,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import com.termux.cybersyn.app.OpenTaskerApp_NoHilt
+import com.termux.cybersyn.app.CybersynApp_NoHilt
 import com.termux.cybersyn.app.R
 import com.termux.cybersyn.ui.theme.DesignSystem
-import com.termux.cybersyn.ui.theme.OpenTaskerTheme
+import com.termux.cybersyn.ui.theme.CybersynTheme
 import com.termux.cybersyn.ui.theme.ThemeMode
 import com.termux.cybersyn.ui.theme.ThemePreference
 import kotlinx.coroutines.flow.map
@@ -41,7 +41,7 @@ class LocaleSettingEditActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val db = OpenTaskerApp_NoHilt.db
+        val db = CybersynApp_NoHilt.db
         val grantStore = LocaleGrantStore(this)
         val tasksFlow = db.taskDao().getAllAsFlow().map { tasks ->
             tasks.map { TaskPickerItem(it.id, it.name) }
@@ -57,7 +57,7 @@ class LocaleSettingEditActivity : ComponentActivity() {
                 ThemeMode.HighContrast -> true
                 ThemeMode.System -> isSystemInDarkTheme()
             }
-            OpenTaskerTheme(darkTheme = darkTheme, highContrast = themeMode == ThemeMode.HighContrast) {
+            CybersynTheme(darkTheme = darkTheme, highContrast = themeMode == ThemeMode.HighContrast) {
                 val tasks by tasksFlow.collectAsState(initial = emptyList())
                 Scaffold(
                     topBar = {
@@ -104,7 +104,7 @@ private fun TaskPickerList(
             verticalArrangement = Arrangement.Center,
         ) {
             Text(
-                "No tasks available. Create a task in OpenTasker first.",
+                "No tasks available. Create a task in Cybersyn first.",
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
