@@ -24,6 +24,7 @@ object AutomationTargetContract {
     const val ACTION_SET_PROFILE_ENABLED = "com.termux.cybersyn.action.SET_PROFILE_ENABLED"
     const val ACTION_QUERY_STATUS = "com.termux.cybersyn.action.QUERY_STATUS"
     const val ACTION_IMPORT_BUNDLE = "com.termux.cybersyn.action.IMPORT_BUNDLE"
+    const val ACTION_EXPORT_BUNDLE = "com.termux.cybersyn.action.EXPORT_BUNDLE"
 
     const val EXTRA_TASK_ID = "com.termux.cybersyn.extra.TASK_ID"
     const val EXTRA_TASK_NAME = "com.termux.cybersyn.extra.TASK_NAME"
@@ -42,9 +43,11 @@ object AutomationTargetContract {
     const val EXTRA_BUNDLE_JSON = "com.termux.cybersyn.extra.BUNDLE_JSON"
     const val EXTRA_BUNDLE_BASE64 = "com.termux.cybersyn.extra.BUNDLE_BASE64"
     const val EXTRA_ACKNOWLEDGE_RISK = "com.termux.cybersyn.extra.ACKNOWLEDGE_RISK"
+    const val EXTRA_REPLACE_BY_NAME = "com.termux.cybersyn.extra.REPLACE_BY_NAME"
     const val EXTRA_INSERTED_TASKS = "com.termux.cybersyn.extra.INSERTED_TASKS"
     const val EXTRA_INSERTED_PROFILES = "com.termux.cybersyn.extra.INSERTED_PROFILES"
     const val EXTRA_IMPORT_WARNINGS = "com.termux.cybersyn.extra.IMPORT_WARNINGS"
+    const val EXTRA_OUTPUT_PATH = "com.termux.cybersyn.extra.OUTPUT_PATH"
 
     const val VARIABLE_EXTRA_PREFIX = "com.termux.cybersyn.var."
     private val variableNamePattern = Regex("^[A-Za-z][A-Za-z0-9_]{0,63}$")

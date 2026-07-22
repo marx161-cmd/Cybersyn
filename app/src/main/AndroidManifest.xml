@@ -253,6 +253,8 @@
             <intent-filter>
                 <action android:name="com.termux.cybersyn.action.IMPORT_BUNDLE" />
                 <action android:name="com.termux.cybersyn.action.SET_PROFILE_ENABLED" />
+                <action android:name="com.termux.cybersyn.action.EXPORT_BUNDLE" />
+                <action android:name="com.termux.cybersyn.action.RUN_TASK" />
             </intent-filter>
         </receiver>
 

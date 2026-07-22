@@ -7,9 +7,12 @@ import android.content.Intent
 import android.os.Bundle
 import android.util.Base64
 import com.termux.cybersyn.app.CybersynApp_NoHilt
+import com.termux.cybersyn.app.BuildConfig
+import com.termux.cybersyn.core.engine.executeAndLogTask
 import com.termux.cybersyn.core.logging.AppLogger
 import com.termux.cybersyn.core.transfer.OpenTaskerBundleCodec
 import com.termux.cybersyn.core.transfer.OpenTaskerBundleRepository
+import java.io.File
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -19,6 +22,8 @@ class AutomationCliReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action !in setOf(
                 AutomationTargetContract.ACTION_IMPORT_BUNDLE,
+                AutomationTargetContract.ACTION_EXPORT_BUNDLE,
+                AutomationTargetContract.ACTION_RUN_TASK,
                 AutomationTargetContract.ACTION_SET_PROFILE_ENABLED,
             )
         ) return
@@ -28,6 +33,8 @@ class AutomationCliReceiver : BroadcastReceiver() {
             val resultCode = runCatching {
                 when (intent.action) {
                     AutomationTargetContract.ACTION_IMPORT_BUNDLE -> importBundle(intent, extras)
+                    AutomationTargetContract.ACTION_EXPORT_BUNDLE -> exportBundle(intent, extras)
+                    AutomationTargetContract.ACTION_RUN_TASK -> runTask(context.applicationContext, intent, extras)
                     AutomationTargetContract.ACTION_SET_PROFILE_ENABLED -> setProfileEnabled(intent, extras)
                     else -> Activity.RESULT_CANCELED
                 }
@@ -48,6 +55,9 @@ class AutomationCliReceiver : BroadcastReceiver() {
                 ?.let { encoded -> String(Base64.decode(encoded, Base64.DEFAULT), Charsets.UTF_8) }
             ?: error("Bundle import needs BUNDLE_JSON or BUNDLE_BASE64")
         val bundle = OpenTaskerBundleCodec.decode(rawJson)
+        if (intent.getBooleanExtra(AutomationTargetContract.EXTRA_REPLACE_BY_NAME, false)) {
+            replaceExistingByName(bundle.tasks.map { it.name }.toSet(), bundle.profiles.map { it.name }.toSet())
+        }
         val report = OpenTaskerBundleRepository(CybersynApp_NoHilt.db).importBundle(bundle)
         if (intent.getBooleanExtra(AutomationTargetContract.EXTRA_ACKNOWLEDGE_RISK, false)) {
             val enable = intent.getBooleanExtra(AutomationTargetContract.EXTRA_ENABLED, false)
@@ -73,6 +83,56 @@ class AutomationCliReceiver : BroadcastReceiver() {
         return Activity.RESULT_OK
     }
 
+    private suspend fun exportBundle(intent: Intent, extras: Bundle): Int {
+        val outputPath = intent.getStringExtra(AutomationTargetContract.EXTRA_OUTPUT_PATH)
+            ?.trim()
+            ?.takeIf { it.isNotBlank() }
+            ?: error("Missing output path")
+        val output = File(outputPath)
+        val allowedRoot = File(TERMUX_HOME).canonicalFile
+        val canonicalOutput = output.canonicalFile
+        if (!canonicalOutput.path.startsWith(allowedRoot.path + File.separator)) {
+            error("Output path must be under $TERMUX_HOME")
+        }
+        val bundle = OpenTaskerBundleRepository(CybersynApp_NoHilt.db).exportBundle(
+            appVersion = BuildConfig.VERSION_NAME,
+            name = "Cybersyn CLI export",
+            description = "Exported by cybersynctl",
+        )
+        canonicalOutput.parentFile?.mkdirs()
+        canonicalOutput.writeText(OpenTaskerBundleCodec.encode(bundle))
+        canonicalOutput.setReadable(true, false)
+        extras.putString(AutomationTargetContract.EXTRA_OUTPUT_PATH, canonicalOutput.path)
+        return Activity.RESULT_OK
+    }
+
+    private suspend fun runTask(appContext: Context, intent: Intent, extras: Bundle): Int {
+        val task = resolveTask(intent) ?: error("Task not found")
+        val result = executeAndLogTask(
+            appContext = appContext,
+            db = CybersynApp_NoHilt.db,
+            task = task,
+            source = "CLI",
+            logTag = TAG,
+        )
+        extras.putBoolean(AutomationTargetContract.EXTRA_TASK_SUCCESS, result.report.success)
+        extras.putLong(AutomationTargetContract.EXTRA_TASK_DURATION_MS, result.report.durationMs)
+        return if (result.report.success) Activity.RESULT_OK else Activity.RESULT_CANCELED
+    }
+
+    private suspend fun resolveTask(intent: Intent) =
+        intent.getLongExtra(AutomationTargetContract.EXTRA_TASK_ID, 0L)
+            .takeIf { it > 0 }
+            ?.let { CybersynApp_NoHilt.db.taskDao().getById(it)?.toDomain() }
+            ?: intent.getStringExtra(AutomationTargetContract.EXTRA_TASK_NAME)
+                ?.trim()
+                ?.takeIf { it.isNotBlank() }
+                ?.let { name ->
+                    CybersynApp_NoHilt.db.taskDao().getAll()
+                        .firstOrNull { it.name.equals(name, ignoreCase = true) }
+                        ?.toDomain()
+                }
+
     private suspend fun acknowledgeImportedProfiles(profileNames: Set<String>, enable: Boolean) {
         if (profileNames.isEmpty()) return
         val db = CybersynApp_NoHilt.db
@@ -83,7 +143,22 @@ class AutomationCliReceiver : BroadcastReceiver() {
             }
     }
 
+    private suspend fun replaceExistingByName(taskNames: Set<String>, profileNames: Set<String>) {
+        val db = CybersynApp_NoHilt.db
+        if (profileNames.isNotEmpty()) {
+            db.profileDao().getAll()
+                .filter { profile -> profile.name in profileNames }
+                .forEach { db.profileDao().delete(it) }
+        }
+        if (taskNames.isNotEmpty()) {
+            db.taskDao().getAll()
+                .filter { task -> task.name in taskNames }
+                .forEach { db.taskDao().delete(it) }
+        }
+    }
+
     companion object {
         private const val TAG = "AutomationCliReceiver"
+        private const val TERMUX_HOME = "/data/data/com.termux/files/home"
     }
 }
