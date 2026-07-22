@@ -1,0 +1,236 @@
+#!/usr/bin/env python3
+"""ADB/Tailscale-first CLI for Cybersyn.
+
+No phone-side server is involved. The trust boundary is the existing Tailscale
+ADB path plus Cybersyn's DUMP-protected CLI broadcast receiver.
+"""
+
+from __future__ import annotations
+
+import argparse
+import base64
+import json
+import os
+import subprocess
+import sys
+import time
+from pathlib import Path
+from typing import Any
+
+
+ADB_SERIAL = os.environ.get("CYBERSYN_ADB_SERIAL", "100.69.13.12:5555")
+SSH_TARGET = os.environ.get("CYBERSYN_SSH_TARGET", "u0_a464@100.69.13.12")
+SSH_PORT = os.environ.get("CYBERSYN_SSH_PORT", "8022")
+PKG = "com.termux.cybersyn"
+TERMUX_HOME = "/data/data/com.termux/files/home"
+REMOTE_EXPORT = f"{TERMUX_HOME}/.cache/cybersynctl/export.json"
+
+
+def run(cmd: list[str], *, check: bool = True, capture: bool = False) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(cmd, check=check, text=True, capture_output=capture)
+
+
+def adb(args: list[str], *, check: bool = True, capture: bool = False) -> subprocess.CompletedProcess[str]:
+    return run(["adb", "-s", ADB_SERIAL, *args], check=check, capture=capture)
+
+
+def ensure_adb() -> None:
+    proc = run(["adb", "connect", ADB_SERIAL], check=False, capture=True)
+    if proc.returncode != 0:
+        raise SystemExit(proc.stderr.strip() or proc.stdout.strip() or f"adb connect {ADB_SERIAL} failed")
+
+
+def broadcast(action: str, extras: list[str]) -> subprocess.CompletedProcess[str]:
+    return adb(["shell", "am", "broadcast", "-a", action, "-p", PKG, *extras], capture=True)
+
+
+def export_bundle(local_path: Path | None = None) -> dict[str, Any]:
+    ensure_adb()
+    result = broadcast(
+        "com.termux.cybersyn.action.EXPORT_BUNDLE",
+        ["--es", "com.termux.cybersyn.extra.OUTPUT_PATH", REMOTE_EXPORT],
+    )
+    if "result=-1" not in result.stdout:
+        raise SystemExit(result.stdout + result.stderr)
+    tmp_path = local_path or Path("/tmp/cybersynctl-export.json")
+    run(["scp", "-P", SSH_PORT, f"{SSH_TARGET}:{REMOTE_EXPORT}", str(tmp_path)])
+    raw = tmp_path.read_text()
+    if local_path is not None:
+        local_path.write_text(raw)
+    return json.loads(raw)
+
+
+def load_yaml_or_json(path: Path) -> dict[str, Any]:
+    raw = path.read_text()
+    if path.suffix.lower() == ".json":
+        return json.loads(raw)
+    try:
+        import yaml  # type: ignore
+    except ImportError as exc:
+        raise SystemExit("YAML input needs PyYAML installed, or pass JSON instead") from exc
+    data = yaml.safe_load(raw)
+    if not isinstance(data, dict):
+        raise SystemExit("YAML root must be a mapping")
+    return data
+
+
+def normalize_context(raw: dict[str, Any]) -> dict[str, Any]:
+    ctype = str(raw.get("type", "EVENT")).upper()
+    config = raw.get("config")
+    if config is None:
+        config = {k: v for k, v in raw.items() if k not in {"type", "invert", "orGroup"}}
+    return {
+        "type": ctype,
+        "config": {str(k): str(v) for k, v in dict(config).items()},
+        "invert": bool(raw.get("invert", False)),
+        **({"orGroup": str(raw["orGroup"])} if raw.get("orGroup") is not None else {}),
+    }
+
+
+def yaml_to_bundle(data: dict[str, Any]) -> dict[str, Any]:
+    tasks_in = data.get("tasks", [])
+    profiles_in = data.get("profiles", [])
+    if not isinstance(tasks_in, list) or not isinstance(profiles_in, list):
+        raise SystemExit("tasks and profiles must be lists")
+
+    task_ids: dict[str, int] = {}
+    tasks: list[dict[str, Any]] = []
+    for idx, task in enumerate(tasks_in, start=1):
+        name = str(task["name"])
+        task_ids[name] = idx
+        actions = []
+        for action_idx, action in enumerate(task.get("actions", []), start=1):
+            actions.append({
+                "id": action_idx,
+                "type": str(action["type"]),
+                **({"label": str(action["label"])} if action.get("label") else {}),
+                "args": {str(k): str(v) for k, v in dict(action.get("args", {})).items()},
+                "continueOnError": bool(action.get("continueOnError", False)),
+                **({"condition": str(action["condition"])} if action.get("condition") else {}),
+            })
+        tasks.append({
+            "id": idx,
+            "name": name,
+            "priority": int(task.get("priority", 5)),
+            "collisionMode": str(task.get("collisionMode", "ABORT_NEW")).upper(),
+            "actions": actions,
+        })
+
+    profiles: list[dict[str, Any]] = []
+    for idx, profile in enumerate(profiles_in, start=1):
+        enter = profile.get("enterTask") or profile.get("enterTaskName") or profile.get("task")
+        if enter not in task_ids:
+            raise SystemExit(f"profile {profile.get('name')} references unknown task {enter}")
+        profiles.append({
+            "id": idx,
+            "name": str(profile["name"]),
+            "enabled": bool(profile.get("enabled", True)),
+            "contexts": [normalize_context(c) for c in profile.get("contexts", [])],
+            "enterTaskId": task_ids[str(enter)],
+            "exitTaskId": None,
+            "cooldownSec": int(profile.get("cooldownSec", 0)),
+            "automationMode": str(profile.get("automationMode", "SINGLE")).upper(),
+            **({"group": str(profile["group"])} if profile.get("group") else {}),
+            "requiresRiskAcknowledgement": bool(profile.get("requiresRiskAcknowledgement", False)),
+        })
+
+    return {
+        "schemaVersion": 2,
+        "appVersion": str(data.get("appVersion", "cybersynctl")),
+        "exportedAtEpochMs": int(data.get("exportedAtEpochMs", time.time() * 1000)),
+        "metadata": {
+            "name": str(data.get("name", data.get("metadata", {}).get("name", "cybersynctl import"))),
+            "description": str(data.get("description", data.get("metadata", {}).get("description", ""))),
+            "capabilityRequirements": [],
+            "powerRequests": [],
+            "warnings": [],
+        },
+        "tasks": tasks,
+        "profiles": profiles,
+        "variables": data.get("variables", []),
+        "scenes": data.get("scenes", []),
+    }
+
+
+def apply_file(path: Path, *, enable: bool, acknowledge: bool) -> None:
+    data = load_yaml_or_json(path)
+    bundle = data if "schemaVersion" in data and "tasks" in data else yaml_to_bundle(data)
+    encoded = base64.b64encode(json.dumps(bundle, separators=(",", ":")).encode()).decode()
+    ensure_adb()
+    extras = ["--es", "com.termux.cybersyn.extra.BUNDLE_BASE64", encoded]
+    if acknowledge:
+        extras += ["--ez", "com.termux.cybersyn.extra.ACKNOWLEDGE_RISK", "true"]
+    if enable:
+        extras += ["--ez", "com.termux.cybersyn.extra.ENABLED", "true"]
+    extras += ["--ez", "com.termux.cybersyn.extra.REPLACE_BY_NAME", "true"]
+    result = broadcast("com.termux.cybersyn.action.IMPORT_BUNDLE", extras)
+    print(result.stdout.strip())
+    if "result=-1" not in result.stdout:
+        raise SystemExit(1)
+
+
+def list_items(kind: str) -> None:
+    bundle = export_bundle()
+    rows = bundle.get(kind, [])
+    for item in rows:
+        if kind == "profiles":
+            print(f"{item.get('id', '')}\t{item.get('enabled')}\t{item.get('name')}\tmode={item.get('automationMode')}")
+        else:
+            print(f"{item.get('id', '')}\t{item.get('name')}")
+
+
+def set_profile(name: str, enabled: bool) -> None:
+    ensure_adb()
+    result = broadcast("com.termux.cybersyn.action.SET_PROFILE_ENABLED", [
+        "--es", "com.termux.cybersyn.extra.PROFILE_NAME", name,
+        "--ez", "com.termux.cybersyn.extra.ENABLED", "true" if enabled else "false",
+    ])
+    print(result.stdout.strip())
+    if "result=-1" not in result.stdout:
+        raise SystemExit(1)
+
+
+def run_task(name: str) -> None:
+    ensure_adb()
+    result = broadcast("com.termux.cybersyn.action.RUN_TASK", ["--es", "com.termux.cybersyn.extra.TASK_NAME", name])
+    print(result.stdout.strip())
+    if "result=-1" not in result.stdout:
+        raise SystemExit(1)
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Control Cybersyn over ADB/Tailscale")
+    sub = parser.add_subparsers(dest="cmd", required=True)
+    sub.add_parser("list-tasks")
+    sub.add_parser("list-profiles")
+    exp = sub.add_parser("export")
+    exp.add_argument("path", nargs="?", type=Path)
+    app = sub.add_parser("apply")
+    app.add_argument("path", type=Path)
+    app.add_argument("--no-enable", action="store_true")
+    app.add_argument("--no-ack", action="store_true")
+    prof = sub.add_parser("profile")
+    prof.add_argument("state", choices=["enable", "disable"])
+    prof.add_argument("name")
+    runp = sub.add_parser("run")
+    runp.add_argument("name")
+    args = parser.parse_args()
+
+    if args.cmd == "list-tasks":
+        list_items("tasks")
+    elif args.cmd == "list-profiles":
+        list_items("profiles")
+    elif args.cmd == "export":
+        bundle = export_bundle(args.path)
+        if args.path is None:
+            print(json.dumps(bundle, indent=2))
+    elif args.cmd == "apply":
+        apply_file(args.path, enable=not args.no_enable, acknowledge=not args.no_ack)
+    elif args.cmd == "profile":
+        set_profile(args.name, args.state == "enable")
+    elif args.cmd == "run":
+        run_task(args.name)
+
+
+if __name__ == "__main__":
+    main()

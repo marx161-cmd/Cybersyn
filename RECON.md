@@ -51,6 +51,11 @@ that's a flag to stop and resolve it in discussion, then update both.
    copied into the MIT OpenTasker base ⇒ combined work is GPL on
    distribution; private use obligates nothing). Operator explicitly fine
    with this.
+9. **No phone-side MCP/server add-on for authoring.** The trust boundary is the
+   existing Tailscale path to blazer, and `tools/cybersynctl` uses ADB plus
+   DUMP-protected Cybersyn broadcasts to query/export/import/run. YAML is
+   converted to bundle JSON on the host and pushed over the CLI path. A server
+   can be revisited only if the CLI proves insufficient.
 
 ## 2. Open items (not decided, revisit when relevant)
 
@@ -64,6 +69,8 @@ that's a flag to stop and resolve it in discussion, then update both.
   once the broker handles session state — port judiciously, not wholesale.
 - Tasker XML migration: OpenTasker's importer maps only ~5 action types;
   real migrations will be partly manual. Scope unknown until tried.
+- YAML authoring ergonomics live in `tools/cybersynctl`, not in a resident
+  phone-side MCP service.
 
 ## 3. What's in this tree
 
@@ -76,6 +83,8 @@ that's a flag to stop and resolve it in discussion, then update both.
   - `OpenTasker` (HEAD 2026-07-17) — brain skeleton source.
 - `Android_src/` — will hold the `com.termux.cybersyn` app tree.
 - `Fedora_src/` — will hold the Rust relay crate.
+- `tools/cybersynctl` — host-side ADB/Tailscale CLI for list/export/apply/run/profile operations.
+- `examples/quicktap-sidebar.yaml` — minimal YAML import example.
 - `misc/` — borrowables from older projects (§6).
 
 ## 4. Repo assessments (recon 2026-07-18)
@@ -185,18 +194,12 @@ GPL-2/3, C++/Qt6 + KF6. Not run and not forked; read it to port behavior:
 
 ## 7. Next steps
 
-1. Copy OpenTasker → `Android_src/`, rename to `com.termux.cybersyn`, add
-   `sharedUserId`, wire signing to `termux_platform.p12`, priv-app placement
-   (+ privapp-permissions allowlist in the crDroid tree if a privileged perm
-   turns out to be needed).
-2. Scaffold the Rust relay crate in `Fedora_src/` (single binary for
-   comrade/comintern): MQTT client + dbus/systemd/inotify/udev watchers +
-   local action executor.
-3. Draft the MQTT topic/message schema (§2) small and concrete against the
-   first real rules; extend per rule after that.
-4. First end-to-end rule through the engine: relay event → MQTT → OpenTasker
-   `ContextSource` trigger → action back over MQTT → relay executes.
-5. Copy in KDE file-transfer parts when the first file-moving rule needs
-   them (shopping list in §4).
-6. At cutover: retire stock KDE per §1.7 and reconcile `OVERVIEW.md` with
+1. Keep expanding `tools/cybersynctl` as the authoring surface: validation,
+   better diffs, and richer YAML shorthands before considering any server.
+2. Draft the MQTT topic/message schema (§2) small and concrete against the
+   first real relay rules; extend per rule after that.
+3. First relay rule through the engine: event → MQTT → relay action → result.
+4. Copy in KDE file-transfer parts when the first file-moving rule needs them
+   (shopping list in §4).
+5. At cutover: retire stock KDE per §1.7 and reconcile `OVERVIEW.md` with
    this doc.

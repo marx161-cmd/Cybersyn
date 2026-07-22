@@ -29,7 +29,7 @@ Everything else publishes `error:unknown-command:<cmd>`.
 Drop an executable file in the script dir
 (`--script-dir`, `$CYBERSYN_SCRIPT_DIR`, default `~/.config/cybersyn/scripts`).
 That is the whole workflow — no rebuild, no redeploy, and `capabilities`
-picks it up immediately so the MCP catalog can be generated from what the
+picks it up immediately so `cybersynctl` or any other caller can query what the
 node actually has.
 
 This mirrors the phone side, where the brain invokes named Termux scripts
@@ -45,8 +45,8 @@ not exist fails closed and executes nothing.
 ### On `shell:` being off by default
 
 Anything able to publish to this node's action topic can reach this arm —
-including an LLM composing a command string through the MCP bridge, and any
-rule you wrote months ago and no longer remember. `script:` bounds that to a
+including an LLM composing a command string through CLI tooling, and any rule
+you wrote months ago and no longer remember. `script:` bounds that to a
 vocabulary you curated; `shell:` does not. Turn it on deliberately while
 debugging (`--allow-shell` / `CYBERSYN_ALLOW_SHELL=1`), not as a standing door.
 

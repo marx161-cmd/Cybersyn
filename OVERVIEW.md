@@ -14,7 +14,7 @@ Triggers and actions are independent, composable rules (`trigger → condition (
 
 - **Brain — Android, Kotlin, system-signed.** Rule engine, scripting sandbox, trigger UI, and direct sensor access (gyro/accel/magnetometer/barometer/proximity/UWB — no throttling, no permission dance, because it's a system app). Lives on the phone because the phone has comparable uptime to the homelab boxes *and* it's the one device always on Chris's person, so location/context-aware rules actually mean something here.
 - **Relay agents — Rust, deployed identically to `comrade` and `comintern`** (both Fedora 43, so one binary runs on both with zero porting). Watch local dbus/systemd/inotify/udev events, forward to the brain, execute actions the brain sends back. Dumb and stateless by design — adding a third node later (another Fedora box, or a local Termux relay) is just "build once, deploy everywhere."
-- **Transport:** Mosquitto already runs on `comrade` (100.108.8.60:1883) and is the existing, working path — `p30control.py`/`p30control.service` already prove phone→MQTT→`comrade` works today. Whether this stays MQTT or gets replaced by KDE Connect's pairing/transport layer is still an open decision (see below).
+- **Transport:** Mosquitto already runs on `comrade` (100.108.8.60:1883) and is the existing, working path — `p30control.py`/`p30control.service` already prove phone→MQTT→`comrade` works today. Host-side authoring uses `tools/cybersynctl` over ADB/Tailscale; no phone-side MCP/server add-on is planned unless a real gap appears.
 
 ## Build strategy: fork-and-merge, not from scratch
 
@@ -42,3 +42,17 @@ Basically:
 - better sensor handling for improved gyro mouse
 - 
 - No Play Store compliance considerations anywhere in this project.
+
+## Authoring Interface
+
+The control plane is deliberately CLI-first:
+
+- `tools/cybersynctl list-tasks` / `list-profiles` queries the live phone.
+- `tools/cybersynctl export` reads the current Cybersyn bundle.
+- `tools/cybersynctl apply <file.yaml>` converts simple YAML to Cybersyn bundle JSON and imports it via ADB.
+- `tools/cybersynctl profile enable|disable <name>` toggles profiles.
+- `tools/cybersynctl run <task>` runs a task by name.
+
+See `docs/CYBERSYNCTL.md` for the YAML shape and CLI caveats.
+
+Trust boundary: the operator reaches blazer through Tailscale (`100.69.13.12:5555` for ADB). Cybersyn exposes only DUMP-protected CLI broadcasts for shell/ADB use, so a separate phone-side MCP service would just add another always-on control surface without adding meaningful security or capability.
