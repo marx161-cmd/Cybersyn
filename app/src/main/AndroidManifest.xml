@@ -199,6 +199,16 @@
             </intent-filter>
         </service>
 
+        <service
+            android:name="com.termux.cybersyn.core.controls.TaskControlsService"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:permission="android.permission.BIND_CONTROLS">
+            <intent-filter>
+                <action android:name="android.service.controls.ControlsProviderService" />
+            </intent-filter>
+        </service>
+
         <activity
             android:name="com.termux.cybersyn.widget.TaskRunActivity"
             android:exported="false"
