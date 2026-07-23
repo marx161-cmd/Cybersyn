@@ -11,6 +11,7 @@ import argparse
 import base64
 import json
 import os
+import shlex
 import subprocess
 import sys
 import time
@@ -22,6 +23,7 @@ ADB_SERIAL = os.environ.get("CYBERSYN_ADB_SERIAL", "100.69.13.12:5555")
 SSH_TARGET = os.environ.get("CYBERSYN_SSH_TARGET", "u0_a464@100.69.13.12")
 SSH_PORT = os.environ.get("CYBERSYN_SSH_PORT", "8022")
 PKG = "com.termux.cybersyn"
+CLI_COMPONENT = f"{PKG}/.core.external.AutomationCliReceiver"
 TERMUX_HOME = "/data/data/com.termux/files/home"
 REMOTE_EXPORT = f"{TERMUX_HOME}/.cache/cybersynctl/export.json"
 
@@ -41,7 +43,8 @@ def ensure_adb() -> None:
 
 
 def broadcast(action: str, extras: list[str]) -> subprocess.CompletedProcess[str]:
-    return adb(["shell", "am", "broadcast", "-a", action, "-p", PKG, *extras], capture=True)
+    remote_args = ["am", "broadcast", "-a", action, "-n", CLI_COMPONENT, *extras]
+    return adb(["shell", " ".join(shlex.quote(arg) for arg in remote_args)], capture=True)
 
 
 def export_bundle(local_path: Path | None = None) -> dict[str, Any]:

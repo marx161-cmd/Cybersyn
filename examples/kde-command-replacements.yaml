@@ -1,0 +1,72 @@
+name: KDE Connect command replacements
+description: Device Controls friendly Cybersyn tasks that replace the retired KDE Connect Run Command list.
+tasks:
+  - name: "Host: Relay ping"
+    actions:
+      - type: mqtt.publish
+        args: { topic: cybersyn/comrade/action, message: "ping" }
+  - name: "Host: Appliance stable baseline"
+    actions:
+      - type: mqtt.publish
+        args: { topic: cybersyn/comrade/action, message: "script:kde-command appliance_stable_baseline" }
+  - name: "Host: Appliance full recovery"
+    actions:
+      - type: mqtt.publish
+        args: { topic: cybersyn/comrade/action, message: "script:kde-command appliance_full_recovery" }
+  - name: "Host: Appliance Dell landscape nudge"
+    actions:
+      - type: mqtt.publish
+        args: { topic: cybersyn/comrade/action, message: "script:kde-command appliance_dell_landscape_nudge" }
+  - name: "Host: Appliance Dell refresh all"
+    actions:
+      - type: mqtt.publish
+        args: { topic: cybersyn/comrade/action, message: "script:kde-command appliance_dell_refresh_all" }
+  - name: "Host: Pixel stream pixel"
+    actions:
+      - type: mqtt.publish
+        args: { topic: cybersyn/comrade/action, message: "script:kde-command pixel_pixel" }
+  - name: "Host: Pixel stream pixel-hi"
+    actions:
+      - type: mqtt.publish
+        args: { topic: cybersyn/comrade/action, message: "script:kde-command pixel_pixel_hi" }
+  - name: "Host: Pixel stream letterbox"
+    actions:
+      - type: mqtt.publish
+        args: { topic: cybersyn/comrade/action, message: "script:kde-command pixel_letterbox" }
+  - name: "Host: Pixel stream tablet"
+    actions:
+      - type: mqtt.publish
+        args: { topic: cybersyn/comrade/action, message: "script:kde-command pixel_tablet" }
+  - name: "Host: Target graphical"
+    actions:
+      - type: mqtt.publish
+        args: { topic: cybersyn/comrade/action, message: "script:kde-command target_graphical" }
+  - name: "Host: Target multi-user"
+    actions:
+      - type: mqtt.publish
+        args: { topic: cybersyn/comrade/action, message: "script:kde-command target_multi_user" }
+  - name: "Host: Restart Sunshine"
+    actions:
+      - type: mqtt.publish
+        args: { topic: cybersyn/comrade/action, message: "script:kde-command service_restart_sunshine" }
+  - name: "Host: Toggle ComfyUI"
+    actions:
+      - type: mqtt.publish
+        args: { topic: cybersyn/comrade/action, message: "script:kde-command service_toggle_comfyui" }
+  - name: "Host: Toggle SwarmUI"
+    actions:
+      - type: mqtt.publish
+        args: { topic: cybersyn/comrade/action, message: "script:kde-command service_toggle_swarmui" }
+  - name: "Host: Toggle Ollama"
+    actions:
+      - type: mqtt.publish
+        args: { topic: cybersyn/comrade/action, message: "script:kde-command service_toggle_ollama" }
+  - name: "Host: Restart Tailscale"
+    actions:
+      - type: mqtt.publish
+        args: { topic: cybersyn/comrade/action, message: "script:kde-command service_restart_tailscaled" }
+  - name: "Host: Switch Monitor"
+    actions:
+      - type: mqtt.publish
+        args: { topic: cybersyn/comrade/action, message: "script:kde-command switch_monitor" }
+profiles: []
