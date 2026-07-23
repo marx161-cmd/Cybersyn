@@ -1,0 +1,22 @@
+name: Gyro clutch (trackpad)
+description: >
+  Toggle gyro-aim for the Cybersyn trackpad. The stub streams
+  game_rotation_vector to android/sensor whenever the pad is open; the relay
+  (cybersyn-hid-relay.py) only turns that into cursor motion while the clutch
+  is engaged. These tasks flip the relay's clutch via the mqtt.publish action.
+  Bind "Gyro: toggle" to any trigger (a SpectreBoard key, Quick Tap, a rule).
+  Broker 100.108.8.60:1883, topic android/clutch (relay: ON/OFF, anything else = toggle).
+tasks:
+  - name: "Gyro: toggle"
+    actions:
+      - type: mqtt.publish
+        args: { topic: android/clutch, message: "TOGGLE" }
+  - name: "Gyro: on"
+    actions:
+      - type: mqtt.publish
+        args: { topic: android/clutch, message: "ON" }
+  - name: "Gyro: off"
+    actions:
+      - type: mqtt.publish
+        args: { topic: android/clutch, message: "OFF" }
+profiles: []
