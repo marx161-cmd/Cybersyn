@@ -1,0 +1,23 @@
+name: Charge cooling governor
+description: >
+  Start/stop the wireless thermal charge governor on blazer. It throttles the
+  wireless input current (DC_ICL) only to hold battery temperature under a
+  setpoint while on the powerbank; it still charges to 100% whenever cool, and
+  never touches wired or unplugged charging. The daemon self-gates on wireless.
+  Script: ~/.termux/tasker/charge-cool.sh (tracked at examples/phone-scripts/).
+tasks:
+  - name: "Charge cool: start"
+    actions:
+      - type: script.termux.run
+        args:
+          executable: /data/data/com.termux/files/home/.termux/tasker/charge-cool.sh
+          arguments: start
+          useRoot: "true"
+  - name: "Charge cool: stop"
+    actions:
+      - type: script.termux.run
+        args:
+          executable: /data/data/com.termux/files/home/.termux/tasker/charge-cool.sh
+          arguments: stop
+          useRoot: "true"
+profiles: []
