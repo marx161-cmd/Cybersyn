@@ -14,30 +14,12 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import com.termux.cybersyn.core.mqtt.MqttBridge
@@ -64,8 +46,6 @@ class TrackpadActivity : ComponentActivity(),
             }
         }
 
-    private var showGyroButton by mutableStateOf(false)
-
     private val standardDpi = 240f
     private var dpiMultiplier = 1f
     private var sensitivity = 1f
@@ -85,6 +65,7 @@ class TrackpadActivity : ComponentActivity(),
     private val mouseDelta = PointerAccelerationProfile.MouseDelta()
 
     companion object {
+        private const val SURFACE_TINT = 0x1A003D1F
         private const val MIN_SCROLL_DISTANCE = 2.5f
         private const val TOPIC_MOUSE = "cybersyn/hid/mouse"
         private const val TOPIC_CLICK = "cybersyn/hid/click"
@@ -96,10 +77,9 @@ class TrackpadActivity : ComponentActivity(),
         enableEdgeToEdge()
 
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        window.setBackgroundDrawableResource(android.R.color.transparent)
 
         sensorManager = ContextCompat.getSystemService(this, SensorManager::class.java)!!
-        showGyroButton = sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE) != null
-
         dpiMultiplier = standardDpi / resources.displayMetrics.xdpi
         accelerationProfile = PointerAccelerationProfileFactory.getProfileWithName("medium")
 
@@ -110,76 +90,16 @@ class TrackpadActivity : ComponentActivity(),
 
         setContent {
             MaterialTheme(colorScheme = darkColorScheme()) {
-                Box(Modifier.fillMaxSize()) {
-                    // Touch surface
+                Box(Modifier.fillMaxSize().background(Color(SURFACE_TINT))) {
                     AndroidView(
                         factory = { ctx ->
                             View(ctx).apply {
-                                setBackgroundColor(0xFF0D1117.toInt())
+                                setBackgroundColor(SURFACE_TINT.toInt())
                                 setOnTouchListener { _, event -> handleTouch(event) }
                             }
                         },
                         modifier = Modifier.fillMaxSize()
                     )
-
-                    // Bottom button bar
-                    Row(
-                        modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .fillMaxWidth()
-                            .height(64.dp)
-                            .background(Color(0xCC0D1117))
-                            .padding(horizontal = 12.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        val density = LocalDensity.current
-
-                        if (showGyroButton) {
-                            Button(
-                                onClick = { gyroEnabled = !gyroEnabled },
-                                modifier = Modifier.weight(1f).height(48.dp),
-                                colors = if (gyroEnabled) {
-                                    ButtonDefaults.buttonColors(containerColor = Color(0xFF2E6D56))
-                                } else {
-                                    ButtonDefaults.buttonColors(containerColor = Color(0xFF21262D))
-                                }
-                            ) {
-                                Text(if (gyroEnabled) "GYRO ON" else "GYRO", color = Color.White)
-                            }
-                        }
-
-                        Button(
-                            onClick = { publishClick("left") },
-                            modifier = Modifier.weight(3f).height(48.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1F6FEB))
-                        ) {
-                            Text("L", color = Color.White)
-                        }
-
-                        Button(
-                            onClick = { publishClick("middle") },
-                            modifier = Modifier.weight(1f).height(48.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF21262D))
-                        ) {
-                            Text("M", color = Color(0xFF8B949E))
-                        }
-
-                        Button(
-                            onClick = { publishClick("right") },
-                            modifier = Modifier.weight(3f).height(48.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1F6FEB))
-                        ) {
-                            Text("R", color = Color.White)
-                        }
-
-                        IconButton(
-                            onClick = { finish() },
-                            modifier = Modifier.height(48.dp)
-                        ) {
-                            Icon(Icons.Rounded.Close, "Close", tint = Color(0xFF484F58))
-                        }
-                    }
                 }
             }
         }

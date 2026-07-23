@@ -16,3 +16,5 @@ dependencyResolutionManagement {
 rootProject.name = "Cybersyn"
 include(":app")
 include(":quicktap-stub")
+include(":cybersyn-stub1")
+include(":cybersyn-stub2")

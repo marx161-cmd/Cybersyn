@@ -21,6 +21,8 @@ import com.termux.cybersyn.core.engine.ActionContext
 import com.termux.cybersyn.core.engine.ActionResult
 import com.termux.cybersyn.core.platform.AndroidAudioHardening
 import com.termux.cybersyn.core.platform.AudioUsageEligibility
+import com.termux.cybersyn.core.scripting.TermuxCommandBroker
+import com.termux.cybersyn.core.scripting.TermuxCommandRequest
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.coroutines.resume
@@ -179,7 +181,23 @@ class AirplaneModeAction : Action {
     override suspend fun run(ctx: ActionContext, args: Map<String, String>): ActionResult {
         val state = args["state"] ?: "toggle"
         ctx.logger("Airplane mode: $state")
-        return ActionResult.Failure("Airplane mode changes are restricted to system or device-owner apps")
+        val target = when (state.lowercase()) {
+            "on" -> true
+            "off" -> false
+            "toggle" -> Settings.Global.getInt(ctx.app.contentResolver, Settings.Global.AIRPLANE_MODE_ON, 0) == 0
+            else -> return ActionResult.Failure("invalid state: $state")
+        }
+        val enabled = if (target) 1 else 0
+        val result = runRootCommand(
+            ctx,
+            "settings put global airplane_mode_on $enabled; " +
+                "am broadcast -a android.intent.action.AIRPLANE_MODE --ez state $target >/dev/null",
+        )
+        return if (result.exitCode == 0) {
+            ActionResult.Success
+        } else {
+            ActionResult.Failure("Airplane mode root command failed: ${result.stderr.ifBlank { result.stdout }}")
+        }
     }
 }
 
@@ -196,9 +214,31 @@ class MobileDataAction : Action {
     override suspend fun run(ctx: ActionContext, args: Map<String, String>): ActionResult {
         val state = args["state"] ?: "toggle"
         ctx.logger("Mobile data: $state")
-        return ActionResult.Failure("Mobile data changes are restricted to carrier, system, or device-owner apps")
+        val command = when (state.lowercase()) {
+            "on" -> "svc data enable"
+            "off" -> "svc data disable"
+            "toggle" -> "if dumpsys telephony.registry | grep -q 'mDataConnectionState=2'; then svc data disable; else svc data enable; fi"
+            else -> return ActionResult.Failure("invalid state: $state")
+        }
+        val result = runRootCommand(ctx, command)
+        return if (result.exitCode == 0) {
+            ActionResult.Success
+        } else {
+            ActionResult.Failure("Mobile data root command failed: ${result.stderr.ifBlank { result.stdout }}")
+        }
     }
 }
+
+private suspend fun runRootCommand(ctx: ActionContext, command: String) =
+    TermuxCommandBroker.execute(
+        ctx.app,
+        TermuxCommandRequest(
+            executable = "\$PREFIX/bin/sh",
+            arguments = listOf("-c", command),
+            timeoutMs = 30_000L,
+            useRoot = true,
+        ),
+    )
 
 class DoNotDisturbAction : Action {
     override val id = "dnd.set"

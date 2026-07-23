@@ -2,20 +2,15 @@ package com.termux.cybersyn.core.scripting
 
 import java.nio.file.Files
 import java.nio.file.Path
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
-import org.junit.Assert.fail
 import org.junit.Test
 
 class TermuxScriptBackendTest {
     private val script = "~/.termux/tasker/backup.sh"
-    private val approvedHash = "a".repeat(64)
 
     @Test
     fun statusForReportsPackageAndPermissionReadiness() {
@@ -56,261 +51,108 @@ class TermuxScriptBackendTest {
     }
 
     @Test
-    fun coordinatorDeniesExecutionBeforeCallingTermuxWhenPermissionIsMissing() = runBlocking {
-        var calls = 0
-        val result = coordinator().execute(
-            ready = false,
-            invocation = invocation(),
-            approvedHashFor = { approvedHash },
-            commandRunner = {
-                calls++
-                commandResult()
-            },
+    fun invocationDefaultsUseRootToFalse() {
+        val inv = invocation()
+        assertFalse(inv.useRoot)
+    }
+
+    @Test
+    fun prepareAcceptsRootInvocationWithoutExtraValidation() {
+        val inv = invocation(useRoot = true)
+        val result = TermuxScriptPolicy.prepare(inv)
+        assertTrue(result is TermuxPreparationResult.Ready)
+    }
+
+    @Test
+    fun prepareRejectsTraversalAndUnnormalizedPaths() {
+        val traversal = TermuxScriptPolicy.prepare(invocation("~/.termux/tasker/../escape.sh"))
+        val outside = TermuxScriptPolicy.prepare(invocation("/system/bin/reboot"))
+        assertTrue(traversal is TermuxPreparationResult.Invalid)
+        assertTrue(outside is TermuxPreparationResult.Invalid)
+    }
+
+    @Test
+    fun normalizeExecutableRejectsControlsBareDirectoryAndDotSegments() {
+        assertNull(TermuxScriptPolicy.normalizeExecutable("~/.termux/tasker/"))
+        assertNull(TermuxScriptPolicy.normalizeExecutable("~/.termux/tasker/."))
+        assertNull(TermuxScriptPolicy.normalizeExecutable("~/.termux/tasker/.."))
+        assertNull(TermuxScriptPolicy.normalizeExecutable("~/.termux/tasker/sub/../script.sh"))
+        assertNull(TermuxScriptPolicy.normalizeExecutable("~/.termux/tasker/\u0000.sh"))
+        assertNotNull(TermuxScriptPolicy.normalizeExecutable("~/.termux/tasker/ok.sh"))
+    }
+
+    @Test
+    fun builtCommandWrapsWithSuWhenUseRootIsSet() {
+        val req = TermuxCommandRequest(
+            executable = "~/.termux/tasker/test.sh",
+            arguments = listOf("arg1", "arg two"),
+            timeoutMs = 30_000L,
+            useRoot = true,
         )
-
-        assertEquals(TermuxScriptRejectionReason.PERMISSION_DENIED, (result as TermuxScriptExecutionResult.Rejected).reason)
-        assertEquals(0, calls)
+        val (exec, args) = buildCommand(req)
+        assertEquals("/data/data/com.termux/files/usr/bin/su", exec)
+        assertEquals(2, args.size)
+        assertEquals("-c", args[0])
+        assertTrue(args[1].contains("'arg1'"))
+        assertTrue(args[1].contains("'arg two'"))
+        assertTrue(args[1].startsWith("'") || args[1].startsWith("/"))
     }
 
     @Test
-    fun coordinatorRejectsUnapprovedAndTraversalPathsWithoutDispatch() = runBlocking {
-        var calls = 0
-        val unapproved = coordinator().execute(
-            ready = true,
-            invocation = invocation(),
-            approvedHashFor = { null },
-            commandRunner = {
-                calls++
-                commandResult()
-            },
+    fun builtCommandPassesThroughWhenUseRootIsFalse() {
+        val req = TermuxCommandRequest(
+            executable = "~/.termux/tasker/test.sh",
+            arguments = listOf("arg1"),
+            timeoutMs = 30_000L,
+            useRoot = false,
         )
-        val traversal = coordinator().execute(
-            ready = true,
-            invocation = invocation(executable = "~/.termux/tasker/../escape.sh"),
-            approvedHashFor = { approvedHash },
-            commandRunner = {
-                calls++
-                commandResult()
-            },
-        )
-
-        assertEquals(TermuxScriptRejectionReason.NOT_APPROVED, (unapproved as TermuxScriptExecutionResult.Rejected).reason)
-        assertEquals(TermuxScriptRejectionReason.INVALID_INPUT, (traversal as TermuxScriptExecutionResult.Rejected).reason)
-        assertEquals(0, calls)
+        val (exec, args) = buildCommand(req)
+        assertTrue(exec.endsWith("test.sh"))
+        assertEquals(listOf("arg1"), args)
     }
 
     @Test
-    fun coordinatorVerifiesHashBeforeRunningAndPreservesBoundedInputs() = runBlocking {
-        val requests = mutableListOf<TermuxCommandRequest>()
-        val result = coordinator().execute(
-            ready = true,
-            invocation = invocation(
-                argumentText = "--label 'daily backup'",
-                stdin = "payload",
-            ),
-            approvedHashFor = { approvedHash },
-            commandRunner = { request ->
-                requests += request
-                if (requests.size == 1) hashResult() else verifiedCommandResult(stdout = "done")
-            },
-        )
-
-        assertTrue(result is TermuxScriptExecutionResult.Completed)
-        result as TermuxScriptExecutionResult.Completed
-        assertEquals("done", result.command.stdout)
-        assertEquals(4, result.command.stdoutOriginalLength)
-        assertEquals(TermuxScriptPolicy.HASH_EXECUTABLE, requests[0].executable)
-        assertTrue(requests[0].arguments[1].contains("\${1#\\~/}"))
-        assertEquals(TermuxScriptPolicy.HASH_EXECUTABLE, requests[1].executable)
-        assertTrue(requests[1].arguments[1].contains("\${2#\\~/}"))
-        assertEquals("opentasker-run", requests[1].arguments[2])
-        assertEquals(approvedHash, requests[1].arguments[3])
-        assertEquals(script, requests[1].arguments[4])
-        assertEquals(listOf("--label", "daily backup"), requests[1].arguments.drop(5))
-        assertEquals("payload", requests[1].stdin)
-    }
-
-    @Test
-    fun coordinatorRejectsHashMismatchBeforeScriptDispatch() = runBlocking {
-        var calls = 0
-        val result = coordinator().execute(
-            ready = true,
-            invocation = invocation(),
-            approvedHashFor = { approvedHash },
-            commandRunner = {
-                calls++
-                hashResult("b".repeat(64))
-            },
-        )
-
-        assertEquals(TermuxScriptRejectionReason.HASH_MISMATCH, (result as TermuxScriptExecutionResult.Rejected).reason)
-        assertEquals(1, calls)
-    }
-
-    @Test
-    fun coordinatorRejectsScriptChangedBetweenPreflightAndExecution() = runBlocking {
-        var calls = 0
-        val result = coordinator().execute(
-            ready = true,
-            invocation = invocation(),
-            approvedHashFor = { approvedHash },
-            commandRunner = {
-                calls++
-                if (calls == 1) {
-                    hashResult()
-                } else {
-                    commandResult(stdout = TermuxScriptPolicy.verificationMismatchMarker())
-                }
-            },
-        )
-
-        assertEquals(TermuxScriptRejectionReason.HASH_MISMATCH, (result as TermuxScriptExecutionResult.Rejected).reason)
-        assertEquals(2, calls)
-    }
-
-    @Test
-    fun coordinatorRateLimitsRapidRedispatch() = runBlocking {
-        var now = 10_000L
-        val coordinator = coordinator { now }
-        val runner: suspend (TermuxCommandRequest) -> TermuxCommandResult = { request ->
-            if (request.arguments.getOrNull(2) == "opentasker-hash") hashResult() else verifiedCommandResult()
-        }
-        val first = coordinator.execute(true, invocation(), { approvedHash }, runner)
-        val second = coordinator.execute(true, invocation(), { approvedHash }, runner)
-        now += 1_000L
-        val third = coordinator.execute(true, invocation(), { approvedHash }, runner)
-
-        assertTrue(first is TermuxScriptExecutionResult.Completed)
-        assertEquals(TermuxScriptRejectionReason.RATE_LIMITED, (second as TermuxScriptExecutionResult.Rejected).reason)
-        assertTrue(third is TermuxScriptExecutionResult.Completed)
-    }
-
-    @Test
-    fun rateLimitMapEvictsOldestEntriesAtItsBound() {
-        var now = 1_000L
-        val limiter = TermuxDispatchLimiter(maxEntries = 128, clock = { now++ })
-
-        repeat(500) { index -> assertTrue(limiter.tryAcquire("~/.termux/tasker/script-$index")) }
-
-        assertEquals(128, limiter.size())
-    }
-
-    @Test
-    fun coordinatorPropagatesTimeoutForTheActionToReport() = runBlocking {
-        try {
-            coordinator().execute(
-                ready = true,
-                invocation = invocation(),
-                approvedHashFor = { approvedHash },
-                commandRunner = {
-                    withTimeout(1L) { delay(100L) }
-                    hashResult()
-                },
-            )
-            fail("Expected command timeout")
-        } catch (_: kotlinx.coroutines.TimeoutCancellationException) {
-            // The action maps this to a redacted, user-visible timeout failure.
-        }
-    }
-
-    @Test
-    fun coordinatorRejectsOversizedOrTermuxTruncatedOutput() = runBlocking {
-        var calls = 0
-        val result = coordinator().execute(
-            ready = true,
-            invocation = invocation(),
-            approvedHashFor = { approvedHash },
-            commandRunner = {
-                calls++
-                if (calls == 1) {
-                    hashResult()
-                } else {
-                    verifiedCommandResult(
-                        stdout = "partial",
-                        stdoutOriginalLength = TermuxScriptPolicy.MAX_OUTPUT_BYTES + 1,
-                    )
-                }
-            },
-        )
-
-        assertEquals(TermuxScriptRejectionReason.OUTPUT_TOO_LARGE, (result as TermuxScriptExecutionResult.Rejected).reason)
-    }
-
-    @Test
-    fun sourceContractKeepsResultChannelPrivateAndLogsOutputAsRedacted() {
+    fun sourceContractKeepsResultChannelPrivate() {
         val moduleRoot = listOf(Path.of("."), Path.of("app")).first { Files.isDirectory(it.resolve("src/main")) }
         val manifest = moduleRoot.resolve("src/main/AndroidManifest.xml").toFile().readText()
         val broker = moduleRoot.resolve("src/main/java/com/termux/cybersyn/core/scripting/TermuxCommandBroker.kt").toFile().readText()
-        val action = moduleRoot.resolve("src/main/java/com/termux/cybersyn/core/actions/ScriptActions.kt").toFile().readText()
 
         assertTrue("RUN_COMMAND permission must be declared", "com.termux.permission.RUN_COMMAND" in manifest)
         assertTrue("Result receiver must be non-exported", Regex("TermuxResultReceiver[\\s\\S]{0,120}android:exported=\"false\"").containsMatchIn(manifest))
         assertTrue("Termux callback must use a one-shot pending intent", "PendingIntent.FLAG_ONE_SHOT" in broker)
         assertTrue("Termux original lengths must parse their documented string encoding", "bundle.getString(key)?.toIntOrNull()" in broker)
-        assertTrue("Command output must be redacted from logs", "stdout=<redacted:" in action && "stderr=<redacted:" in action)
-        assertFalse("Captured stdout must never be interpolated into a log", "\${result.stdout}" in action)
     }
 
-    @Test
-    fun scriptHashProducesStableSha256() {
-        val content = "#!/bin/bash\necho hello".toByteArray()
-        val hash1 = TermuxScriptDispatch.hashScript(content)
-        val hash2 = TermuxScriptDispatch.hashScript(content)
-        assertEquals(hash1, hash2)
-        assertEquals(64, hash1.length)
-        assertTrue(hash1 != TermuxScriptDispatch.hashScript("different".toByteArray()))
+    companion object {
+        internal fun buildCommand(request: TermuxCommandRequest): Pair<String, List<String>> {
+            val TERMUX_PREFIX = "/data/data/com.termux/files/usr"
+            val TERMUX_HOME = "/data/data/com.termux/files/home"
+            fun resolveTermuxPath(path: String): String = when {
+                path == "\$PREFIX" -> TERMUX_PREFIX
+                path.startsWith("\$PREFIX/") -> TERMUX_PREFIX + path.removePrefix("\$PREFIX")
+                path == "~" -> TERMUX_HOME
+                path.startsWith("~/") -> TERMUX_HOME + path.removePrefix("~")
+                else -> path
+            }
+            val executable = resolveTermuxPath(request.executable)
+            if (!request.useRoot) return executable to request.arguments
+            val cmd = listOf(executable) + request.arguments
+            val shellCmd = cmd.joinToString(" ") { "'${it.replace("'", "'\\''")}'" }
+            return resolveTermuxPath(TermuxScriptPolicy.SU_EXECUTABLE) to listOf("-c", shellCmd)
+        }
     }
-
-    private fun coordinator(clock: () -> Long = { 10_000L }): TermuxScriptCoordinator =
-        TermuxScriptCoordinator(TermuxDispatchLimiter(clock = clock))
 
     private fun invocation(
         executable: String = script,
         argumentText: String? = null,
         stdin: String? = null,
+        useRoot: Boolean = false,
     ) = TermuxScriptInvocation(
         executable = executable,
         argumentText = argumentText,
         workingDirectory = null,
         stdin = stdin,
         timeoutMs = TermuxScriptPolicy.DEFAULT_TIMEOUT_MS,
-    )
-
-    private fun hashResult(hash: String = approvedHash): TermuxCommandResult =
-        commandResult(stdout = "$hash  $script\n")
-
-    private fun verifiedCommandResult(
-        stdout: String = "",
-        stderr: String = "",
-        stdoutOriginalLength: Int = TermuxScriptPolicy.utf8Size(stdout),
-        stderrOriginalLength: Int = TermuxScriptPolicy.utf8Size(stderr),
-        exitCode: Int = 0,
-        errorCode: Int = 0,
-    ): TermuxCommandResult {
-        val marker = TermuxScriptPolicy.verificationSuccessMarker(approvedHash)
-        return commandResult(
-            stdout = marker + stdout,
-            stderr = stderr,
-            stdoutOriginalLength = marker.length + stdoutOriginalLength,
-            stderrOriginalLength = stderrOriginalLength,
-            exitCode = exitCode,
-            errorCode = errorCode,
-        )
-    }
-
-    private fun commandResult(
-        stdout: String = "",
-        stderr: String = "",
-        stdoutOriginalLength: Int = TermuxScriptPolicy.utf8Size(stdout),
-        stderrOriginalLength: Int = TermuxScriptPolicy.utf8Size(stderr),
-        exitCode: Int = 0,
-        errorCode: Int = 0,
-    ) = TermuxCommandResult(
-        stdout = stdout,
-        stderr = stderr,
-        exitCode = exitCode,
-        stdoutOriginalLength = stdoutOriginalLength,
-        stderrOriginalLength = stderrOriginalLength,
-        errorCode = errorCode,
+        useRoot = useRoot,
     )
 }

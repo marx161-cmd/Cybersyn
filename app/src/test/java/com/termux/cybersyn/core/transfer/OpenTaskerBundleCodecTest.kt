@@ -50,7 +50,7 @@ class OpenTaskerBundleCodecTest {
                     name = "Restricted",
                     actions = listOf(
                         ActionSpec(type = "notify.show"),
-                        ActionSpec(type = "reboot"),
+                        ActionSpec(type = "tile.set"),
                         ActionSpec(type = "log"),
                     ),
                 )
@@ -59,7 +59,7 @@ class OpenTaskerBundleCodecTest {
 
         val requirements = bundle.metadata.capabilityRequirements.associateBy { it.actionId }
         assertEquals(CapabilityLevel.RequiresSetup, requirements.getValue("notify.show").level)
-        assertEquals(CapabilityLevel.Unsupported, requirements.getValue("reboot").level)
+        assertEquals(CapabilityLevel.Unsupported, requirements.getValue("tile.set").level)
         assertFalse(requirements.containsKey("log"))
         assertFalse(bundle.metadata.warnings.any { it.contains("manifest did not match") })
     }
@@ -153,7 +153,7 @@ class OpenTaskerBundleCodecTest {
         val bundle = OpenTaskerBundle(
             appVersion = "0.2.13",
             exportedAtEpochMs = 123L,
-            tasks = listOf(Task(id = 1, name = "Task", actions = listOf(ActionSpec(type = "reboot")))),
+            tasks = listOf(Task(id = 1, name = "Task", actions = listOf(ActionSpec(type = "tile.set")))),
             profiles = listOf(Profile(id = 1, name = "Broken", enterTaskId = 99, exitTaskId = 42)),
         )
 

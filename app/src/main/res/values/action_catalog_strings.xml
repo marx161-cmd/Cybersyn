@@ -202,6 +202,8 @@
     <string name="catalog_action_script_termux_run_field_workingdirectory_hint" formatted="false">Optional Termux working directory</string>
     <string name="catalog_action_script_termux_run_field_stdin_label" formatted="false">Standard input</string>
     <string name="catalog_action_script_termux_run_field_stdin_hint" formatted="false">Optional stdin payload</string>
+    <string name="catalog_action_script_termux_run_field_useroot_label" formatted="false">Run as root</string>
+    <string name="catalog_action_script_termux_run_field_useroot_hint" formatted="false">Use Termux su for this command</string>
     <string name="catalog_action_script_termux_run_field_captureprefix_label" formatted="false">Output variable prefix</string>
     <string name="catalog_action_script_termux_run_field_captureprefix_hint" formatted="false">%script</string>
     <string name="catalog_action_script_termux_run_field_timeoutms_label" formatted="false">Timeout ms</string>

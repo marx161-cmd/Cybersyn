@@ -135,8 +135,13 @@
             android:launchMode="singleTask"
             android:resizeableActivity="true"
             android:supportsPictureInPicture="false"
-            android:theme="@style/Theme.Cybersyn"
-            android:windowSoftInputMode="stateAlwaysHidden" />
+            android:theme="@style/Theme.Cybersyn.Transparent"
+            android:windowSoftInputMode="stateAlwaysHidden">
+            <layout
+                android:defaultHeight="300dp"
+                android:defaultWidth="400dp"
+                android:gravity="bottom|end" />
+        </activity>
 
         <service
             android:name="com.termux.cybersyn.core.engine.AutomationService"
@@ -255,6 +260,15 @@
                 <action android:name="com.termux.cybersyn.action.SET_PROFILE_ENABLED" />
                 <action android:name="com.termux.cybersyn.action.EXPORT_BUNDLE" />
                 <action android:name="com.termux.cybersyn.action.RUN_TASK" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
+            android:name="com.termux.cybersyn.core.external.ExplainReceiver"
+            android:exported="true"
+            android:permission="android.permission.DUMP">
+            <intent-filter>
+                <action android:name="com.termux.cybersyn.action.EXPLAIN" />
             </intent-filter>
         </receiver>
 

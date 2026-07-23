@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    android:sharedUserId="com.termux">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <application
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@drawable/ic_stub"
+        android:label="@string/app_name"
+        android:roundIcon="@drawable/ic_stub"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.CybersynStub">
+        <activity
+            android:name=".TrackpadStubActivity"
+            android:exported="true"
+            android:excludeFromRecents="false"
+            android:noHistory="true"
+            android:resizeableActivity="true"
+            android:supportsPictureInPicture="false">
+            <layout
+                android:defaultHeight="300dp"
+                android:defaultWidth="400dp"
+                android:gravity="bottom|end" />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

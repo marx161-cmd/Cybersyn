@@ -1,8 +1,6 @@
 package com.termux.cybersyn.core.scripting
 
 import java.nio.charset.StandardCharsets
-import java.security.MessageDigest
-import java.util.LinkedHashMap
 
 internal data class TermuxScriptInvocation(
     val executable: String,
@@ -10,6 +8,7 @@ internal data class TermuxScriptInvocation(
     val workingDirectory: String?,
     val stdin: String?,
     val timeoutMs: Long,
+    val useRoot: Boolean = false,
 )
 
 internal data class PreparedTermuxScript(
@@ -26,6 +25,7 @@ internal data class TermuxCommandRequest(
     val workingDirectory: String? = null,
     val stdin: String? = null,
     val timeoutMs: Long,
+    val useRoot: Boolean = false,
 )
 
 internal data class TermuxCommandResult(
@@ -36,39 +36,6 @@ internal data class TermuxCommandResult(
     val stderrOriginalLength: Int,
     val errorCode: Int,
 )
-
-internal enum class TermuxScriptRejectionReason {
-    PERMISSION_DENIED,
-    INVALID_INPUT,
-    NOT_APPROVED,
-    RATE_LIMITED,
-    HASH_CHECK_FAILED,
-    HASH_MISMATCH,
-    OUTPUT_TOO_LARGE,
-}
-
-internal sealed interface TermuxScriptExecutionResult {
-    data class Completed(
-        val command: TermuxCommandResult,
-        val approvedHash: String,
-    ) : TermuxScriptExecutionResult
-
-    data class Rejected(
-        val reason: TermuxScriptRejectionReason,
-        val message: String,
-    ) : TermuxScriptExecutionResult
-}
-
-internal sealed interface TermuxPreparationResult {
-    data class Ready(val script: PreparedTermuxScript) : TermuxPreparationResult
-    data class Invalid(val message: String) : TermuxPreparationResult
-}
-
-internal sealed interface TermuxVerifiedCommandResult {
-    data class Verified(val command: TermuxCommandResult) : TermuxVerifiedCommandResult
-    data object HashMismatch : TermuxVerifiedCommandResult
-    data object HashCheckFailed : TermuxVerifiedCommandResult
-}
 
 internal object TermuxScriptPolicy {
     const val DEFAULT_TIMEOUT_MS = 30_000L
@@ -81,22 +48,8 @@ internal object TermuxScriptPolicy {
     const val MAX_ARGUMENTS = 128
     const val MAX_PATH_BYTES = 4 * 1024
     const val MAX_CAPTURE_PREFIX_LENGTH = 64
-    const val HASH_OUTPUT_LIMIT_BYTES = 4 * 1024
-    const val HASH_TIMEOUT_MS = 10_000L
-    const val HASH_EXECUTABLE = "\$PREFIX/bin/sh"
+    const val SU_EXECUTABLE = "\$PREFIX/bin/su"
 
-    private const val HASH_SCRIPT =
-        "case \"\$1\" in '~/'*) p=\"\$HOME/\${1#\\~/}\";; *) exit 64;; esac; sha256sum -- \"\$p\""
-    private const val VERIFIED_EXECUTION_SCRIPT =
-        "case \"\$2\" in '~/'*) p=\"\$HOME/\${2#\\~/}\";; *) printf '__OPENTASKER_HASH_ERROR__\\n'; exit 64;; esac; " +
-            "actual=\$(sha256sum -- \"\$p\" 2>/dev/null) || { printf '__OPENTASKER_HASH_ERROR__\\n'; exit 65; }; " +
-            "actual=\"\${actual%% *}\"; " +
-            "if [ \"\$actual\" != \"\$1\" ]; then printf '__OPENTASKER_HASH_MISMATCH__\\n'; exit 66; fi; " +
-            "printf '__OPENTASKER_HASH_OK__%s\\n' \"\$actual\"; shift 2; exec \"\$p\" \"\$@\""
-    private const val HASH_MISMATCH_MARKER = "__OPENTASKER_HASH_MISMATCH__\n"
-    private const val HASH_ERROR_MARKER = "__OPENTASKER_HASH_ERROR__\n"
-    private const val HASH_OK_PREFIX = "__OPENTASKER_HASH_OK__"
-    private val hashRegex = Regex("^[0-9a-fA-F]{64}(?=\\s|$)")
     private val capturePrefixRegex = Regex("^%?[A-Za-z][A-Za-z0-9_]{0,62}$")
 
     fun prepare(invocation: TermuxScriptInvocation): TermuxPreparationResult {
@@ -138,58 +91,8 @@ internal object TermuxScriptPolicy {
         return normalized
     }
 
-    fun normalizeHash(hash: String): String? =
-        hash.trim().lowercase().takeIf { it.length == 64 && it.all { char -> char in '0'..'9' || char in 'a'..'f' } }
-
     fun isValidCapturePrefix(prefix: String): Boolean =
         prefix.length <= MAX_CAPTURE_PREFIX_LENGTH && capturePrefixRegex.matches(prefix)
-
-    fun hashCheckRequest(script: PreparedTermuxScript): TermuxCommandRequest =
-        TermuxCommandRequest(
-            executable = HASH_EXECUTABLE,
-            arguments = listOf("-c", HASH_SCRIPT, "opentasker-hash", script.executable),
-            timeoutMs = minOf(script.timeoutMs, HASH_TIMEOUT_MS),
-        )
-
-    fun parseHashResult(result: TermuxCommandResult): String? {
-        if (result.errorCode != 0 || result.exitCode != 0) return null
-        if (!isOutputWithinLimit(result, HASH_OUTPUT_LIMIT_BYTES)) return null
-        return hashRegex.find(result.stdout)?.value?.lowercase()
-    }
-
-    fun verifiedExecutionRequest(script: PreparedTermuxScript, expectedHash: String): TermuxCommandRequest =
-        TermuxCommandRequest(
-            executable = HASH_EXECUTABLE,
-            arguments = listOf(
-                "-c",
-                VERIFIED_EXECUTION_SCRIPT,
-                "opentasker-run",
-                expectedHash,
-                script.executable,
-            ) + script.arguments,
-            workingDirectory = script.workingDirectory,
-            stdin = script.stdin,
-            timeoutMs = script.timeoutMs,
-        )
-
-    fun unwrapVerifiedResult(result: TermuxCommandResult, expectedHash: String): TermuxVerifiedCommandResult {
-        if (result.stdout.startsWith(HASH_MISMATCH_MARKER)) return TermuxVerifiedCommandResult.HashMismatch
-        if (result.stdout.startsWith(HASH_ERROR_MARKER)) return TermuxVerifiedCommandResult.HashCheckFailed
-        val marker = verificationSuccessMarker(expectedHash)
-        if (!result.stdout.startsWith(marker) || result.stdoutOriginalLength < marker.length) {
-            return TermuxVerifiedCommandResult.HashCheckFailed
-        }
-        return TermuxVerifiedCommandResult.Verified(
-            result.copy(
-                stdout = result.stdout.removePrefix(marker),
-                stdoutOriginalLength = result.stdoutOriginalLength - marker.length,
-            ),
-        )
-    }
-
-    internal fun verificationSuccessMarker(expectedHash: String): String = "$HASH_OK_PREFIX$expectedHash\n"
-
-    internal fun verificationMismatchMarker(): String = HASH_MISMATCH_MARKER
 
     fun isOutputWithinLimit(result: TermuxCommandResult, limitBytes: Int = MAX_OUTPUT_BYTES): Boolean =
         result.stdoutOriginalLength in 0..limitBytes &&
@@ -202,17 +105,12 @@ internal object TermuxScriptPolicy {
         return if (value.isEmpty()) DEFAULT_TIMEOUT_MS else value.toLongOrNull()
     }
 
-    fun hash(content: ByteArray): String =
-        MessageDigest.getInstance("SHA-256")
-            .digest(content)
-            .joinToString("") { "%02x".format(it) }
-
     fun utf8Size(value: String): Int = value.toByteArray(StandardCharsets.UTF_8).size
 
-    private fun isBoundedPath(path: String): Boolean =
+    internal fun isBoundedPath(path: String): Boolean =
         path.isNotBlank() && utf8Size(path) <= MAX_PATH_BYTES && path.none(Char::isISOControl)
 
-    private fun parseArguments(raw: String?): List<String>? {
+    internal fun parseArguments(raw: String?): List<String>? {
         if (raw.isNullOrBlank()) return emptyList()
         if (utf8Size(raw) > MAX_ARGUMENT_TOTAL_BYTES) return null
 
@@ -261,114 +159,7 @@ internal object TermuxScriptPolicy {
     }
 }
 
-internal class TermuxScriptCoordinator(
-    private val limiter: TermuxDispatchLimiter = TermuxScriptDispatch.limiter,
-) {
-    suspend fun execute(
-        ready: Boolean,
-        invocation: TermuxScriptInvocation,
-        approvedHashFor: (String) -> String?,
-        commandRunner: suspend (TermuxCommandRequest) -> TermuxCommandResult,
-    ): TermuxScriptExecutionResult {
-        if (!ready) {
-            return TermuxScriptExecutionResult.Rejected(
-                TermuxScriptRejectionReason.PERMISSION_DENIED,
-                "Termux RUN_COMMAND permission is not ready",
-            )
-        }
-        val script = when (val prepared = TermuxScriptPolicy.prepare(invocation)) {
-            is TermuxPreparationResult.Invalid -> {
-                return TermuxScriptExecutionResult.Rejected(
-                    TermuxScriptRejectionReason.INVALID_INPUT,
-                    prepared.message,
-                )
-            }
-            is TermuxPreparationResult.Ready -> prepared.script
-        }
-        val expectedHash = approvedHashFor(script.executable)?.let(TermuxScriptPolicy::normalizeHash)
-            ?: return TermuxScriptExecutionResult.Rejected(
-                TermuxScriptRejectionReason.NOT_APPROVED,
-                "Script is not in the approved-script allowlist",
-            )
-        if (!limiter.tryAcquire(script.executable)) {
-            return TermuxScriptExecutionResult.Rejected(
-                TermuxScriptRejectionReason.RATE_LIMITED,
-                "Script is rate-limited. Wait before re-dispatching",
-            )
-        }
-
-        val actualHash = TermuxScriptPolicy.parseHashResult(commandRunner(TermuxScriptPolicy.hashCheckRequest(script)))
-            ?: return TermuxScriptExecutionResult.Rejected(
-                TermuxScriptRejectionReason.HASH_CHECK_FAILED,
-                "Termux could not verify the approved script hash",
-            )
-        if (actualHash != expectedHash) {
-            return TermuxScriptExecutionResult.Rejected(
-                TermuxScriptRejectionReason.HASH_MISMATCH,
-                "Script hash does not match its approved SHA-256 value",
-            )
-        }
-
-        val result = when (
-            val verified = TermuxScriptPolicy.unwrapVerifiedResult(
-                commandRunner(TermuxScriptPolicy.verifiedExecutionRequest(script, expectedHash)),
-                expectedHash,
-            )
-        ) {
-            TermuxVerifiedCommandResult.HashMismatch -> {
-                return TermuxScriptExecutionResult.Rejected(
-                    TermuxScriptRejectionReason.HASH_MISMATCH,
-                    "Script changed after its preflight hash check and was not executed",
-                )
-            }
-            TermuxVerifiedCommandResult.HashCheckFailed -> {
-                return TermuxScriptExecutionResult.Rejected(
-                    TermuxScriptRejectionReason.HASH_CHECK_FAILED,
-                    "Termux could not re-verify the approved script before execution",
-                )
-            }
-            is TermuxVerifiedCommandResult.Verified -> verified.command
-        }
-        if (!TermuxScriptPolicy.isOutputWithinLimit(result)) {
-            return TermuxScriptExecutionResult.Rejected(
-                TermuxScriptRejectionReason.OUTPUT_TOO_LARGE,
-                "Termux output exceeds the 32 KB per-stream capture limit",
-            )
-        }
-        return TermuxScriptExecutionResult.Completed(result, expectedHash)
-    }
-}
-
-internal class TermuxDispatchLimiter(
-    private val maxEntries: Int = 128,
-    private val minimumIntervalMs: Long = 1_000L,
-    private val retentionMs: Long = 10 * 60 * 1_000L,
-    private val clock: () -> Long = System::currentTimeMillis,
-) {
-    private val dispatchTimes = LinkedHashMap<String, Long>(16, 0.75f, true)
-
-    @Synchronized
-    fun tryAcquire(executable: String): Boolean {
-        val now = clock()
-        dispatchTimes.entries.removeIf { now - it.value >= retentionMs }
-        val lastDispatch = dispatchTimes[executable]
-        if (lastDispatch != null && now - lastDispatch < minimumIntervalMs) return false
-        dispatchTimes[executable] = now
-        while (dispatchTimes.size > maxEntries) {
-            dispatchTimes.entries.iterator().run {
-                next()
-                remove()
-            }
-        }
-        return true
-    }
-
-    @Synchronized
-    internal fun size(): Int = dispatchTimes.size
-}
-
-internal object TermuxScriptDispatch {
-    internal val limiter = TermuxDispatchLimiter()
-
-    fun hashScript(content: ByteArray): String = TermuxScriptPolicy.hash(content)
+internal sealed interface TermuxPreparationResult {
+    data class Ready(val script: PreparedTermuxScript) : TermuxPreparationResult
+    data class Invalid(val message: String) : TermuxPreparationResult
 }

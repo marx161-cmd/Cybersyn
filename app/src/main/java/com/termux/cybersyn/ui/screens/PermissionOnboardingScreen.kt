@@ -232,7 +232,6 @@ fun PermissionOnboardingScreen(
             )
         }
 
-        item { TermuxScriptAllowlistCard(onMessage) }
 
         items(orderedItems, key = { it.title }) { item ->
             val alreadyReadyMessage = stringResource(R.string.setup_item_already_ready, item.title)

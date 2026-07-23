@@ -49,14 +49,16 @@ internal object TermuxCommandBroker {
             callbackIntent,
             PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_UPDATE_CURRENT or mutableFlag,
         )
+
+        val (cmdPath, cmdArgs) = buildCommand(request)
         val commandIntent = Intent().apply {
             component = ComponentName(
                 TermuxScriptBackend.TERMUX_PACKAGE,
                 "com.termux.app.RunCommandService",
             )
             action = ACTION_RUN_COMMAND
-            putExtra(EXTRA_COMMAND_PATH, request.executable)
-            putExtra(EXTRA_ARGUMENTS, request.arguments.toTypedArray())
+            putExtra(EXTRA_COMMAND_PATH, cmdPath)
+            putExtra(EXTRA_ARGUMENTS, cmdArgs.toTypedArray())
             putExtra(EXTRA_BACKGROUND, true)
             putExtra(EXTRA_PENDING_INTENT, callback)
             request.workingDirectory?.let { putExtra(EXTRA_WORKDIR, it) }
@@ -76,9 +78,11 @@ internal object TermuxCommandBroker {
 
     private suspend fun executeDirect(request: TermuxCommandRequest): TermuxCommandResult = withContext(Dispatchers.IO) {
         withTimeout(request.timeoutMs) {
-            val executable = resolveTermuxPath(request.executable)
-            val process = ProcessBuilder(listOf(executable) + request.arguments)
-                .directory(request.workingDirectory?.let(::resolveTermuxPath)?.let(::File) ?: File(TERMUX_HOME))
+            val (executable, args) = buildCommand(request)
+            val workDir = request.workingDirectory?.let(::resolveTermuxPath)?.let(::File)
+                ?: File(TERMUX_HOME)
+            val process = ProcessBuilder(listOf(executable) + args)
+                .directory(workDir)
                 .redirectErrorStream(false)
                 .apply {
                     environment()["HOME"] = TERMUX_HOME
@@ -105,6 +109,14 @@ internal object TermuxCommandBroker {
                 )
             }
         }
+    }
+
+    private fun buildCommand(request: TermuxCommandRequest): Pair<String, List<String>> {
+        val executable = resolveTermuxPath(request.executable)
+        if (!request.useRoot) return executable to request.arguments
+        val cmd = listOf(executable) + request.arguments
+        val shellCmd = cmd.joinToString(" ") { "'${it.replace("'", "'\\''")}'" }
+        return resolveTermuxPath(TermuxScriptPolicy.SU_EXECUTABLE) to listOf("-c", shellCmd)
     }
 
     private fun resolveTermuxPath(path: String): String = when {

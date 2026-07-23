@@ -4,14 +4,13 @@ import com.termux.cybersyn.core.engine.Action
 import com.termux.cybersyn.core.engine.ActionCategory
 import com.termux.cybersyn.core.engine.ActionContext
 import com.termux.cybersyn.core.engine.ActionResult
-import com.termux.cybersyn.core.logging.AppLogger
 import com.termux.cybersyn.core.scripting.TermuxCommandBroker
-import com.termux.cybersyn.core.scripting.TermuxScriptAllowlistStore
+import com.termux.cybersyn.core.scripting.TermuxCommandRequest
+import com.termux.cybersyn.core.scripting.TermuxCommandResult
 import com.termux.cybersyn.core.scripting.TermuxScriptBackend
-import com.termux.cybersyn.core.scripting.TermuxScriptCoordinator
-import com.termux.cybersyn.core.scripting.TermuxScriptExecutionResult
 import com.termux.cybersyn.core.scripting.TermuxScriptInvocation
 import com.termux.cybersyn.core.scripting.TermuxScriptPolicy
+import com.termux.cybersyn.core.scripting.TermuxPreparationResult
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.TimeoutCancellationException
 
@@ -30,6 +29,7 @@ class TermuxScriptAction : Action {
         if (capturePrefix != null && !TermuxScriptPolicy.isValidCapturePrefix(capturePrefix)) {
             return ActionResult.Failure("Output variable prefix is invalid")
         }
+        val useRoot = args["useRoot"]?.trim()?.lowercase() in setOf("true", "1", "yes")
 
         val invocation = TermuxScriptInvocation(
             executable = executable,
@@ -37,32 +37,41 @@ class TermuxScriptAction : Action {
             workingDirectory = args["workingDirectory"],
             stdin = args["stdin"],
             timeoutMs = timeoutMs,
+            useRoot = useRoot,
         )
         val readiness = TermuxScriptBackend.isDispatchReady(ctx.app)
-        val coordinator = TermuxScriptCoordinator()
+        if (!readiness) {
+            return ActionResult.Failure("Termux RUN_COMMAND permission is not ready")
+        }
+
+        val script = when (val prepared = TermuxScriptPolicy.prepare(invocation)) {
+            is TermuxPreparationResult.Invalid -> return ActionResult.Failure(prepared.message)
+            is TermuxPreparationResult.Ready -> prepared.script
+        }
+
+        val request = TermuxCommandRequest(
+            executable = script.executable,
+            arguments = script.arguments,
+            workingDirectory = script.workingDirectory,
+            stdin = script.stdin,
+            timeoutMs = script.timeoutMs,
+            useRoot = useRoot,
+        )
 
         return try {
-            val execution = coordinator.execute(
-                ready = readiness,
-                invocation = invocation,
-                approvedHashFor = { normalizedExecutable ->
-                    TermuxScriptAllowlistStore(ctx.app).expectedHash(normalizedExecutable)
-                },
-                commandRunner = { request -> TermuxCommandBroker.execute(ctx.app, request) },
-            )
-            when (execution) {
-                is TermuxScriptExecutionResult.Rejected -> ActionResult.Failure(execution.message)
-                is TermuxScriptExecutionResult.Completed -> completeExecution(ctx, capturePrefix, execution)
+            val result = TermuxCommandBroker.execute(ctx.app, request)
+            if (!TermuxScriptPolicy.isOutputWithinLimit(result)) {
+                return ActionResult.Failure("Termux output exceeds the 32 KB per-stream capture limit")
             }
+            completeExecution(ctx, capturePrefix, result)
         } catch (_: TimeoutCancellationException) {
-            ctx.logger("Termux script timed out; stdout=<redacted> stderr=<redacted>")
+            ctx.logger("Termux script timed out")
             ActionResult.Failure("Termux command timed out")
         } catch (_: SecurityException) {
             ActionResult.Failure("Termux RUN_COMMAND permission was denied")
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (error: Exception) {
-            AppLogger.error("TermuxScriptAction", "Dispatch failed (${error.javaClass.simpleName}); output redacted")
             ActionResult.Failure("Termux dispatch failed (${error.javaClass.simpleName})")
         }
     }
@@ -70,9 +79,8 @@ class TermuxScriptAction : Action {
     internal fun completeExecution(
         ctx: ActionContext,
         capturePrefix: String?,
-        execution: TermuxScriptExecutionResult.Completed,
+        result: TermuxCommandResult,
     ): ActionResult {
-        val result = execution.command
         if (capturePrefix != null) {
             ctx.variables.set("${capturePrefix}_stdout", result.stdout)
             ctx.variables.set("${capturePrefix}_stderr", result.stderr)
@@ -80,13 +88,8 @@ class TermuxScriptAction : Action {
             ctx.variables.set("${capturePrefix}_stdout_length", result.stdoutOriginalLength.toString())
             ctx.variables.set("${capturePrefix}_stderr_length", result.stderrOriginalLength.toString())
         }
-        ctx.logger(
-            "Termux script completed: hash=${execution.approvedHash}; exit=${result.exitCode}; " +
-                "stdout=<redacted:${TermuxScriptPolicy.utf8Size(result.stdout)}B>; " +
-                "stderr=<redacted:${TermuxScriptPolicy.utf8Size(result.stderr)}B>",
-        )
         return when {
-            result.errorCode != 0 -> ActionResult.Failure("Termux could not execute the approved script")
+            result.errorCode != 0 -> ActionResult.Failure("Termux could not execute the script")
             result.exitCode != 0 -> ActionResult.Failure("Termux script exited with code ${result.exitCode}")
             else -> ActionResult.Success
         }

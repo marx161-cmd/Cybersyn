@@ -9,6 +9,8 @@ import com.termux.cybersyn.core.engine.Action
 import com.termux.cybersyn.core.engine.ActionCategory
 import com.termux.cybersyn.core.engine.ActionContext
 import com.termux.cybersyn.core.engine.ActionResult
+import com.termux.cybersyn.core.scripting.TermuxCommandBroker
+import com.termux.cybersyn.core.scripting.TermuxCommandRequest
 
 /**
  * Vibrate device.
@@ -63,7 +65,18 @@ class RebootAction : Action {
     override suspend fun run(ctx: ActionContext, args: Map<String, String>): ActionResult {
         val mode = args["mode"]?.ifBlank { null }
         ctx.logger("Reboot${mode?.let { " ($it)" } ?: ""}")
-        return ActionResult.Failure("Reboot requires privileged device-owner or system app access")
+        val command = when (mode?.lowercase()) {
+            null -> "svc power reboot"
+            "recovery" -> "svc power reboot recovery"
+            "bootloader" -> "svc power reboot bootloader"
+            else -> return ActionResult.Failure("invalid reboot mode: $mode")
+        }
+        val result = runRootCommand(ctx, command)
+        return if (result.exitCode == 0) {
+            ActionResult.Success
+        } else {
+            ActionResult.Failure("Reboot root command failed: ${result.stderr.ifBlank { result.stdout }}")
+        }
     }
 }
 
@@ -89,7 +102,12 @@ class ScreenOffAction : Action {
 
     override suspend fun run(ctx: ActionContext, args: Map<String, String>): ActionResult {
         ctx.logger("Screen off")
-        return ActionResult.Failure("Screen-off requires privileged power management access")
+        val result = runRootCommand(ctx, "input keyevent KEYCODE_SLEEP")
+        return if (result.exitCode == 0) {
+            ActionResult.Success
+        } else {
+            ActionResult.Failure("Screen-off root command failed: ${result.stderr.ifBlank { result.stdout }}")
+        }
     }
 }
 
@@ -106,9 +124,25 @@ class WakeAction : Action {
     override suspend fun run(ctx: ActionContext, args: Map<String, String>): ActionResult {
         val dur = args["duration_sec"]?.toLongOrNull() ?: 10L
         ctx.logger("Wake (${dur}s)")
-        return ActionResult.Failure("Screen wake requires a foreground activity or privileged wake flow")
+        val result = runRootCommand(ctx, "input keyevent KEYCODE_WAKEUP")
+        return if (result.exitCode == 0) {
+            ActionResult.Success
+        } else {
+            ActionResult.Failure("Wake root command failed: ${result.stderr.ifBlank { result.stdout }}")
+        }
     }
 }
+
+private suspend fun runRootCommand(ctx: ActionContext, command: String) =
+    TermuxCommandBroker.execute(
+        ctx.app,
+        TermuxCommandRequest(
+            executable = "\$PREFIX/bin/sh",
+            arguments = listOf("-c", command),
+            timeoutMs = 30_000L,
+            useRoot = true,
+        ),
+    )
 
 /**
  * Log a message to the run log (visible in history).

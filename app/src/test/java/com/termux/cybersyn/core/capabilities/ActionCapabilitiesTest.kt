@@ -10,17 +10,27 @@ import org.junit.Test
 class ActionCapabilitiesTest {
     @Test
     fun unsupportedActionsCannotBeAddedFromUi() {
-        assertFalse(ActionCapabilityRegistry.get("reboot").canAdd)
+        assertFalse(ActionCapabilityRegistry.get("tile.set").canAdd)
+        assertFalse(ActionCapabilityRegistry.get("lock").canAdd)
         assertFalse(ActionCapabilityRegistry.get("wifi.toggle").canAdd)
     }
 
     @Test
-    fun elevatedActionsStayUnsupportedWithoutPrivilegedTransport() {
-        ShizukuPowerBackend.elevatedActionIds.forEach { actionId ->
+    fun screenshotStaysUnsupportedWithoutPrivilegedTransport() {
+        val capability = ActionCapabilityRegistry.get("screenshot.take")
+
+        assertEquals(CapabilityLevel.Unsupported, capability.level)
+        assertFalse(capability.canAdd)
+        assertTrue(capability.reason.contains("does not ship a privileged Shizuku user-service transport"))
+    }
+
+    @Test
+    fun rootBackedActionsRequireSetup() {
+        ShizukuPowerBackend.elevatedActionIds.minus("screenshot.take").forEach { actionId ->
             val capability = ActionCapabilityRegistry.get(actionId)
-            assertEquals("$actionId must fail closed", CapabilityLevel.Unsupported, capability.level)
-            assertFalse(capability.canAdd)
-            assertTrue(capability.reason.contains("does not ship a privileged Shizuku user-service transport"))
+            assertEquals("$actionId should route through Termux root setup", CapabilityLevel.RequiresSetup, capability.level)
+            assertTrue(capability.canAdd)
+            assertTrue(capability.reason.contains("superuser grant"))
         }
     }
 

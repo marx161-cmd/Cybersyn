@@ -42,8 +42,8 @@ object ActionCapabilityRegistry {
         "dnd.set" to ActionCapability(CapabilityLevel.RequiresSetup, "Requires Do Not Disturb access.", R.string.capability_dnd_access),
         "ringer.set" to volumeCapability("May require Do Not Disturb access on some devices when switching to silent mode."),
         "torch.set" to ActionCapability(CapabilityLevel.Supported, "Uses camera flashlight.", R.string.capability_torch_ready),
-        "airplane.toggle" to elevatedUnsupported("airplane.toggle", "Airplane mode changes require system or device-owner privileges.", R.string.capability_airplane_unsupported),
-        "mobile.toggle" to elevatedUnsupported("mobile.toggle", "Mobile data changes require carrier, system, or device-owner privileges.", R.string.capability_mobile_data_unsupported),
+        "airplane.toggle" to rootCapability("Airplane mode changes require a superuser grant."),
+        "mobile.toggle" to rootCapability("Mobile data changes require a superuser grant."),
         "sms.send" to smsCapability(),
         "screenshot.take" to elevatedUnsupported("screenshot.take", "Screenshots require MediaProjection consent or privileged shell access.", R.string.capability_screenshot_unsupported),
         "sound.play" to audioOutputCapability("Plays audio from a file path or content URI."),
@@ -53,15 +53,15 @@ object ActionCapabilityRegistry {
         "track.previous" to mediaKeyCapability("Previous track via media key dispatch."),
         "media.mute" to volumeCapability("Mutes a stream. May be blocked by Do Not Disturb policy."),
         "tts.speak" to audioOutputCapability("Uses Android TTS engine to speak text aloud."),
-        "reboot" to elevatedUnsupported("reboot", "Reboot requires privileged device-owner or system app access.", R.string.capability_reboot_unsupported),
+        "reboot" to rootCapability("Reboot requires a superuser grant."),
         "lock" to ActionCapability(CapabilityLevel.Unsupported, "Device lock requires configured device-admin support.", R.string.capability_lock_unsupported),
         "tile.set" to ActionCapability(CapabilityLevel.Unsupported, "Quick Settings tile updates are not functional yet; per-task tiles are a planned feature.", R.string.capability_tile_unsupported),
-        "screen.off" to elevatedUnsupported("screen.off", "Screen-off requires privileged power management access.", R.string.capability_screen_off_unsupported),
-        "wake" to elevatedUnsupported("wake", "Wake requires a foreground activity or privileged wake flow.", R.string.capability_wake_unsupported),
+        "screen.off" to rootCapability("Screen-off requires a superuser grant."),
+        "wake" to rootCapability("Wake requires a superuser grant."),
         TermuxScriptBackend.ACTION_ID to ActionCapability(
             CapabilityLevel.RequiresSetup,
             TermuxScriptBackend.hintForAction(TermuxScriptBackend.ACTION_ID)?.message
-                ?: "Termux 0.109+, RUN_COMMAND permission, and an approved script hash are required.",
+                ?: "Termux 0.109+ and RUN_COMMAND permission are required.",
             R.string.capability_termux_setup,
         ),
         "tasker.unsupported" to ActionCapability(CapabilityLevel.Unsupported, "Imported Tasker action could not be mapped to a supported Cybersyn action.", R.string.capability_tasker_import_unsupported),
@@ -113,6 +113,13 @@ object ActionCapabilityRegistry {
 
     private fun volumeCapability(reason: String): ActionCapability =
         volumeCapabilityForSdk(android.os.Build.VERSION.SDK_INT, reason)
+
+    private fun rootCapability(reason: String): ActionCapability =
+        ActionCapability(
+            CapabilityLevel.RequiresSetup,
+            reason,
+            R.string.capability_termux_setup,
+        )
 
     private fun elevatedUnsupported(actionId: String, reason: String, @StringRes reasonRes: Int): ActionCapability =
         ActionCapability(
