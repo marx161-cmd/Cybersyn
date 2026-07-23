@@ -32,8 +32,14 @@ that's a flag to stop and resolve it in discussion, then update both.
 5. **Transport: MQTT is the default bus for everything** — triggers, events,
    actions, presence. Mosquitto already runs on comrade
    (`100.108.8.60:1883`, also `127.0.0.1:1883`) and the phone→MQTT→uinput
-   path is proven live (`p30control.service` active today). Encryption is
-   the always-on zero-trust Tailscale mesh — no extra crypto layer needed.
+   path is proven live end-to-end (2026-07-23). `p30control` is retired,
+   replaced by `cybersyn-hid-relay.service` — one uinput device fed by both
+   the touch trackpad (`cybersyn/hid/{mouse,click,scroll}`) and gyro
+   (`game_rotation_vector` on `android/sensor`, quaternion→smooth pointer,
+   gated by the `android/clutch` clutch). The `cybersyn-stub1` freeform pad
+   drives it: touch move/click/scroll and gyro-aim all confirmed moving
+   comrade's cursor. Encryption is the always-on zero-trust Tailscale mesh —
+   no extra crypto layer needed.
    Exception: **file sending reuses KDE Connect's transfer code/approach**
    (its payload side-channel is good, MQTT is wrong for bulk data).
 6. **Keep what's already there and working from reused KDE code** — e.g.
@@ -194,12 +200,22 @@ GPL-2/3, C++/Qt6 + KF6. Not run and not forked; read it to port behavior:
 
 ## 7. Next steps
 
-1. Keep expanding `tools/cybersynctl` as the authoring surface: validation,
+Done (2026-07-23): trackpad control stack is live. The `cybersyn-stub1`
+freeform pad moves comrade's cursor (touch move/click/scroll) and streams
+`game_rotation_vector` gyro to `android/sensor`; gyro-aim is gated by the
+relay clutch, toggled on demand via the `mqtt.publish` Cybersyn action to
+`android/clutch` (`examples/gyro-clutch.yaml`). Root cause of the earlier
+"pad does nothing": the stub did socket I/O on the UI thread
+(`NetworkOnMainThreadException`, swallowed) — fixed by a HandlerThread.
+Trackpad script host-side scripts (`examples/kde-command-replacements.yaml`)
+and Device Controls (`TaskControlsService`) also landed.
+
+Remaining:
+1. Optional gyro polish: stream `gyro`/`linear_accel` too for the relay's
+   adaptive stabilization; gate stub streaming to avoid 50 Hz when clutch off.
+2. Keep expanding `tools/cybersynctl` as the authoring surface: validation,
    better diffs, and richer YAML shorthands before considering any server.
-2. Draft the MQTT topic/message schema (§2) small and concrete against the
-   first real relay rules; extend per rule after that.
-3. First relay rule through the engine: event → MQTT → relay action → result.
-4. Copy in KDE file-transfer parts when the first file-moving rule needs them
+3. Copy in KDE file-transfer parts when the first file-moving rule needs them
    (shopping list in §4).
-5. At cutover: retire stock KDE per §1.7 and reconcile `OVERVIEW.md` with
+4. At cutover: retire stock KDE per §1.7 and reconcile `OVERVIEW.md` with
    this doc.
