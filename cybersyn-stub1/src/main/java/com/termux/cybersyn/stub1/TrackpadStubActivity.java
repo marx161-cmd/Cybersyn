@@ -3,6 +3,8 @@ package com.termux.cybersyn.stub1;
 import android.app.Activity;
 import android.graphics.Color;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.HandlerThread;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.View;
@@ -110,11 +112,26 @@ public final class TrackpadStubActivity extends Activity implements GestureDetec
     }
 
     private static final class MqttPublisher {
+        // All socket I/O runs on this background thread. Publishing from the UI
+        // thread (onTouch) would throw NetworkOnMainThreadException and silently
+        // drop every packet, which is exactly the bug this replaces.
+        private final HandlerThread thread;
+        private final Handler handler;
         private Socket socket;
         private OutputStream out;
         private int packetId;
 
-        synchronized void publish(String topic, String payload) {
+        MqttPublisher() {
+            thread = new HandlerThread("cybersyn-stub1-mqtt");
+            thread.start();
+            handler = new Handler(thread.getLooper());
+        }
+
+        void publish(String topic, String payload) {
+            handler.post(() -> doPublish(topic, payload));
+        }
+
+        private void doPublish(String topic, String payload) {
             try {
                 ensureConnected();
                 byte[] topicBytes = topic.getBytes(StandardCharsets.UTF_8);
@@ -126,7 +143,7 @@ public final class TrackpadStubActivity extends Activity implements GestureDetec
                 out.write(payloadBytes);
                 out.flush();
             } catch (Exception ignored) {
-                close();
+                closeSocket();
             }
         }
 
@@ -150,11 +167,16 @@ public final class TrackpadStubActivity extends Activity implements GestureDetec
             socket.getInputStream().read(new byte[4]);
         }
 
-        synchronized void close() {
+        private void closeSocket() {
             try { if (out != null) out.close(); } catch (Exception ignored) {}
             try { if (socket != null) socket.close(); } catch (Exception ignored) {}
             out = null;
             socket = null;
+        }
+
+        void close() {
+            handler.post(this::closeSocket);
+            thread.quitSafely();
         }
 
         private static void writeUtf8(OutputStream out, byte[] bytes) throws Exception {
