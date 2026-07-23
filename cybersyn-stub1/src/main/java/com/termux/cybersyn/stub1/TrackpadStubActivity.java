@@ -2,6 +2,10 @@ package com.termux.cybersyn.stub1;
 
 import android.app.Activity;
 import android.graphics.Color;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
@@ -13,15 +17,22 @@ import java.io.OutputStream;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 
-public final class TrackpadStubActivity extends Activity implements GestureDetector.OnGestureListener, GestureDetector.OnDoubleTapListener {
+public final class TrackpadStubActivity extends Activity
+        implements GestureDetector.OnGestureListener, GestureDetector.OnDoubleTapListener, SensorEventListener {
     private static final int SURFACE_TINT = 0x1A003D1F;
     private static final String BROKER = "100.108.8.60";
     private static final int PORT = 1883;
     private static final String TOPIC_MOUSE = "cybersyn/hid/mouse";
     private static final String TOPIC_CLICK = "cybersyn/hid/click";
     private static final String TOPIC_SCROLL = "cybersyn/hid/scroll";
+    // Gyro: the good "gaming sensor" path — stream game_rotation_vector quaternions to
+    // android/sensor; the relay (cybersyn-hid-relay.py) does quaternion->smooth-pointer and
+    // gates on android/clutch, which a Cybersyn mqtt.publish action toggles on demand.
+    private static final String TOPIC_SENSOR = "android/sensor";
 
     private GestureDetector gestureDetector;
+    private SensorManager sensorManager;
+    private Sensor gameRotationSensor;
     private float previousX;
     private float previousY;
     private boolean dragging;
@@ -38,11 +49,48 @@ public final class TrackpadStubActivity extends Activity implements GestureDetec
         gestureDetector = new GestureDetector(this, this);
         gestureDetector.setOnDoubleTapListener(this);
 
+        sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
+        if (sensorManager != null) {
+            gameRotationSensor = sensorManager.getDefaultSensor(Sensor.TYPE_GAME_ROTATION_VECTOR);
+        }
+
         View surface = new View(this);
         surface.setBackgroundColor(SURFACE_TINT);
         surface.setOnTouchListener((view, event) -> handleTouch(event));
         setContentView(surface);
     }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // Stream while the pad is up; the relay's clutch decides when tilt moves the cursor.
+        if (sensorManager != null && gameRotationSensor != null) {
+            sensorManager.registerListener(this, gameRotationSensor, SensorManager.SENSOR_DELAY_GAME);
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        if (sensorManager != null) sensorManager.unregisterListener(this);
+        super.onPause();
+    }
+
+    @Override
+    public void onSensorChanged(SensorEvent event) {
+        if (event.sensor.getType() != Sensor.TYPE_GAME_ROTATION_VECTOR) return;
+        float x = event.values[0];
+        float y = event.values[1];
+        float z = event.values[2];
+        float w = event.values.length >= 4
+                ? event.values[3]
+                : (float) Math.sqrt(Math.max(0f, 1f - (x * x + y * y + z * z)));
+        publish(TOPIC_SENSOR,
+                "{\"type\":\"android.sensor.game_rotation_vector\",\"values\":["
+                        + x + "," + y + "," + z + "," + w + "]}");
+    }
+
+    @Override
+    public void onAccuracyChanged(Sensor sensor, int accuracy) {}
 
     @Override
     protected void onDestroy() {
