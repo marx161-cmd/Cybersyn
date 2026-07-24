@@ -23,6 +23,7 @@ class LogcatContextSource : SubscriptionReadyContextSource {
     private var readerJob: Job? = null
     private var readerProcess: Process? = null
     private var readerScope: CoroutineScope? = null
+    @Volatile private var readerPid: Int? = null
 
     private val sharedFlow = MutableSharedFlow<ContextEvent>(
         replay = 0,
@@ -52,13 +53,20 @@ class LogcatContextSource : SubscriptionReadyContextSource {
     override fun events(app: Context): Flow<ContextEvent> = events(app) {}
 
     private fun startReader(app: Context) {
+        if (readerProcess?.isAlive == true) {
+            AppLogger.warn(TAG, "startReader called with a reader already running; ignoring")
+            return
+        }
         val scope = CoroutineScope(Dispatchers.IO + Job())
         readerScope = scope
         readerJob = scope.launch {
             try {
                 val pb = ProcessBuilder(
                     "su", "-c",
-                    "exec logcat -v threadtime *:E *:S",
+                    // `exec` replaces this shell's image with logcat's, so the pid this shell
+                    // reports via `$$` is logcat's real pid for the rest of its life — captured
+                    // here since it re-execs as root and Process.pid()/destroy() can't reach it.
+                    "echo READER_PID:\$\$; exec logcat -v threadtime *:E *:S",
                 )
                 pb.redirectErrorStream(true)
                 val process = pb.start()
@@ -67,8 +75,14 @@ class LogcatContextSource : SubscriptionReadyContextSource {
 
                 BufferedReader(InputStreamReader(process.inputStream), 8192).use { reader ->
                     var line: String?
+                    var pidLineConsumed = false
                     while (isActive) {
                         line = reader.readLine() ?: break
+                        if (!pidLineConsumed) {
+                            pidLineConsumed = true
+                            readerPid = line.removePrefix("READER_PID:").trim().toIntOrNull()
+                            continue
+                        }
                         if (line.isBlank()) continue
                         val event = parseLogLine(line) ?: continue
                         sharedFlow.tryEmit(event)
@@ -78,8 +92,9 @@ class LogcatContextSource : SubscriptionReadyContextSource {
             } catch (e: Exception) {
                 AppLogger.error(TAG, "logcat reader error", e)
             } finally {
-                readerProcess?.destroy()
+                killReaderProcess(readerProcess, readerPid)
                 readerProcess = null
+                readerPid = null
                 readerJob = null
                 AppLogger.info(TAG, "logcat reader stopped")
             }
@@ -89,9 +104,35 @@ class LogcatContextSource : SubscriptionReadyContextSource {
     private fun stopReader() {
         readerJob?.cancel()
         readerJob = null
-        readerProcess?.destroy()
+        killReaderProcess(readerProcess, readerPid)
         readerProcess = null
+        readerPid = null
         readerScope = null
+    }
+
+    /**
+     * [Process.destroy] only sends a signal the JVM's own (unprivileged) UID is allowed to
+     * deliver. The reader was launched via `su -c "exec logcat ..."`, so it re-execs as root —
+     * destroy() silently no-ops against it (no exception, no effect) and the process survives
+     * every stop/start cycle as an unkillable, ever-accumulating orphan. Killing it needs another
+     * root shell, by the pid the shell reported before it exec'd into logcat.
+     */
+    private fun killReaderProcess(process: Process?, pid: Int?) {
+        process?.destroy()
+        if (pid != null) {
+            runCatching {
+                ProcessBuilder("su", "-c", "kill -9 $pid").start().waitFor()
+            }.onFailure { AppLogger.warn(TAG, "Failed to root-kill logcat reader pid=$pid", it) }
+        }
+    }
+
+    /**
+     * Unconditional teardown regardless of [subscriberCount]. Called by the owning monitor's
+     * stop handle so a stuck/miscounted subscriber can never keep the reader process alive forever.
+     */
+    fun forceStop() {
+        subscriberCount.set(0)
+        stopReader()
     }
 
     companion object {

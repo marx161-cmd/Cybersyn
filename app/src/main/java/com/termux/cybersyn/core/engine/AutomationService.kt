@@ -79,6 +79,7 @@ class AutomationService : Service() {
     private val shakeDetector by lazy { ShakeDetector(this) }
     private val runLogRetentionSettings by lazy { RunLogRetentionSettings(this) }
     private val engineHeartbeatStore by lazy { EngineHeartbeatStore(this) }
+    private val logcatContextSource by lazy { LogcatContextSource() }
     private val contextMonitorLifecycle by lazy {
         ContextMonitorLifecycle(
             mapOf(
@@ -128,11 +129,15 @@ class AutomationService : Service() {
                 ),
                 ContextMonitor.LOGCAT to ContextMonitorHandle(
                     start = {
-                        ContextSourceRegistry.register(LogcatContextSource())
+                        ContextSourceRegistry.register(logcatContextSource)
                         true
                     },
                     stop = {
-                        // LogcatContextSource stops itself when last subscriber leaves
+                        // Reference-counted shutdown normally handles this, but reconcile() can
+                        // toggle this monitor off/on across a flaky profile reload; forceStop()
+                        // guarantees the reader process actually dies instead of leaking a
+                        // `su -c logcat` child every time that happens.
+                        logcatContextSource.forceStop()
                     },
                 ),
             ),
@@ -154,6 +159,10 @@ class AutomationService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        // A prior instance that crashed/was killed (not onDestroy()'d) leaves its su-spawned
+        // `logcat` reader orphaned under init, since that child process's lifetime was never
+        // tied to this service's. Sweep those before this instance registers its own reader.
+        scope.launch(Dispatchers.IO) { killStrayLogcatReaders() }
         startForegroundCompat()
         timeEventScheduler.scheduleNextMinute()
         engineHeartbeatStore.recordAlive()
@@ -251,6 +260,12 @@ class AutomationService : Service() {
         job.cancel()
         logContextMonitorTransition(contextMonitorLifecycle.stopAll())
         super.onDestroy()
+    }
+
+    private fun killStrayLogcatReaders() {
+        runCatching {
+            ProcessBuilder("su", "-c", "pkill -f 'logcat -v threadtime'").start().waitFor()
+        }.onFailure { AppLogger.warn(TAG, "Failed to sweep stray logcat readers", it) }
     }
 
     private suspend fun reloadProfiles() = profileReloadMutex.withLock {
