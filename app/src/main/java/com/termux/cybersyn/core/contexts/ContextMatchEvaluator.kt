@@ -25,6 +25,7 @@ object ContextMatchEvaluator {
         ContextType.STATE -> "state"
         ContextType.EVENT -> "event"
         ContextType.PLUGIN -> "plugin"
+        ContextType.LOGCAT -> "logcat"
     }
 
     fun matches(spec: ContextSpec, event: ContextEvent): Boolean {
@@ -40,6 +41,7 @@ object ContextMatchEvaluator {
             ContextType.STATE -> matchesState(spec, event)
             ContextType.EVENT -> matchesEvent(spec, event)
             ContextType.PLUGIN -> matchesPlugin(spec, event)
+            ContextType.LOGCAT -> matchesLogcat(spec, event)
         }
     }
 
@@ -207,6 +209,26 @@ object ContextMatchEvaluator {
         val actualBundle = event.metadata["bundleJson"].orEmpty().ifBlank { "{}" }
         if (expectedBundle != actualBundle) return false
         return event.metadata["state"].equals("satisfied", ignoreCase = true)
+    }
+
+    private fun matchesLogcat(spec: ContextSpec, event: ContextEvent): Boolean {
+        val tagFilter = spec.config["tag"]?.trim()?.takeIf { it.isNotBlank() }
+        val regexFilter = spec.config["regex"]?.trim()?.takeIf { it.isNotBlank() }
+
+        val eventTag = event.metadata["tag"].orEmpty()
+        if (tagFilter != null && !eventTag.equals(tagFilter, ignoreCase = true)) {
+            return false
+        }
+
+        if (regexFilter != null) {
+            val message = event.metadata["message"].orEmpty()
+            return runCatching {
+                Regex(regexFilter, RegexOption.IGNORE_CASE).containsMatchIn(message)
+            }.getOrDefault(false)
+        }
+
+        // No tag filter and no regex — match any logcat line (useful for "every error" watchers)
+        return true
     }
 
     private fun matchesSunEvent(spec: ContextSpec, event: ContextEvent, expectedEvent: String): Boolean {

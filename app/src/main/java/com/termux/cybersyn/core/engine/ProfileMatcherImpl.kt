@@ -46,14 +46,14 @@ class ProfileMatcher(
             return emptyFlow()
         }
 
-        val pulseContextCount = profile.contexts.count { it.type == ContextType.EVENT }
+        val pulseContextCount = profile.contexts.count { it.type.isPulseContext() }
         val hasPulseContexts = pulseContextCount > 0
         if (!hasPulseContexts) monitorSubscriptionsReady.complete(Unit)
         val flows = profile.contexts.mapIndexed { index, spec ->
             val sourceType = ContextMatchEvaluator.sourceKey(spec.type)
             val source = sourceType?.let(ContextSourceRegistry::get)
             if (source != null) {
-                val isPulseContext = spec.type == ContextType.EVENT
+                val isPulseContext = spec.type.isPulseContext()
                 val sourceEvents = if (isPulseContext && source is SubscriptionReadyContextSource) {
                     source.events(app) { markPulseContextSubscribed(index, pulseContextCount) }
                 } else {
@@ -83,8 +83,8 @@ class ProfileMatcher(
                 }
             } else {
                 AppLogger.warn(tag, "No context source registered for ${spec.type}; treating as non-matching")
-                if (spec.type == ContextType.EVENT) markPulseContextSubscribed(index, pulseContextCount)
-                flowOf(ContextMatchUpdate.initial(spec.type == ContextType.EVENT))
+                if (spec.type.isPulseContext()) markPulseContextSubscribed(index, pulseContextCount)
+                flowOf(ContextMatchUpdate.initial(spec.type.isPulseContext()))
             }
         }
 
@@ -215,3 +215,5 @@ sealed class ProfileStateChange {
     data object Activated : ProfileStateChange()
     data object Deactivated : ProfileStateChange()
 }
+
+internal fun ContextType.isPulseContext(): Boolean = this == ContextType.EVENT || this == ContextType.LOGCAT

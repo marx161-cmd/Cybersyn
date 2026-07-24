@@ -290,6 +290,10 @@ private fun contextFields(type: ContextType): List<ActionField> = when (type) {
         ActionField("blurb", R.string.context_field_plugin_blurb_label, hintRes = R.string.context_field_plugin_blurb_hint),
         ActionField("timeoutMs", R.string.context_field_plugin_timeout_label, FieldType.NUMBER, hintRes = R.string.context_field_plugin_timeout_hint),
     )
+    ContextType.LOGCAT -> listOf(
+        ActionField("tag", R.string.context_field_event_type_label, hintRes = R.string.context_field_event_type_hint),
+        ActionField("regex", R.string.context_field_event_filter_label, hintRes = R.string.context_field_event_filter_hint),
+    )
 }
 
 private fun contextConfigForSave(type: ContextType, config: Map<String, String>): Map<String, String> {
@@ -487,6 +491,7 @@ internal fun contextTitleRes(type: ContextType): Int = when (type) {
     ContextType.STATE -> R.string.context_type_state_title
     ContextType.EVENT -> R.string.context_type_event_title
     ContextType.PLUGIN -> R.string.context_type_plugin_title
+    ContextType.LOGCAT -> R.string.context_type_event_title
 }
 
 @StringRes
@@ -498,4 +503,5 @@ internal fun contextDescriptionRes(type: ContextType): Int = when (type) {
     ContextType.STATE -> R.string.context_type_state_description
     ContextType.EVENT -> R.string.context_type_event_description
     ContextType.PLUGIN -> R.string.context_type_plugin_description
+    ContextType.LOGCAT -> R.string.context_type_event_description
 }

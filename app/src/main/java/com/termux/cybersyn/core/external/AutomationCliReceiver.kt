@@ -6,8 +6,10 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.util.Base64
+import androidx.core.content.ContextCompat
 import com.termux.cybersyn.app.CybersynApp_NoHilt
 import com.termux.cybersyn.app.BuildConfig
+import com.termux.cybersyn.core.engine.AutomationService
 import com.termux.cybersyn.core.engine.executeAndLogTask
 import com.termux.cybersyn.core.logging.AppLogger
 import com.termux.cybersyn.core.transfer.OpenTaskerBundleCodec
@@ -32,7 +34,7 @@ class AutomationCliReceiver : BroadcastReceiver() {
             val extras = Bundle()
             val resultCode = runCatching {
                 when (intent.action) {
-                    AutomationTargetContract.ACTION_IMPORT_BUNDLE -> importBundle(intent, extras)
+                    AutomationTargetContract.ACTION_IMPORT_BUNDLE -> importBundle(context, intent, extras)
                     AutomationTargetContract.ACTION_EXPORT_BUNDLE -> exportBundle(intent, extras)
                     AutomationTargetContract.ACTION_RUN_TASK -> runTask(context.applicationContext, intent, extras)
                     AutomationTargetContract.ACTION_SET_PROFILE_ENABLED -> setProfileEnabled(intent, extras)
@@ -49,7 +51,7 @@ class AutomationCliReceiver : BroadcastReceiver() {
         }
     }
 
-    private suspend fun importBundle(intent: Intent, extras: Bundle): Int {
+    private suspend fun importBundle(context: Context, intent: Intent, extras: Bundle): Int {
         val rawJson = intent.getStringExtra(AutomationTargetContract.EXTRA_BUNDLE_JSON)
             ?: intent.getStringExtra(AutomationTargetContract.EXTRA_BUNDLE_BASE64)
                 ?.let { encoded -> String(Base64.decode(encoded, Base64.DEFAULT), Charsets.UTF_8) }
@@ -59,6 +61,15 @@ class AutomationCliReceiver : BroadcastReceiver() {
             replaceExistingByName(bundle.tasks.map { it.name }.toSet(), bundle.profiles.map { it.name }.toSet())
         }
         val report = OpenTaskerBundleRepository(CybersynApp_NoHilt.db).importBundle(bundle)
+        runCatching {
+            CybersynApp_NoHilt.db.openHelper.writableDatabase
+                .execSQL("PRAGMA wal_checkpoint(FULL)")
+        }
+        ContextCompat.startForegroundService(
+            context.applicationContext,
+            Intent(context, AutomationService::class.java)
+                .setAction(AutomationService.ACTION_TIME_TICK_TRIGGER),
+        )
         if (intent.getBooleanExtra(AutomationTargetContract.EXTRA_ACKNOWLEDGE_RISK, false)) {
             val enable = intent.getBooleanExtra(AutomationTargetContract.EXTRA_ENABLED, false)
             acknowledgeImportedProfiles(bundle.profiles.map { it.name }.toSet(), enable)

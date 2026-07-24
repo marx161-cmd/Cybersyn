@@ -23,4 +23,5 @@ enum class ContextType {
     STATE,         // device state (battery, headphones, charging, screen, ...)
     EVENT,         // one-shot triggers (boot, notification, NFC, calendar, ...)
     PLUGIN,        // Locale/Tasker condition plugin (polled state)
+    LOGCAT,        // logcat pulse — regex match on system log stream
 }

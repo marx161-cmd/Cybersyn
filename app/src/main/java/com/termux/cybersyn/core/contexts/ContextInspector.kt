@@ -199,6 +199,7 @@ fun String.toContextSourceLabel(): String = when (this) {
     "event" -> "System event"
     "location" -> "Location"
     "plugin" -> "Plugin condition"
+    "logcat" -> "Logcat (system log)"
     else -> replaceFirstChar { it.titlecase(Locale.US) }
 }
 

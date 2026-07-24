@@ -18,6 +18,7 @@ internal enum class ContextMonitor {
     CAMERA_MIC,
     PACKAGE_EVENTS,
     BLUETOOTH_EVENTS,
+    LOGCAT,
 }
 
 internal data class ContextMonitorHandle(
@@ -118,6 +119,7 @@ internal fun requiredContextMonitors(profile: Profile): Set<ContextMonitor> = bu
             ContextType.APPLICATION -> add(ContextMonitor.APP_USAGE)
             ContextType.STATE -> addStateMonitor(spec)
             ContextType.EVENT -> addEventMonitor(spec)
+            ContextType.LOGCAT -> add(ContextMonitor.LOGCAT)
             ContextType.TIME,
             ContextType.DAY,
             ContextType.LOCATION,

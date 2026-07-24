@@ -26,6 +26,14 @@ import com.termux.cybersyn.core.actions.LogAction
 import com.termux.cybersyn.core.actions.MobileDataAction
 import com.termux.cybersyn.core.actions.MqttPublishAction
 import com.termux.cybersyn.core.actions.MuteAction
+import com.termux.cybersyn.core.actions.MpvEnterFreeformAction
+import com.termux.cybersyn.core.actions.MpvEnterPipAction
+import com.termux.cybersyn.core.actions.MpvExitFullscreenAction
+import com.termux.cybersyn.core.actions.MpvTogglePlayAction
+import com.termux.cybersyn.core.actions.MpvTogglePauseAction
+import com.termux.cybersyn.core.actions.MpvAspectWidescreenAction
+import com.termux.cybersyn.core.actions.MpvAspectCinemaAction
+import com.termux.cybersyn.core.actions.MpvAspectSquareAction
 import com.termux.cybersyn.core.actions.NextTrackAction
 import com.termux.cybersyn.core.actions.NotifyAction
 import com.termux.cybersyn.core.actions.NotifyCancelAction
@@ -124,6 +132,14 @@ private fun registerBuiltInActions() {
         DownloadAction(),
         WakeOnLanAction(),
         MqttPublishAction(),
+        MpvEnterFreeformAction(),
+        MpvEnterPipAction(),
+        MpvExitFullscreenAction(),
+        MpvTogglePlayAction(),
+        MpvTogglePauseAction(),
+        MpvAspectWidescreenAction(),
+        MpvAspectCinemaAction(),
+        MpvAspectSquareAction(),
         PlaySoundAction(),
         StopSoundAction(),
         PauseSoundAction(),

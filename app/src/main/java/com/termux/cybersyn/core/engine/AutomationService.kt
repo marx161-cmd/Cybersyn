@@ -23,6 +23,8 @@ import com.termux.cybersyn.automation.sensor.ShakeDetector
 import com.termux.cybersyn.automation.scheduler.TimeEventScheduler
 import com.termux.cybersyn.core.logging.AppLogger
 import com.termux.cybersyn.core.contexts.BluetoothContextEvents
+import com.termux.cybersyn.core.contexts.ContextSourceRegistry
+import com.termux.cybersyn.core.contexts.LogcatContextSource
 import com.termux.cybersyn.core.contexts.BootContextEvents
 import com.termux.cybersyn.core.contexts.CameraMicContextEvents
 import com.termux.cybersyn.core.contexts.PackageContextEvents
@@ -124,6 +126,15 @@ class AutomationService : Service() {
                     },
                     stop = { unregisterReceiver(BluetoothContextEvents.receiver) },
                 ),
+                ContextMonitor.LOGCAT to ContextMonitorHandle(
+                    start = {
+                        ContextSourceRegistry.register(LogcatContextSource())
+                        true
+                    },
+                    stop = {
+                        // LogcatContextSource stops itself when last subscriber leaves
+                    },
+                ),
             ),
         )
     }
@@ -190,7 +201,11 @@ class AutomationService : Service() {
         timeEventScheduler.scheduleNextMinute()
         engineHeartbeatStore.recordAlive()
         scope.launch {
-            if (!timeTickTrigger || !engineLoaded) reloadProfiles()
+            if (timeTickTrigger) {
+                reloadProfiles()
+            } else if (!engineLoaded) {
+                reloadProfiles()
+            }
             if (bootCompletedTrigger) {
                 BootContextEvents.publishBootCompleted()
             }
