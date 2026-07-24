@@ -1,216 +1,53 @@
-# OpenTasker
+# Cybersyn
 
-[![Version](https://img.shields.io/badge/version-0.2.76-blue.svg)](https://github.com/SysAdminDoc/OpenTasker/releases)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-Android%208.0%2B-brightgreen.svg)](https://developer.android.com)
-[![Kotlin](https://img.shields.io/badge/kotlin-2.3.21-7f52ff.svg)](https://kotlinlang.org)
+Android-native, system-signed automation brain — trigger/action engine with logcat context source, Termux scripting, MQTT relay, and root-level device control.
 
-**OpenTasker** is a fully open-source, on-device, FOSS alternative to [Tasker](https://tasker.joaoapps.com/) for Android.
+> **DISCLAIMER: This is a personal homelab project tailored to one specific device ecosystem — a rooted Pixel 10 Pro running crDroid with a full Termux-suite system-app stack. Do not install this on your own device as-is. It assumes SELinux permissive, shared UID sign keys, specific hardware (Tensor G5 NPU, EdgeTPU), and a companion MQTT broker. It will not work on a normal Android device and may break things if you try.** This repo exists for transparency, auditability, and reference — not as a general-purpose app.
 
----
+## Attribution
 
-## Features
+Cybersyn is built on the shoulders of:
 
-### Automation engine
+- **[OpenTasker](https://github.com/SysAdminDoc/OpenTasker)** — the core rule engine: profiles, contexts, tasks, actions, Tasker XML import, and the Room persistence layer. Cybersyn forked from OpenTasker and retains its GPL-3.0 license.
+- **[KDE Connect](https://invent.kde.org/network/kdeconnect-android)** — device pairing, encrypted transport, and plugin architecture concepts that informed the relay design.
 
-- **Profiles, contexts, tasks, actions** — a complete Room-backed automation pipeline with a Compose UI
-- **7 context families** — Application, Time, Day, Location, State, Event, and Plugin (Locale/Tasker condition)
-- **58 built-in actions** plus engine-handled flow control (`task.run`, `if`/`else`/`end if`, `for each`/`end for`, `stop`)
-- **Template expressions** — bounded `{{ ... }}` expansion with scoped variables, arrays, JSON paths, string/math/date functions, traces, and strict regex policy
-- **First-class secret variables** — AES-256-GCM Android Keystore storage, deliberate reveal/re-entry UX, and provenance-based redaction for derived action arguments, logs, traces, and failures
-- **Automation modes** — per-profile single, restart, queued, and parallel re-trigger behavior
-- **Profile groups** — organize profiles into named groups with filter chips
+## What it does
 
-### Triggers (contexts)
+- **Trigger engine**: TIME, DAY, APPLICATION, STATE, EVENT, LOGCAT, LOCATION, PLUGIN contexts
+- **Logcat source**: one blocking `logcat` process (`su` on Android 16+) watching ERROR-level system logs — any profile can register a tag + regex filter and fire on match
+- **Termux scripting**: `script.termux.run` action type executes arbitrary Termux commands with bounded timeouts and output capture
+- **MQTT relay**: `mqtt.publish` action talks to a homelab MQTT broker for cross-device coordination
+- **Root actions**: reboot, screen on/off, shell commands via `su`
+- **CLI management**: `tools/cybersynctl` — host-side YAML authoring over ADB/Tailscale. List profiles, export bundles, apply YAML, run tasks, toggle profiles.
 
-- Time/day schedules with presets, aliases, and ranges
-- Device state (battery, charging, headphones, screen, airplane, power save, Wi-Fi SSID)
-- App foreground detection via UsageStats
-- Wi-Fi and data/internet connectivity via NetworkCallback
-- Notification listener with package/title/body filters
-- NFC tag scans with normalized ID matching and a one-time NDEF write helper
-- Calendar windows with redacted event metadata
-- Sunrise/sunset filters with coordinate, offset, and window support
-- Shake, Bluetooth connect/disconnect, package install/remove/replace
-- Quick Settings tile tap, home-screen widget/shortcut, boot
-- FOSS platform location/geofence — GPS/network fixes, balanced provider cadence, radius/accuracy/dwell evaluation, persisted dwell state, and API 36 background delivery evidence
-- Locale/Tasker condition plugins — polled as first-class context predicates with last-known-state caching
-
-### Actions (59 registered + 7 engine-handled)
-
-| Category | Count | Examples |
-|----------|------:|---------|
-| Settings | 11 | Wi-Fi, Bluetooth, brightness, volume, airplane, mobile data, screen timeout, DND, ringer mode, torch, tile state |
-| App | 7 | launch intent, launch app, kill, go home, open URL, SMS, screenshot |
-| File | 5 | read, write, append, delete, list |
-| Network | 6 | HTTP Request, legacy GET/POST aliases, ping, download, Wake-on-LAN |
-| Media | 6 | play, stop, pause, next, previous, mute |
-| System | 6 | vibrate, reboot, lock, screen off, wake, log |
-| Notification | 3 | notify/toast, cancel, TTS speak |
-| Variable | 10 | set variable, read data (JSON/CSV/XML), date-time (format/parse/add), text (match/replace/split/join/substring) |
-| Flow | 1+7 | wait; engine: task.run, if/else/end if, for each/end for, stop |
-| Plugin | 2 | Locale setting dispatch, Locale condition query |
-| Script | 1 | SHA-256-pinned Termux `RUN_COMMAND` with bounded result capture |
-| Import | 1 | unsupported Tasker action placeholder |
-
-Privileged actions (airplane, mobile data, screenshot, reboot, screen off) are gated to fail honestly. SMS is available in standard/F-Droid builds; Play builds omit SMS/phone-state permissions.
-
-New automations use **HTTP Request** for GET, HEAD, POST, PUT, PATCH, DELETE, and OPTIONS. It accepts structured query/header lines, inline or OpenTasker-file request bodies, per-stage timeouts, status/header/body variables, and atomic file output. Redirects default off and can be enabled only for the same origin; TLS verification cannot be disabled, cleartext remains private-LAN-only, and response/request sizes are bounded. Stored `http.get` and `http.post` actions continue to execute through compatibility aliases. Put credentials in Keystore-backed secret variables and reference them from Authorization or header fields so traces remain redacted.
-
-Variable names follow Tasker's scope rule: an all-lowercase name is local to the current task, while any name containing an uppercase letter is global and durable. `var.persist` promotes an all-lowercase target to a global name, and the Variable vault applies the same normalization. Concurrent runs merge changes to different globals; if two stale snapshots change the same global, the first committed value is kept and the later conflict is recorded in the run log.
-
-### Reliability and observability
-
-- OEM battery-killer detection with per-vendor remediation (Samsung, Xiaomi, OnePlus, Oppo, Realme, Vivo, Huawei, etc.)
-- Alarm-backed time/day reevaluation through Doze, with a persisted engine heartbeat and periodic WorkManager watchdog that re-arms dropped ticks and foreground-service timeout recovery
-- Setup checklist covering notifications, exact alarms, battery optimization, usage access, overlays, location, Bluetooth, SMS, DND, Shizuku, and Termux
-- Context inspector with live source health, latest values, and per-profile match explanations
-- Step-level run logs with action traces, template diagnostics, warning counts, and configurable retention
-- In-app diagnostics for service/foreground-type/standby/exact-alarm/matcher/watchdog health, a bounded process log, and captured crash previews; shared reports include the same evidence with credential redaction
-- Crash log capture and local diagnostic export
-
-### Interoperability
-
-- **Locale/Tasker plugin host** — setting dispatch, condition queries, configuration parsing, request-query events, bundle validation, and last-known-state fallback
-- **Locale/Tasker condition context** — condition plugins as first-class profile predicates polled every 30 seconds
-- **External automation target** — signature-scoped intents to run tasks, toggle profiles, query status, and pass variables
-- **OpenTasker JSON bundles** — schema-versioned export/import with computed action-power manifests, data-to-external-chain warnings, disabled-by-default installation, explicit first-enable acknowledgement, and secret values omitted by design
-- **Tasker XML import** — preview with migration/capability warnings, mapped and unsupported action reporting
-- **Profile sharing** — offline share manifests with safety findings and GitHub Discussions submission text
-
-Untrusted imports are preflighted before object/DOM allocation. OpenTasker JSON is capped at 16 Mi characters, 250,000 lexical tokens, and depth 64; Tasker XML is capped at 4 Mi characters, 100,000 nodes, and depth 64. Both formats share decoded limits of 5,000 top-level entities, 20,000 actions, 10,000 contexts, 10,000 scene elements, and 8 MiB of aggregate UTF-8 string data. A named budget violation aborts before the Room transaction.
-
-### UI and theming
-
-- AMOLED-first Catppuccin Mocha (dark) and Latte (light) palettes, high contrast mode
-- Refined mobile shell with clearer primary navigation, bottom-bar contrast, and edge-to-edge system bar theming
-- Accessible Setup theme selector with explicit selected state plus denser, confidence-building backup controls
-- Compact-safe profile, task, and run-log cards with horizontally safe status chips and filtered empty states
-- Variable vault, Flow, Scenes, and Inspector surfaces with summary metrics, clear status language, and polished empty states
-- Guided profile templates with variable slots and safety notes
-- Scene element editor with drag-to-move, resize handles, multi-select, alignment guides, scaled canvas previews, overlay launch, and tap/long-press task bindings
-- Flow graphs with zoom/pan canvas previews, edge routing, branch/subflow markers, node deep links, and picker-backed add commands
-- Profile and task search bars
-- Saveable editor/dialog state across rotation and resize
-
-### Distribution
-
-- F-Droid readiness profile with dependency-policy and metadata verification
-- Play distribution profile with SMS/phone-state manifest policy gate
-- Local release verification scripts for F-Droid metadata, readiness, and APK payload comparison
-- Environment-driven release signing
-- SQLite database backup/restore with WAL-safe validation and atomic staged restore; encrypted `.otbackup` v2 exports use bounded-memory, independently authenticated 64 KiB frames while legacy v1 files remain restorable. Secret rows stay ciphertext and the device-bound Keystore key is never copied, so a restore on another device requires secret re-entry
-- APK payload comparison harness for reproducibility checks
-
-### Power-user backends
-
-- Shizuku manager/service/permission status, a persisted default-on kill switch, and a fail-closed command allowlist; elevated actions remain unsupported until a privileged user-service transport ships
-- Termux 0.109+ `RUN_COMMAND` integration with a user-managed SHA-256 allowlist, pre-run hash verification, timeouts, and bounded output variables
-
-To run a Termux script, place it below `~/.termux/tasker/`, enable Termux's external-app access, and grant OpenTasker `RUN_COMMAND` permission from Setup. Add the script path and the expected 64-character SHA-256 under **Approved Termux scripts**; OpenTasker performs a hash preflight and rechecks inside the fixed execution wrapper before the script can run. A capture prefix such as `%script` writes bounded `%script_stdout`, `%script_stderr`, `%script_exit_code`, and original-length variables; captured content is never written to the run log.
-
----
-
-## Architecture
+## Context engine
 
 ```
-AutomationService (foreground)
-  ↓
-ProfileMatcher (monitors context streams)
-  ↓
-ContextSources (app, time, state, event, location, plugin)
-  ↓
-TaskRunner (executes action list with flow control)
-  ↓
-ActionRegistry (built-ins + capability gates + Locale plugin dispatch)
-  ↓
-Room DB (persistent storage + StateFlow live queries)
+ContextType → ContextSource → ProfileMatcher → AutomationService → TaskRunner
 ```
 
-No Hilt — manual dependency wiring via `OpenTaskerApp_NoHilt`. MVVM with Compose, Room, coroutines, DataStore, and WorkManager.
+New in this fork: `LOGCAT` context type. A single `logcat -v threadtime *:E *:S` process (running as root to bypass Android 16's READ_LOGS dialog) emits log lines via a SharedFlow. Any profile can match on `tag` and/or `regex`. This replaces ~80% of individual context monitors — app crashes, package installs, notification events, connectivity changes — all visible in logcat without dedicated receivers.
 
----
+## Build
 
-## Build & Run
-
-```bash
-git clone https://github.com/SysAdminDoc/OpenTasker
-cd OpenTasker
-./gradlew :app:testDebugUnitTest :app:assembleDebug
-adb install -r app/build/outputs/apk/debug/app-debug.apk
+```
+cd Android_src
+./gradlew assembleRelease
 ```
 
-Release build (unsigned without keystore env vars):
-```bash
-./gradlew :app:assembleRelease
+Signs with the Termux platform key (not included). The `app/build.gradle.kts` reads signing config from environment variables or falls back to debug signing.
+
+## Deploy (crDroid / system app)
+
+```
+blazer-sysapp-update install com.termux.cybersyn app/build/outputs/apk/release/app-release.apk
 ```
 
-F-Droid profile:
-```bash
-./gradlew -PopenTaskerDistribution=fdroid :app:assembleRelease :app:verifyFdroidReadiness :app:verifyFdroidMetadata
+This overlays the APK as a temporary system-app update. Roll back with:
 ```
-
-Play manifest policy check:
-```bash
-./gradlew -PopenTaskerDistribution=play :app:verifyPlayManifestPolicy
+blazer-sysapp-update rollback com.termux.cybersyn
 ```
-
-Full local release gate (blocking lint, JVM tests, Room schemas, Android-test compilation, resolved dependency/SBOM and OSV policy, configuration-cache reuse, plus Play and F-Droid release builds):
-
-```powershell
-.\tools\verify-local-release.ps1
-```
-
-The gate writes machine-readable reports under `build/reports/opentasker/`. To prove failure propagation without running the full build, run `.\tools\verify-local-release.ps1 -SeedFailure`; success is a nonzero exit with `Seeded local quality-gate failure`.
-
----
-
-## Development
-
-| Property | Value |
-|----------|-------|
-| Kotlin | 2.3.21 |
-| Gradle | 9.4.1 |
-| AGP | 9.2.1 |
-| KSP | 2.3.7 |
-| Build Tools | 36.0.0 |
-| JDK | 17 or 21 |
-| Min SDK | 26 (Android 8.0) |
-| Compile SDK | 37 |
-| Target SDK | 37 |
-| Room | 2.8.4 |
-| Compose BOM | 2026.05.00 |
-| WorkManager | 2.11.2 |
-
-All dependency versions are centralized in `gradle/libs.versions.toml`.
-
----
-
-## Planned
-
-See [ROADMAP.md](ROADMAP.md) for the full backlog. Key remaining work:
-
-- Broad device-verified background geofence reliability evidence
-- API 37 platform readiness pass (FGS, predictive back, large-screen QA)
-- Macrobenchmark and Baseline Profile for cold-start performance
-
----
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
-
-## Contributing
-
-Issues and pull requests welcome. See [ROADMAP.md](ROADMAP.md) for planned features.
-
-### Translations
-
-OpenTasker supports localization. English source copy lives in `app/src/main/res/values/strings.xml`, `action_catalog_strings.xml`, and `dynamic_surface_strings.xml`; locale targets under `app/src/main/res/values-*` are ready for Weblate-style translation workflows. Debug builds enable Android's `en-XA` and `ar-XB` pseudolocales for expansion and right-to-left checks. To contribute a translation:
-
-1. Copy the three translatable XML files from `app/src/main/res/values/` to `app/src/main/res/values-<locale>/`
-2. Translate only the string values (not the `name` attributes)
-3. Omit strings that are identical to English — Android falls back automatically
-4. Submit a PR with your locale directory
-
-Skeleton directories exist for: `ar`, `de`, `es`, `fr`, `hi`, `it`, `ja`, `ko`, `pl`, `pt-rBR`, `ru`, `tr`, `zh-rCN`.
+Cybersyn retains OpenTasker's GPL-3.0 license. Original copyright belongs to the OpenTasker authors. Modifications in this fork are provided under the same license.
