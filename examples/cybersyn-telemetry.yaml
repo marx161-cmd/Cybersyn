@@ -1,0 +1,37 @@
+name: Cybersyn telemetry daemon
+description: >
+  Periodic device-state capture (battery, thermal, memory, CPU, processes)
+  every 300s to SQLite at ~/.cybersyn/telemetry/telemetry.db.
+  Auto-starts on boot, also queryable via cybersyn-telemetry.sh query '<sql>'.
+  Script: ~/.termux/tasker/cybersyn-telemetry.sh
+tasks:
+  - name: "Telemetry: start"
+    actions:
+      - type: script.termux.run
+        args:
+          executable: /data/data/com.termux/files/home/.termux/tasker/cybersyn-telemetry.sh
+          arguments: start
+          useRoot: "false"
+  - name: "Telemetry: stop"
+    actions:
+      - type: script.termux.run
+        args:
+          executable: /data/data/com.termux/files/home/.termux/tasker/cybersyn-telemetry.sh
+          arguments: stop
+          useRoot: "false"
+  - name: "Telemetry: status"
+    actions:
+      - type: script.termux.run
+        args:
+          executable: /data/data/com.termux/files/home/.termux/tasker/cybersyn-telemetry.sh
+          arguments: status
+          useRoot: "false"
+profiles:
+  - name: TelemetryBoot
+    enabled: true
+    automationMode: SINGLE
+    enterTask: "Telemetry: start"
+    contexts:
+      - type: EVENT
+        config:
+          event: boot_completed
