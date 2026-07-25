@@ -82,6 +82,12 @@ class TermuxScriptBackendTest {
     }
 
     @Test
+    fun normalizeExecutableAcceptsAbsoluteTermuxHomePath() {
+        assertNotNull(TermuxScriptPolicy.normalizeExecutable("/data/data/com.termux/files/home/.termux/tasker/pixelsnap.sh"))
+        assertNotNull(TermuxScriptPolicy.normalizeExecutable("/data/data/com.termux/files/home/.termux/tasker/sub/ok.sh"))
+    }
+
+    @Test
     fun builtCommandWrapsWithSuWhenUseRootIsSet() {
         val req = TermuxCommandRequest(
             executable = "~/.termux/tasker/test.sh",

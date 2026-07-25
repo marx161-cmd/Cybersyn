@@ -40,7 +40,7 @@ internal data class TermuxCommandResult(
 internal object TermuxScriptPolicy {
     const val DEFAULT_TIMEOUT_MS = 30_000L
     const val MIN_TIMEOUT_MS = 1_000L
-    const val MAX_TIMEOUT_MS = 120_000L
+    const val MAX_TIMEOUT_MS = 600_000L
     const val MAX_OUTPUT_BYTES = 32 * 1024
     const val MAX_STDIN_BYTES = 32 * 1024
     const val MAX_ARGUMENT_BYTES = 4 * 1024
@@ -83,10 +83,16 @@ internal object TermuxScriptPolicy {
 
     fun normalizeExecutable(path: String): String? {
         val normalized = path.trim()
-        val prefix = "${TermuxScriptBackend.SCRIPT_DIRECTORY}/"
-        if (!normalized.startsWith(prefix) || normalized.length == prefix.length) return null
         if (!isBoundedPath(normalized)) return null
-        val relativeSegments = normalized.removePrefix(prefix).split('/')
+        // Expand ~ to Termux home, then check containment
+        val expanded = if (normalized.startsWith("~/")) {
+            TermuxScriptBackend.TERMUX_HOME + normalized.removePrefix("~")
+        } else {
+            normalized
+        }
+        val taskerDir = TermuxScriptBackend.TERMUX_HOME + "/.termux/tasker/"
+        if (!expanded.startsWith(taskerDir) || expanded.length == taskerDir.length) return null
+        val relativeSegments = expanded.removePrefix(taskerDir).split('/')
         if (relativeSegments.any { it.isBlank() || it == "." || it == ".." }) return null
         return normalized
     }

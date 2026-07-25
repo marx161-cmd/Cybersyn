@@ -8,6 +8,7 @@ import java.io.File
 object TermuxScriptBackend {
     const val ACTION_ID = "script.termux.run"
     const val TERMUX_PACKAGE = "com.termux"
+    const val TERMUX_HOME = "/data/data/com.termux/files/home"
     const val RUN_COMMAND_PERMISSION = "com.termux.permission.RUN_COMMAND"
     const val SCRIPT_DIRECTORY = "~/.termux/tasker"
     const val MINIMUM_RESULT_VERSION = "0.109"
