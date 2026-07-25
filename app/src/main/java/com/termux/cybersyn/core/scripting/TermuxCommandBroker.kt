@@ -114,9 +114,14 @@ internal object TermuxCommandBroker {
     private fun buildCommand(request: TermuxCommandRequest): Pair<String, List<String>> {
         val executable = resolveTermuxPath(request.executable)
         if (!request.useRoot) return executable to request.arguments
-        val cmd = listOf(executable) + request.arguments
-        val shellCmd = cmd.joinToString(" ") { "'${it.replace("'", "'\\''")}'" }
-        return resolveTermuxPath(TermuxScriptPolicy.SU_EXECUTABLE) to listOf("-c", shellCmd)
+        // Use the Termux `sudo` wrapper (agnostic-apollo/sudo, already installed) instead of raw
+        // `su -c`. Raw su drops into toybox sh with a bare Android-only PATH and never sources
+        // anything, regardless of what HOME is set to -- so a root-run action that shells out to
+        // any Termux-installed binary (ssh, scp, etc. -- anything not also in AOSP's own
+        // /system/bin) silently fails to find it. `sudo` is the same tool a `sudo su`/`sudo <cmd>`
+        // gets interactively (HOME=~/.suroot, full Termux PATH, starship, etc.), so a script
+        // entering root through it gets identically-behaving root, not a stripped-down one.
+        return "$TERMUX_PREFIX/bin/sudo" to (listOf(executable) + request.arguments)
     }
 
     private fun resolveTermuxPath(path: String): String = when {
