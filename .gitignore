@@ -36,8 +36,7 @@ target/
 # Build/editor noise
 *.swp
 
-# Nested repositories — tracked separately, not as submodules.
-Android_src/
+# Nested repository — tracked separately, not as a submodule.
 Source_APKs/
 
 # Real secrets copied in from other projects
