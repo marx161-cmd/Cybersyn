@@ -3,7 +3,7 @@ use std::net::{TcpListener, TcpStream, SocketAddr, ToSocketAddrs};
 use std::path::Path;
 use std::time::Duration;
 
-const CHUNK_SIZE: usize = 4096;
+const CHUNK_SIZE: usize = 65536;
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 const PORT_RANGE_START: u16 = 1740;
 const PORT_RANGE_END: u16 = 1745;

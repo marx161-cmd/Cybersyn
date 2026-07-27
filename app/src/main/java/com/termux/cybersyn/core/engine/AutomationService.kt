@@ -180,9 +180,9 @@ class AutomationService : Service() {
 
     /**
      * Eagerly start context sources that provide always-on MQTT-based services —
-     * media session bridge and clipboard sync. These run regardless of whether
-     * any profile references their type, because their side effects (MediaSession,
-     * clipboard sync) are the whole point.
+     * media session bridge, clipboard sync, and incoming file offers. These run
+     * regardless of whether any profile references their type, because their side
+     * effects (MediaSession, clipboard sync, saved files/album art) are the whole point.
      */
     private fun startSystemContextSources() {
         // Collect from the flow to keep the source alive in this scope.
@@ -191,6 +191,9 @@ class AutomationService : Service() {
             scope.launch { source.events(this@AutomationService).collect {} }
         }
         ContextSourceRegistry.get("clipboard")?.let { source ->
+            scope.launch { source.events(this@AutomationService).collect {} }
+        }
+        ContextSourceRegistry.get("file_offer")?.let { source ->
             scope.launch { source.events(this@AutomationService).collect {} }
         }
     }

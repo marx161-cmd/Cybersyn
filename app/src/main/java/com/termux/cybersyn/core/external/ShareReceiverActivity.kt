@@ -46,7 +46,7 @@ class ShareReceiverActivity : ComponentActivity() {
             val client = server.accept()
             contentResolver.openInputStream(uri)?.use { input ->
                 client.getOutputStream().use { output ->
-                    val buf = ByteArray(4096)
+                    val buf = ByteArray(65536)
                     var bytesRead: Int
                     while (input.read(buf).also { bytesRead = it } != -1) {
                         output.write(buf, 0, bytesRead)

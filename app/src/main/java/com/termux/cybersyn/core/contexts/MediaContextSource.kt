@@ -10,8 +10,10 @@ import android.content.Intent
 import android.media.session.MediaSession
 import android.media.session.PlaybackState
 import android.media.MediaMetadata
+import android.graphics.Bitmap
 import android.os.Build
 import com.termux.cybersyn.core.mqtt.MqttBridge
+import com.termux.cybersyn.core.transfer.AlbumArtBus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -27,6 +29,7 @@ class MediaContextSource : SubscriptionReadyContextSource {
     override val type = "media"
 
     private var lastAlbumArtHash: String? = null
+    private var albumArtBitmap: Bitmap? = null
 
     override fun events(app: Context, onSubscribed: () -> Unit): Flow<ContextEvent> = channelFlow {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
@@ -42,15 +45,28 @@ class MediaContextSource : SubscriptionReadyContextSource {
                     val status = JSONObject(message.payload)
                     lastStatus = status
                     scope.launch(Dispatchers.Main) {
-                        updateMediaSession(app, session, status)
-                        // Request album art if hash changed
+                        // Request album art if hash changed — drop the old bitmap first so a
+                        // track change doesn't keep showing the previous track's art.
                         val artHash = findAlbumArtHash(status)
                         if (artHash != null && artHash != lastAlbumArtHash) {
                             lastAlbumArtHash = artHash
+                            albumArtBitmap = null
                             MqttBridge.publish(app, "cybersyn/comrade/action", "albumart:$artHash")
                         }
+                        updateMediaSession(app, session, status)
                     }
                 } catch (_: Exception) { }
+            }
+        }
+
+        // Apply album art once FileOfferContextSource has downloaded it (only if it's still
+        // the art we last asked for — a slow download can race a track change).
+        val artJob = scope.launch(Dispatchers.Main) {
+            AlbumArtBus.art.collect { (hash, bitmap) ->
+                if (hash == lastAlbumArtHash) {
+                    albumArtBitmap = bitmap
+                    lastStatus?.let { updateMediaSession(app, session, it) }
+                }
             }
         }
 
@@ -73,6 +89,7 @@ class MediaContextSource : SubscriptionReadyContextSource {
 
         awaitClose {
             collectJob.cancel()
+            artJob.cancel()
             emitJob.cancel()
             try { session.release() } catch (_: Exception) { }
         }
@@ -143,6 +160,7 @@ class MediaContextSource : SubscriptionReadyContextSource {
         if (artist != null) metadata.putString(MediaMetadata.METADATA_KEY_ARTIST, artist)
         if (album != null) metadata.putString(MediaMetadata.METADATA_KEY_ALBUM, album)
         if (length > 0) metadata.putLong(MediaMetadata.METADATA_KEY_DURATION, length)
+        albumArtBitmap?.let { metadata.putBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART, it) }
         session.setMetadata(metadata.build())
 
         val playState = if (isPlaying) PlaybackState.STATE_PLAYING else PlaybackState.STATE_PAUSED
@@ -219,6 +237,8 @@ class MediaContextSource : SubscriptionReadyContextSource {
         val openIntent = Intent(Intent.ACTION_MAIN).apply {
             component = ComponentName(app.packageName, "${app.packageName}.ui.MainActivity")
         }
+
+        albumArtBitmap?.let { builder.setLargeIcon(it) }
 
         return builder
             .setContentTitle(title)

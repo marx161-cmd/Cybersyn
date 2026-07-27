@@ -89,6 +89,7 @@ import com.termux.cybersyn.core.contexts.ApplicationContextSourceImpl
 import com.termux.cybersyn.core.contexts.ClipboardContextSource
 import com.termux.cybersyn.core.contexts.ContextSourceRegistry
 import com.termux.cybersyn.core.contexts.EventContextSourceImpl
+import com.termux.cybersyn.core.contexts.FileOfferContextSource
 import com.termux.cybersyn.core.contexts.LocalePluginConditionContextSource
 import com.termux.cybersyn.core.contexts.LocationContextSourceImpl
 import com.termux.cybersyn.core.contexts.MediaContextSource
@@ -202,5 +203,6 @@ private fun registerContextSources() {
         LocalePluginConditionContextSource(),
         MediaContextSource(),
         ClipboardContextSource(),
+        FileOfferContextSource(),
     ).forEach(ContextSourceRegistry::register)
 }
