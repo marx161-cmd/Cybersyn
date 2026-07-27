@@ -148,9 +148,14 @@ pub fn receive_file(addr: &str, dest_path: &Path) -> Result<u64, String> {
     Ok(total)
 }
 
+/// Bind only on the Tailscale interface — never 0.0.0.0 — so the file-transfer
+/// listener is unreachable from any LAN/other interface comrade might have.
+/// If Tailscale can't be resolved, this falls back to loopback-only (fails
+/// closed, not open).
 fn bind_free_port() -> Result<(TcpListener, u16), String> {
+    let ip = tailscale_ip();
     for port in PORT_RANGE_START..=PORT_RANGE_END {
-        let addr = format!("0.0.0.0:{port}");
+        let addr = format!("{ip}:{port}");
         match TcpListener::bind(&addr) {
             Ok(l) => {
                 l.set_nonblocking(false).ok();
@@ -160,7 +165,7 @@ fn bind_free_port() -> Result<(TcpListener, u16), String> {
         }
     }
     Err(format!(
-        "no free port in range {PORT_RANGE_START}-{PORT_RANGE_END}"
+        "no free port in range {PORT_RANGE_START}-{PORT_RANGE_END} on {ip}"
     ))
 }
 

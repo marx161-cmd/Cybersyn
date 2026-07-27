@@ -68,6 +68,22 @@ fn valid_script_name(name: &str) -> bool {
             .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-' || c == '.')
 }
 
+/// Bare filename only — no path separators or traversal, so a `file:receive`
+/// destination can never land outside DOWNLOADS_DIR.
+fn valid_dest_name(name: &str) -> bool {
+    !name.is_empty()
+        && name.len() <= 255
+        && name != "."
+        && name != ".."
+        && !name.contains('/')
+        && !name.contains('\\')
+}
+
+/// SHA-256 hex digest only, matching what mpris::cache_album_art actually writes.
+fn valid_hash(hash: &str) -> bool {
+    hash.len() == 64 && hash.chars().all(|c| c.is_ascii_hexdigit())
+}
+
 fn run_playerctl(args: &[&str]) -> Result<String, String> {
     let output = Command::new("playerctl")
         .args(args)
@@ -148,6 +164,9 @@ fn dispatch(
             let hash = arg.trim();
             if hash.is_empty() {
                 return "error:albumart:missing-hash".to_string();
+            }
+            if !valid_hash(hash) {
+                return format!("error:albumart:invalid-hash:{hash}");
             }
             match mpris::get_art_path(hash) {
                 Some(path) => {
@@ -234,6 +253,9 @@ fn dispatch(
             }
             let addr = parts[0].to_string();
             let dest_name = parts[1].to_string();
+            if !valid_dest_name(&dest_name) {
+                return format!("error:file:receive:invalid-name:{dest_name}");
+            }
             let dest = expand_home(DOWNLOADS_DIR).join(&dest_name);
             let dest_clone = dest.clone();
             std::thread::spawn(move || {
