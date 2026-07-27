@@ -6,11 +6,16 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.net.Uri
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.provider.OpenableColumns
+import android.util.Log
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import com.termux.cybersyn.core.mqtt.MqttBridge
 import com.termux.cybersyn.core.transfer.TermuxExec
 import java.io.File
+import java.io.IOException
 import java.io.InputStream
 import java.net.Inet4Address
 import java.net.ServerSocket
@@ -26,11 +31,39 @@ class ShareReceiverActivity : ComponentActivity() {
     private fun handleShareIntent(intent: Intent) {
         when (intent.action) {
             Intent.ACTION_SEND -> {
-                val uri = intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM) ?: return
-                val name = resolveFileName(uri)
-                Thread {
-                    contentResolver.openInputStream(uri)?.use { serveStream(name, it) }
-                }.also { it.name = "cybersyn-share-sender" }.start()
+                val streamUri = intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)
+                if (streamUri != null) {
+                    val name = resolveFileName(streamUri)
+                    Thread {
+                        try {
+                            contentResolver.openInputStream(streamUri).use { input ->
+                                if (input == null) {
+                                    Log.w(TAG, "openInputStream returned null for $streamUri")
+                                    notifyShareFailed(name)
+                                } else {
+                                    serveStream(name, input)
+                                }
+                            }
+                        } catch (e: Exception) {
+                            Log.w(TAG, "ACTION_SEND failed for $streamUri", e)
+                        }
+                    }.also { it.name = "cybersyn-share-sender" }.start()
+                    return
+                }
+
+                // Text share of a raw filesystem path — e.g. a file manager's "copy path"
+                // pasted into a share. Preferable to a stream/URI share for folders: this app
+                // is UID 1000/system, so a real path gets real recursive File+tar access with
+                // no content:// layer in between, sidestepping providers (MiXplorer's included)
+                // that hand out an unreadable directory fd instead of actually zipping it.
+                val text = intent.getStringExtra(Intent.EXTRA_TEXT)?.trim()
+                val localFile = text?.let(::resolveLocalPath)
+                Log.i(TAG, "ACTION_SEND text share: text=$text resolvedLocalFile=$localFile")
+                if (localFile != null) {
+                    Thread {
+                        serveLocalPath(localFile)
+                    }.also { it.name = "cybersyn-share-sender" }.start()
+                }
             }
             Intent.ACTION_SEND_MULTIPLE -> {
                 val uris = intent.getParcelableArrayListExtra<Uri>(Intent.EXTRA_STREAM) ?: return
@@ -67,7 +100,8 @@ class ShareReceiverActivity : ComponentActivity() {
 
             val archiveName = "shared_${uris.size}_files.tar"
             tarFile.inputStream().use { serveStream(archiveName, it) }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.w(TAG, "serveMultiple failed for $uris", e)
         } finally {
             stagingDir.deleteRecursively()
             tarFile.delete()
@@ -84,7 +118,65 @@ class ShareReceiverActivity : ComponentActivity() {
         return "$base ($n)$ext"
     }
 
+    /** A shared text's raw path if it resolves to something that actually exists on disk. */
+    private fun resolveLocalPath(text: String): File? {
+        val path = when {
+            text.startsWith("file://") -> Uri.parse(text).path
+            text.startsWith("/") -> text
+            else -> null
+        } ?: return null
+        val file = File(path)
+        return if (file.exists()) file else null
+    }
+
+    /**
+     * Serves a real on-disk path directly — no ContentResolver/URI layer, so this works for
+     * arbitrarily nested folders (recursive `tar`) with none of [serveStream]'s EISDIR risk.
+     * A single file needs no wrapping and streams as-is; a directory is tarred flat (`-C dir .`,
+     * matching [serveMultiple]'s convention) since the relay already extracts a `.tar` upload
+     * into a directory named after it — wrapping the entries in another same-named directory
+     * here would double it up.
+     */
+    private fun serveLocalPath(file: File) {
+        if (!file.isDirectory) {
+            try {
+                file.inputStream().use { serveStream(file.name, it) }
+            } catch (e: Exception) {
+                Log.w(TAG, "serveLocalPath failed for $file", e)
+            }
+            return
+        }
+
+        val tarFile = File(cacheDir, "cybersyn_share_${System.nanoTime()}.tar")
+        try {
+            val proc = TermuxExec.exec(listOf("bin/tar", "-cf", tarFile.absolutePath, "-C", file.absolutePath, "."))
+            if (proc.waitFor() != 0) {
+                Log.w(TAG, "tar failed for $file")
+                notifyShareFailed(file.name)
+                return
+            }
+            tarFile.inputStream().use { serveStream("${file.name}.tar", it) }
+        } catch (e: Exception) {
+            Log.w(TAG, "serveLocalPath (dir) failed for $file", e)
+        } finally {
+            tarFile.delete()
+        }
+    }
+
     private fun serveStream(name: String, input: InputStream) {
+        // Some senders (MiXplorer's single-folder "Share" button, at least) hand back a
+        // stream that looks fine but throws EISDIR on the first real read — they're pointing
+        // at a raw directory fd with no zip/tar wrapping, no bytes to recover. Check that
+        // BEFORE publishing an MQTT offer or opening a socket, so a bad share fails
+        // immediately with real feedback instead of leaving comrade with a stray empty file.
+        val firstByte = try {
+            input.read()
+        } catch (e: IOException) {
+            Log.w(TAG, "cannot read \"$name\" — sender gave no real bytes (probably tried to share a folder directly)", e)
+            notifyShareFailed(name)
+            return
+        }
+
         // Bound with no explicit address, so it's already listening on every
         // interface (WiFi LAN and the Tailscale VPN interface both) — the only
         // thing that needs deciding is which address comrade should try first.
@@ -108,6 +200,7 @@ class ShareReceiverActivity : ComponentActivity() {
         try {
             val client = server.accept()
             client.getOutputStream().use { output ->
+                if (firstByte != -1) output.write(firstByte)
                 val buf = ByteArray(65536)
                 var bytesRead: Int
                 while (input.read(buf).also { bytesRead = it } != -1) {
@@ -116,9 +209,20 @@ class ShareReceiverActivity : ComponentActivity() {
                 output.flush()
             }
             client.close()
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.w(TAG, "serveStream failed for $name", e)
         } finally {
             try { server.close() } catch (_: Exception) {}
+        }
+    }
+
+    private fun notifyShareFailed(name: String) {
+        Handler(Looper.getMainLooper()).post {
+            Toast.makeText(
+                applicationContext,
+                "Couldn't share \"$name\" — if it's a folder, select the files inside and share those instead",
+                Toast.LENGTH_LONG,
+            ).show()
         }
     }
 
