@@ -12,7 +12,6 @@ import android.content.pm.ServiceInfo
 import android.location.LocationManager
 import android.os.Build
 import android.os.IBinder
-import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.termux.cybersyn.app.MainActivity
 import com.termux.cybersyn.app.CybersynApp_NoHilt
@@ -659,10 +658,12 @@ class AutomationService : Service() {
             Intent(this, MainActivity::class.java),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        val n: Notification = NotificationCompat.Builder(this, CHANNEL)
+        val n: Notification = Notification.Builder(this, CHANNEL)
             .setContentTitle("Cybersyn is running")
             .setContentText("Tap to open automation status")
-            .setSmallIcon(android.R.drawable.ic_menu_compass)
+            .setSmallIcon(com.termux.cybersyn.app.R.drawable.ic_notification)
+            .setColor(0xFF00A478.toInt())
+            .setShowWhen(false)
             .setContentIntent(pendingIntent)
             .setOngoing(true)
             .build()

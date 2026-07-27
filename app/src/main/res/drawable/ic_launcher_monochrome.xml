@@ -1,0 +1,19 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!--
+        Dedicated monochrome/themed-icon layer for the adaptive icon — a simple, bold
+        star, NOT the full star+hammer+keyboard foreground artwork. Android's themed-icon
+        generator (used for notification badges, Material You themed icons) can't cleanly
+        derive a silhouette from the full detailed artwork and falls back to a smooth blur
+        instead of a legible shape — this happens regardless of source resolution, since
+        it's the OS's own monochrome-synthesis step, not a scaling artifact. Keep this
+        simple; the detailed illustration stays in <foreground>/<background> for the
+        actual launcher icon, unaffected. See ExplainReceiver.kt operational_notes.
+    -->
+    <path
+        android:pathData="M54.0,22.0 L61.52,43.64 L84.43,44.11 L66.17,57.96 L72.81,79.89 L54.0,66.8 L35.19,79.89 L41.83,57.96 L23.57,44.11 L46.48,43.64 Z"
+        android:fillColor="#ffffff"/>
+</vector>

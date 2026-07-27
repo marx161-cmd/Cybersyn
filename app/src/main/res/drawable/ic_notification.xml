@@ -1,0 +1,17 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!--
+        Notification small icon: a simplified single-shape version of the launcher
+        star, following the system icon guidelines (flat, bold, no fine detail) —
+        the full star+hammer+keyboard illustration is too intricate to read at 24dp
+        and gets rejected by the OS, which falls back to a boxed placeholder using
+        the real launcher icon instead. See core/external/ExplainReceiver.kt
+        operational_notes if this needs revisiting.
+    -->
+    <path
+        android:pathData="M12.0,1.5 L14.47,8.6 L21.99,8.76 L15.99,13.3 L18.17,20.49 L12.0,16.2 L5.83,20.49 L8.01,13.3 L2.01,8.76 L9.53,8.6 Z"
+        android:fillColor="#ffffff"/>
+</vector>
