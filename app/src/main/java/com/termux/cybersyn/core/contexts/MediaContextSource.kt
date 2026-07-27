@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
 class MediaContextSource : SubscriptionReadyContextSource {
@@ -29,7 +30,7 @@ class MediaContextSource : SubscriptionReadyContextSource {
 
     override fun events(app: Context, onSubscribed: () -> Unit): Flow<ContextEvent> = channelFlow {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
-        val session = createMediaSession(app)
+        val session = withContext(Dispatchers.Main) { createMediaSession(app) }
         var lastStatus: JSONObject? = null
 
         val statusFlow = MqttBridge.subscribe(app, "cybersyn/comrade/media/status")

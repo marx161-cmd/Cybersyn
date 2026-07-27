@@ -164,6 +164,7 @@ class AutomationService : Service() {
         // tied to this service's. Sweep those before this instance registers its own reader.
         scope.launch(Dispatchers.IO) { killStrayLogcatReaders() }
         startForegroundCompat()
+        startSystemContextSources()
         timeEventScheduler.scheduleNextMinute()
         engineHeartbeatStore.recordAlive()
         scope.launch {
@@ -175,6 +176,23 @@ class AutomationService : Service() {
         profileCooldowns.putAll(cooldownStore.loadAll())
         scope.launch { pruneRunLogs(force = true) }
         observeProfileRegistry()
+    }
+
+    /**
+     * Eagerly start context sources that provide always-on MQTT-based services —
+     * media session bridge and clipboard sync. These run regardless of whether
+     * any profile references their type, because their side effects (MediaSession,
+     * clipboard sync) are the whole point.
+     */
+    private fun startSystemContextSources() {
+        // Collect from the flow to keep the source alive in this scope.
+        // channelFlow blocks in awaitClose{} until the scope is cancelled.
+        ContextSourceRegistry.get("media")?.let { source ->
+            scope.launch { source.events(this@AutomationService).collect {} }
+        }
+        ContextSourceRegistry.get("clipboard")?.let { source ->
+            scope.launch { source.events(this@AutomationService).collect {} }
+        }
     }
 
     /**

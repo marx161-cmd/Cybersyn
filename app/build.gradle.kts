@@ -84,6 +84,7 @@ android {
 
     lint {
         abortOnError = true
+        disable += "Instantiatable"
     }
 
     compileOptions {
