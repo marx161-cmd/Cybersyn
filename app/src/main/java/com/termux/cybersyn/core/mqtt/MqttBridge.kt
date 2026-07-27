@@ -1,11 +1,17 @@
 package com.termux.cybersyn.core.mqtt
 
 import android.content.Context
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.shareIn
 import java.io.File
 import java.io.OutputStream
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
@@ -19,8 +25,9 @@ import java.util.concurrent.atomic.AtomicReference
  * bionic, so it works on a fresh device with no Termux packages installed.
  *
  * Publishing reuses ONE persistent helper process (arbitrary topics, no per-message
- * handshake — ideal for the mousepad stream). Subscribing is a cold Flow that supervises
- * its own helper process and respawns on drop.
+ * handshake — ideal for the mousepad stream). Subscribing is ref-counted and shared per
+ * (broker, port, topic): all collectors of the same subscription reuse one worker process
+ * that respawns on drop; the process is torn down only once the last collector goes away.
  *
  * Fallback: if the bundled binary is missing/unrunnable, fall back to Termux's mosquitto
  * clients under $PREFIX (same UID, same MQTT). Both speak the identical `topic\tpayload`
@@ -89,12 +96,36 @@ object MqttBridge {
             false
         }
 
-    // ---- subscribe: cold Flow, supervises a helper process and respawns on drop ----
+    // ---- subscribe: one shared, ref-counted subscription per (broker, port, topic) ----
+    //
+    // subscribe() used to hand every caller its own cold Flow, so every ProfileMatcher with
+    // an EVENT-type context (any kind — they all route through EventContextSourceImpl, which
+    // unconditionally includes the mqtt bridge) independently spawned its own worker thread +
+    // native helper subprocess for the same topic. N profiles meant N duplicate `sub`
+    // processes fighting over the same MQTT client id on the broker, reconnect-kicking each
+    // other forever. shareIn multicasts one real subscription (one process) to all collectors
+    // and tears it down only once the last one goes away.
+    private val bridgeScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val sharedSubscriptions = ConcurrentHashMap<String, Flow<Message>>()
+
     fun subscribe(
         context: Context,
         topicFilter: String,
         broker: String = DEFAULT_BROKER,
         port: Int = DEFAULT_PORT,
+    ): Flow<Message> {
+        val key = "$broker:$port:$topicFilter"
+        return sharedSubscriptions.getOrPut(key) {
+            rawSubscribe(context.applicationContext, topicFilter, broker, port)
+                .shareIn(bridgeScope, SharingStarted.WhileSubscribed(), replay = 0)
+        }
+    }
+
+    private fun rawSubscribe(
+        context: Context,
+        topicFilter: String,
+        broker: String,
+        port: Int,
     ): Flow<Message> = callbackFlow {
         val running = AtomicBoolean(true)
         val procRef = AtomicReference<Process?>()
