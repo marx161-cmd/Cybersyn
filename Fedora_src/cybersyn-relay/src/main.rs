@@ -171,7 +171,7 @@ fn dispatch(
             match mpris::get_art_path(hash) {
                 Some(path) => {
                     match file_transfer::prepare_serve(&path) {
-                        Ok((offer, listener)) => {
+                        Ok((offer, ts_listener, lan_listener)) => {
                             let json = file_transfer::build_file_offer_json(
                                 &offer, "albumart",
                             );
@@ -183,7 +183,7 @@ fn dispatch(
                             );
                             let path_clone = path.clone();
                             std::thread::spawn(move || {
-                                match file_transfer::accept_and_send(listener, &path_clone) {
+                                match file_transfer::accept_and_send(ts_listener, lan_listener, &path_clone) {
                                     Ok(elapsed) => {
                                         eprintln!("albumart served: {} ({:.1}s)", offer.name, elapsed.as_secs_f64());
                                     }
@@ -211,7 +211,7 @@ fn dispatch(
                 return format!("error:file:not-found:{path_str}");
             }
             match file_transfer::prepare_serve(&path) {
-                Ok((offer, listener)) => {
+                Ok((offer, ts_listener, lan_listener)) => {
                     let json =
                         file_transfer::build_file_offer_json(&offer, "file");
                     let _ = mqtt.publish(
@@ -222,7 +222,7 @@ fn dispatch(
                     );
                     let path_clone = path.clone();
                     std::thread::spawn(move || {
-                        match file_transfer::accept_and_send(listener, &path_clone) {
+                        match file_transfer::accept_and_send(ts_listener, lan_listener, &path_clone) {
                             Ok(elapsed) => {
                                 eprintln!(
                                     "file served: {} ({} bytes, {:.1}s)",

@@ -48,21 +48,26 @@ class FileOfferContextSource : ContextSource {
 
     private suspend fun handleOffer(app: Context, offer: JSONObject) {
         val ip = offer.optString("ip", "")
+        val lanIp = offer.optString("lan_ip", "").takeIf { it.isNotEmpty() }
         val port = offer.optInt("port", -1)
         val name = offer.optString("name", "file")
         val type = offer.optString("type", "file")
         if (ip.isEmpty() || port <= 0) return
 
+        // LAN address first (when the relay could offer one) — Tailscale is the
+        // guaranteed fallback. Order matters: connect() tries these in sequence.
+        val candidates = listOfNotNull(lanIp?.let { it to port }, ip to port)
+
         if (type == "albumart") {
             val hash = name.substringBeforeLast(".")
-            val bytes = CybersynFileTransfer.downloadToBytes(ip, port) ?: return
+            val bytes = CybersynFileTransfer.downloadToBytes(candidates) ?: return
             val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size) ?: return
             AlbumArtBus.emit(hash, bitmap)
             return
         }
 
         val tmp = File(app.cacheDir, "cybersyn_incoming_${System.nanoTime()}_$name")
-        val size = CybersynFileTransfer.downloadToFile(ip, port, tmp) ?: return
+        val size = CybersynFileTransfer.downloadToFile(candidates, tmp) ?: return
         if (saveToDownloads(app, tmp, name)) {
             notifyFileReceived(app, name, size)
         }

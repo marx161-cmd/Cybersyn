@@ -1,10 +1,12 @@
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream, SocketAddr, ToSocketAddrs};
 use std::path::Path;
-use std::time::Duration;
+use std::process::Command;
+use std::time::{Duration, Instant};
 
 const CHUNK_SIZE: usize = 65536;
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
+const LAN_CONNECT_TIMEOUT: Duration = Duration::from_secs(3);
 const PORT_RANGE_START: u16 = 1740;
 const PORT_RANGE_END: u16 = 1745;
 
@@ -13,11 +15,16 @@ pub struct FileOffer {
     pub size: u64,
     pub port: u16,
     pub ip: String,
+    pub lan_ip: Option<String>,
 }
 
-/// Phase 1: bind port, compute metadata, return offer + listener.
-/// Non-blocking — caller publishes offer on MQTT before Phase 2.
-pub fn prepare_serve(path: &Path) -> Result<(FileOffer, TcpListener), String> {
+/// Phase 1: bind port(s), compute metadata, return offer + listener(s).
+/// Binds explicitly on the Tailscale IP (always) and comrade's LAN IP (best-effort,
+/// when detectable) — never 0.0.0.0. The control plane (MQTT action/offer topics)
+/// stays Tailscale-only regardless; this only lets the bulk transfer itself take
+/// the LAN shortcut when both ends happen to share one, since that transfer only
+/// ever starts because a Tailscale-authenticated action already asked for it.
+pub fn prepare_serve(path: &Path) -> Result<(FileOffer, TcpListener, Option<TcpListener>), String> {
     let metadata =
         std::fs::metadata(path).map_err(|e| format!("stat {path:?}: {e}"))?;
     let size = metadata.len();
@@ -28,32 +35,39 @@ pub fn prepare_serve(path: &Path) -> Result<(FileOffer, TcpListener), String> {
         .to_string();
 
     let ip = tailscale_ip();
+    let lan = lan_ip();
 
-    let (listener, port) = bind_free_port()?;
-    listener
-        .set_nonblocking(false)
-        .map_err(|e| format!("set_nonblocking: {e}"))?;
+    let (ts_listener, lan_listener, port) = bind_free_port(&ip, lan.as_deref())?;
 
     let offer = FileOffer {
         name,
         size,
         port,
         ip,
+        lan_ip: lan_listener.as_ref().and(lan),
     };
 
-    Ok((offer, listener))
+    Ok((offer, ts_listener, lan_listener))
 }
 
-/// Phase 2: accept one connection and stream the file. Blocks until connected or timeout.
-pub fn accept_and_send(listener: TcpListener, path: &Path) -> Result<Duration, String> {
-    let start = std::time::Instant::now();
-
+/// Phase 2: accept on whichever listener connects first (LAN or Tailscale) and
+/// stream the file. Blocks until connected or timeout.
+pub fn accept_and_send(
+    ts_listener: TcpListener,
+    lan_listener: Option<TcpListener>,
+    path: &Path,
+) -> Result<Duration, String> {
+    let start = Instant::now();
     let timeout = Duration::from_secs(30);
-    listener
+
+    ts_listener
         .set_nonblocking(true)
         .map_err(|e| format!("set_nonblocking: {e}"))?;
+    if let Some(l) = &lan_listener {
+        l.set_nonblocking(true).map_err(|e| format!("set_nonblocking: {e}"))?;
+    }
 
-    let (mut stream, _addr) = wait_for_accept(&listener, timeout)?;
+    let (mut stream, _addr) = wait_for_accept_either(&ts_listener, lan_listener.as_ref(), timeout)?;
     stream
         .set_nonblocking(false)
         .map_err(|e| format!("set_nonblocking: {e}"))?;
@@ -85,36 +99,59 @@ pub fn accept_and_send(listener: TcpListener, path: &Path) -> Result<Duration, S
     Ok(start.elapsed())
 }
 
-fn wait_for_accept(
-    listener: &TcpListener,
+fn wait_for_accept_either(
+    ts: &TcpListener,
+    lan: Option<&TcpListener>,
     timeout: Duration,
-) -> Result<(TcpStream, std::net::SocketAddr), String> {
-    let deadline = std::time::Instant::now() + timeout;
+) -> Result<(TcpStream, SocketAddr), String> {
+    let deadline = Instant::now() + timeout;
     loop {
-        match listener.accept() {
+        match ts.accept() {
             Ok(conn) => return Ok(conn),
-            Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
-                if std::time::Instant::now() >= deadline {
-                    return Err("accept timeout (30s)".to_string());
-                }
-                std::thread::sleep(Duration::from_millis(100));
-            }
+            Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {}
             Err(e) => return Err(format!("accept: {e}")),
         }
+        if let Some(l) = lan {
+            match l.accept() {
+                Ok(conn) => return Ok(conn),
+                Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {}
+                Err(e) => return Err(format!("accept: {e}")),
+            }
+        }
+        if Instant::now() >= deadline {
+            return Err("accept timeout (30s)".to_string());
+        }
+        std::thread::sleep(Duration::from_millis(50));
     }
 }
 
-/// Connect to a sender and receive file bytes, writing to dest_path.
-pub fn receive_file(addr: &str, dest_path: &Path) -> Result<u64, String> {
-    let socket_addr: SocketAddr = addr
-        .to_socket_addrs()
-        .map_err(|e| format!("resolve {addr}: {e}"))?
-        .next()
-        .ok_or_else(|| format!("no address resolved for {addr}"))?;
+/// Connect to a sender and receive file bytes, writing to dest_path. `addrs` is a
+/// comma-separated candidate list (e.g. "192.168.0.47:9,100.69.13.12:9") tried in
+/// order — a short timeout on all but the last so a LAN-first candidate that isn't
+/// reachable doesn't stall the guaranteed Tailscale fallback for long.
+pub fn receive_file(addrs: &str, dest_path: &Path) -> Result<u64, String> {
+    let candidates: Vec<&str> = addrs
+        .split(',')
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+        .collect();
+    if candidates.is_empty() {
+        return Err("no candidate addresses".to_string());
+    }
 
-    let mut stream =
-        TcpStream::connect_timeout(&socket_addr, CONNECT_TIMEOUT)
-            .map_err(|e| format!("connect {addr}: {e}"))?;
+    let mut stream = None;
+    let mut last_err = String::new();
+    for (i, addr) in candidates.iter().enumerate() {
+        let timeout = if i + 1 < candidates.len() { LAN_CONNECT_TIMEOUT } else { CONNECT_TIMEOUT };
+        match connect_one(addr, timeout) {
+            Ok(s) => {
+                stream = Some(s);
+                break;
+            }
+            Err(e) => last_err = e,
+        }
+    }
+    let mut stream = stream.ok_or_else(|| format!("all candidates failed: {last_err}"))?;
 
     stream
         .set_read_timeout(Some(Duration::from_secs(30)))
@@ -148,24 +185,40 @@ pub fn receive_file(addr: &str, dest_path: &Path) -> Result<u64, String> {
     Ok(total)
 }
 
-/// Bind only on the Tailscale interface — never 0.0.0.0 — so the file-transfer
-/// listener is unreachable from any LAN/other interface comrade might have.
-/// If Tailscale can't be resolved, this falls back to loopback-only (fails
-/// closed, not open).
-fn bind_free_port() -> Result<(TcpListener, u16), String> {
-    let ip = tailscale_ip();
+fn connect_one(addr: &str, timeout: Duration) -> Result<TcpStream, String> {
+    let socket_addr: SocketAddr = addr
+        .to_socket_addrs()
+        .map_err(|e| format!("resolve {addr}: {e}"))?
+        .next()
+        .ok_or_else(|| format!("no address resolved for {addr}"))?;
+    TcpStream::connect_timeout(&socket_addr, timeout).map_err(|e| format!("connect {addr}: {e}"))
+}
+
+/// Bind the same port on the Tailscale IP (required) and, best-effort, comrade's
+/// LAN IP too. Both are explicit addresses — never 0.0.0.0. If the LAN bind fails
+/// for a given port (in use for something else), we proceed Tailscale-only rather
+/// than skipping to another port, since Tailscale reachability is the guarantee.
+fn bind_free_port(ts_ip: &str, lan_ip: Option<&str>) -> Result<(TcpListener, Option<TcpListener>, u16), String> {
     for port in PORT_RANGE_START..=PORT_RANGE_END {
-        let addr = format!("{ip}:{port}");
-        match TcpListener::bind(&addr) {
-            Ok(l) => {
-                l.set_nonblocking(false).ok();
-                return Ok((l, port));
-            }
+        let ts_addr = format!("{ts_ip}:{port}");
+        let ts_listener = match TcpListener::bind(&ts_addr) {
+            Ok(l) => l,
             Err(_) => continue,
-        }
+        };
+        ts_listener.set_nonblocking(false).ok();
+
+        let lan_listener = lan_ip.and_then(|ip| {
+            let lan_addr = format!("{ip}:{port}");
+            TcpListener::bind(&lan_addr).ok().map(|l| {
+                l.set_nonblocking(false).ok();
+                l
+            })
+        });
+
+        return Ok((ts_listener, lan_listener, port));
     }
     Err(format!(
-        "no free port in range {PORT_RANGE_START}-{PORT_RANGE_END} on {ip}"
+        "no free port in range {PORT_RANGE_START}-{PORT_RANGE_END} on {ts_ip}"
     ))
 }
 
@@ -179,12 +232,34 @@ pub fn tailscale_ip() -> String {
         .unwrap_or_else(|_| "127.0.0.1".to_string())
 }
 
+/// comrade's LAN-facing IPv4 address — whatever interface actually carries the
+/// default route, so it's right even with docker bridges/other virtual interfaces
+/// present. Best-effort: None if it can't be determined (e.g. ethernet unplugged).
+pub fn lan_ip() -> Option<String> {
+    let output = Command::new("ip")
+        .args(["-4", "route", "get", "8.8.8.8"])
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let text = String::from_utf8_lossy(&output.stdout);
+    let mut tokens = text.split_whitespace();
+    while let Some(tok) = tokens.next() {
+        if tok == "src" {
+            return tokens.next().map(|s| s.to_string());
+        }
+    }
+    None
+}
+
 pub fn build_file_offer_json(offer: &FileOffer, file_type: &str) -> String {
     serde_json::json!({
         "name": offer.name,
         "size": offer.size,
         "port": offer.port,
         "ip": offer.ip,
+        "lan_ip": offer.lan_ip,
         "type": file_type,
     })
     .to_string()

@@ -7,27 +7,32 @@ import java.net.InetSocketAddress
 import java.net.Socket
 
 /**
- * TCP client counterpart to the relay's `file_transfer.rs` — connects to the
+ * TCP client counterpart to the relay's `file_transfer.rs` — connects to an
  * ip:port from a `cybersyn/file/offer` message and streams the raw bytes down.
  * No framing beyond the offer's `size` field; the relay just writes the file
  * and closes the connection.
+ *
+ * Candidates are tried in order (LAN address first when the relay offered one,
+ * Tailscale address last) — a short timeout on every candidate but the last, so
+ * an unreachable LAN shortcut doesn't stall the guaranteed Tailscale fallback.
  */
 object CybersynFileTransfer {
     private const val CHUNK_SIZE = 65536
+    private const val LAN_CONNECT_TIMEOUT_MS = 1200
     private const val CONNECT_TIMEOUT_MS = 10_000
     private const val READ_TIMEOUT_MS = 30_000
 
     /** Download into [destFile]. Returns bytes written, or null on failure (partial file removed). */
-    fun downloadToFile(ip: String, port: Int, destFile: File): Long? {
+    fun downloadToFile(candidates: List<Pair<String, Int>>, destFile: File): Long? {
+        val socket = connect(candidates) ?: return null
         return try {
-            Socket().use { socket ->
-                socket.connect(InetSocketAddress(ip, port), CONNECT_TIMEOUT_MS)
-                socket.soTimeout = READ_TIMEOUT_MS
+            socket.use {
+                it.soTimeout = READ_TIMEOUT_MS
                 destFile.parentFile?.mkdirs()
                 var total = 0L
                 val buf = ByteArray(CHUNK_SIZE)
                 FileOutputStream(destFile).use { out ->
-                    val input = socket.getInputStream()
+                    val input = it.getInputStream()
                     while (true) {
                         val n = input.read(buf)
                         if (n == -1) break
@@ -47,14 +52,14 @@ object CybersynFileTransfer {
      * Download into memory — for small payloads like album art. [maxBytes] caps memory use
      * against a malformed/oversized offer; returns null if exceeded.
      */
-    fun downloadToBytes(ip: String, port: Int, maxBytes: Int = 20 * 1024 * 1024): ByteArray? {
+    fun downloadToBytes(candidates: List<Pair<String, Int>>, maxBytes: Int = 20 * 1024 * 1024): ByteArray? {
+        val socket = connect(candidates) ?: return null
         return try {
-            Socket().use { socket ->
-                socket.connect(InetSocketAddress(ip, port), CONNECT_TIMEOUT_MS)
-                socket.soTimeout = READ_TIMEOUT_MS
+            socket.use {
+                it.soTimeout = READ_TIMEOUT_MS
                 val out = ByteArrayOutputStream()
                 val buf = ByteArray(CHUNK_SIZE)
-                val input = socket.getInputStream()
+                val input = it.getInputStream()
                 while (true) {
                     val n = input.read(buf)
                     if (n == -1) break
@@ -66,5 +71,20 @@ object CybersynFileTransfer {
         } catch (_: Exception) {
             null
         }
+    }
+
+    private fun connect(candidates: List<Pair<String, Int>>): Socket? {
+        for ((index, candidate) in candidates.withIndex()) {
+            val (ip, port) = candidate
+            val timeout = if (index < candidates.size - 1) LAN_CONNECT_TIMEOUT_MS else CONNECT_TIMEOUT_MS
+            try {
+                val socket = Socket()
+                socket.connect(InetSocketAddress(ip, port), timeout)
+                return socket
+            } catch (_: Exception) {
+                // try the next candidate
+            }
+        }
+        return null
     }
 }
