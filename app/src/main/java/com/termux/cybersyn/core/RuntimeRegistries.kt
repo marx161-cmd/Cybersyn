@@ -26,6 +26,22 @@ import com.termux.cybersyn.core.actions.LogAction
 import com.termux.cybersyn.core.actions.MobileDataAction
 import com.termux.cybersyn.core.actions.MqttPublishAction
 import com.termux.cybersyn.core.actions.MuteAction
+import com.termux.cybersyn.core.actions.MediaPlayAction
+import com.termux.cybersyn.core.actions.MediaPauseAction
+import com.termux.cybersyn.core.actions.MediaPlayPauseAction
+import com.termux.cybersyn.core.actions.MediaNextAction
+import com.termux.cybersyn.core.actions.MediaPrevAction
+import com.termux.cybersyn.core.actions.MediaStopAction
+import com.termux.cybersyn.core.actions.MediaSeekAction
+import com.termux.cybersyn.core.actions.MediaSetPositionAction
+import com.termux.cybersyn.core.actions.MediaSetVolumeAction
+import com.termux.cybersyn.core.actions.MediaSetLoopAction
+import com.termux.cybersyn.core.actions.MediaSetShuffleAction
+import com.termux.cybersyn.core.actions.MediaRequestAlbumArtAction
+import com.termux.cybersyn.core.actions.ClipboardPushAction
+import com.termux.cybersyn.core.actions.ClipboardPullAction
+import com.termux.cybersyn.core.actions.FileServeAction
+import com.termux.cybersyn.core.actions.FileReceiveAction
 import com.termux.cybersyn.core.actions.MpvEnterFreeformAction
 import com.termux.cybersyn.core.actions.MpvEnterPipAction
 import com.termux.cybersyn.core.actions.MpvExitFullscreenAction
@@ -70,10 +86,12 @@ import com.termux.cybersyn.core.actions.WakeOnLanAction
 import com.termux.cybersyn.core.actions.WiFiToggleAction
 import com.termux.cybersyn.core.actions.WriteFileAction
 import com.termux.cybersyn.core.contexts.ApplicationContextSourceImpl
+import com.termux.cybersyn.core.contexts.ClipboardContextSource
 import com.termux.cybersyn.core.contexts.ContextSourceRegistry
 import com.termux.cybersyn.core.contexts.EventContextSourceImpl
 import com.termux.cybersyn.core.contexts.LocalePluginConditionContextSource
 import com.termux.cybersyn.core.contexts.LocationContextSourceImpl
+import com.termux.cybersyn.core.contexts.MediaContextSource
 import com.termux.cybersyn.core.contexts.StateContextSourceImpl
 import com.termux.cybersyn.core.contexts.TimeContextSourceImpl
 import com.termux.cybersyn.core.engine.ActionRegistry
@@ -154,6 +172,23 @@ private fun registerBuiltInActions() {
         LogAction(),
         TermuxScriptAction(),
         TaskerUnsupportedAction(),
+        // Cybersyn KDE feature set
+        MediaPlayAction(),
+        MediaPauseAction(),
+        MediaPlayPauseAction(),
+        MediaNextAction(),
+        MediaPrevAction(),
+        MediaStopAction(),
+        MediaSeekAction(),
+        MediaSetPositionAction(),
+        MediaSetVolumeAction(),
+        MediaSetLoopAction(),
+        MediaSetShuffleAction(),
+        MediaRequestAlbumArtAction(),
+        ClipboardPushAction(),
+        ClipboardPullAction(),
+        FileServeAction(),
+        FileReceiveAction(),
     ).forEach(ActionRegistry::register)
 }
 
@@ -165,5 +200,7 @@ private fun registerContextSources() {
         EventContextSourceImpl(),
         LocationContextSourceImpl(),
         LocalePluginConditionContextSource(),
+        MediaContextSource(),
+        ClipboardContextSource(),
     ).forEach(ContextSourceRegistry::register)
 }
