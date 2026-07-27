@@ -157,6 +157,7 @@ class ExplainReceiver : BroadcastReceiver() {
         val root = JSONObject()
             .put("runtime_info", runtime)
             .put("build_state", buildState)
+            .put("operational_notes", JSONArray(OPERATIONAL_NOTES))
             .put("next_commands", JSONArray(listOf(
                 "adb shell am broadcast -a $ACTION_EXPLAIN --es scope all",
                 "adb shell am broadcast -a ${AutomationTargetContract.ACTION_QUERY_STATUS}",
@@ -171,6 +172,9 @@ class ExplainReceiver : BroadcastReceiver() {
     private fun buildTextReport(runtime: JSONObject, buildState: JSONObject, dateFormat: SimpleDateFormat, now: Long): String = buildString {
         appendLine("=== Cybersyn Explain ===")
         appendLine("Generated: ${dateFormat.format(Date(now))}")
+        appendLine()
+        appendLine("--- Operational Notes (read before editing schema/tasks/profiles) ---")
+        OPERATIONAL_NOTES.forEach { appendLine("- $it") }
         appendLine()
         appendLine("--- Runtime Info ---")
         appendLine(runtime.toString(2))
@@ -188,6 +192,47 @@ class ExplainReceiver : BroadcastReceiver() {
         const val EXTRA_SUMMARY = "com.termux.cybersyn.extra.EXPLAIN_SUMMARY"
         private const val TAG = "ExplainReceiver"
         private const val TERMUX_HOME = "/data/data/com.termux/files/home"
+
+        // Hard-won lessons from real incidents, kept here (not just in commit messages) so
+        // an LLM querying this endpoint gets them without re-deriving them from source or
+        // repeating the same mistake. Add to this list when a real bug/gotcha is found and
+        // fixed — don't let it live only in a commit message.
+        private val OPERATIONAL_NOTES = listOf(
+            "Task.collisionMode is a Kotlin enum (ABORT_NEW/ABORT_EXISTING/RUN_BOTH/WAIT) but stored " +
+                "as a raw TEXT column. A raw sqlite3 INSERT with any other string (e.g. \"QUEUE\") is " +
+                "accepted by the DB but fails CollisionMode.valueOf() on decode, silently blocking that " +
+                "task from running/editing (real incident: task 135 'sshd: poll watchdog check', fixed " +
+                "2026-07-27). Prefer AutomationCliReceiver's ACTION_IMPORT_BUNDLE (goes through the real " +
+                "Task/Profile Kotlin data classes + kotlinx.serialization, can't produce an invalid enum) " +
+                "over raw sqlite3 INSERT for adding tasks. If you must use raw SQL, the only valid " +
+                "collisionMode strings are ABORT_NEW, ABORT_EXISTING, RUN_BOTH, WAIT — check the current " +
+                "enum in core/model/Task.kt first, it can change.",
+            "To make something self-heal whenever the Cybersyn engine (re)starts — not just full device " +
+                "boot, but also a plain app relaunch after a force-stop — add a Profile with contexts " +
+                "[{\"type\":\"EVENT\",\"config\":{\"event\":\"boot_completed\"}}] pointing at a healing Task. " +
+                "This fires on ACTION_BOOT_COMPLETED_TRIGGER, which MainActivity also uses when starting " +
+                "the service normally, not just the real boot receiver. Existing examples: SshdBoot (task " +
+                "'Restore SSHD'), NpudBoot (task 'npud: restart on log evidence', added 2026-07-27). This " +
+                "is the pattern to extend for anything new that needs restart-recovery — no new Kotlin " +
+                "code needed, just a Task + Profile pair.",
+            "com.termux.cybersyn shares UID 1000 (android.uid.system) with the whole com.termux.* family. " +
+                "Force-stopping this app (including the force-stop blazer-sysapp-update's install step " +
+                "does automatically) kills sshd, npud, and anything else sharing that UID too. Never " +
+                "force-stop any com.termux.* package expecting it to be isolated.",
+            "MqttBridge.subscribe() spawns one OS process per distinct topic filter, each connecting to " +
+                "the broker with an MQTT client id. Every process must use a DISTINCT id (real incident: " +
+                "they all shared the helper's default id until 2026-07-27, so with 4+ concurrent " +
+                "subscriptions each new connection kicked the previous one off the broker in a constant " +
+                "churn — cybersyn/file/offer looked 'flaky' but was actually just disconnected most of " +
+                "the time). If you add a new call path that spawns the mqtt-helper 'sub' subprocess " +
+                "directly, it needs its own --id too, not just topic + broker.",
+            "File transfer (file:serve/file:receive/albumart) binds explicit Tailscale + LAN addresses, " +
+                "never 0.0.0.0 — the MQTT control plane (cybersyn/comrade/action) is the real trust " +
+                "boundary (Tailscale-only), the bulk-transfer socket is just a dumb pipe that only opens " +
+                "because something already authenticated over Tailscale asked for it. Don't widen the " +
+                "listen scope further without re-reading that reasoning (Fedora_src/cybersyn-relay/src/" +
+                "file_transfer.rs).",
+        )
     }
 }
 
