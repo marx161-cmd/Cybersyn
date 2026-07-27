@@ -23,7 +23,11 @@ object CybersynFileTransfer {
     private const val READ_TIMEOUT_MS = 30_000
 
     /** Download into [destFile]. Returns bytes written, or null on failure (partial file removed). */
-    fun downloadToFile(candidates: List<Pair<String, Int>>, destFile: File): Long? {
+    fun downloadToFile(
+        candidates: List<Pair<String, Int>>,
+        destFile: File,
+        onProgress: ((bytesSoFar: Long) -> Unit)? = null,
+    ): Long? {
         val socket = connect(candidates) ?: return null
         return try {
             socket.use {
@@ -38,6 +42,7 @@ object CybersynFileTransfer {
                         if (n == -1) break
                         out.write(buf, 0, n)
                         total += n
+                        onProgress?.invoke(total)
                     }
                 }
                 total

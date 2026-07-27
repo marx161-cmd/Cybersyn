@@ -1,18 +1,15 @@
 package com.termux.cybersyn.core.contexts
 
-import android.app.Notification
-import android.app.NotificationChannel
-import android.app.NotificationManager
 import android.content.ContentValues
 import android.content.Context
 import android.graphics.BitmapFactory
-import android.os.Build
-import android.provider.MediaStore
 import android.os.Environment
+import android.provider.MediaStore
 import com.termux.cybersyn.core.mqtt.MqttBridge
 import com.termux.cybersyn.core.transfer.AlbumArtBus
 import com.termux.cybersyn.core.transfer.CybersynFileTransfer
 import com.termux.cybersyn.core.transfer.TermuxExec
+import com.termux.cybersyn.core.transfer.TransferProgressNotifier
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -54,6 +51,7 @@ class FileOfferContextSource : ContextSource {
         val port = offer.optInt("port", -1)
         val name = offer.optString("name", "file")
         val type = offer.optString("type", "file")
+        val expectedSize = offer.optLong("size", -1L)
         if (ip.isEmpty() || port <= 0) return
 
         // LAN address first (when the relay could offer one) — Tailscale is the
@@ -69,25 +67,43 @@ class FileOfferContextSource : ContextSource {
         }
 
         if (type == "archive-zst") {
-            val tmp = File(app.cacheDir, "cybersyn_incoming_${System.nanoTime()}.tar.zst")
-            val size = CybersynFileTransfer.downloadToFile(candidates, tmp) ?: return
             val archiveBase = name.removeSuffix(".tar.zst")
+            val notifier = TransferProgressNotifier(app, "Receiving $archiveBase/")
+            notifier.start(indeterminate = expectedSize <= 0)
+
+            val tmp = File(app.cacheDir, "cybersyn_incoming_${System.nanoTime()}.tar.zst")
+            val size = CybersynFileTransfer.downloadToFile(candidates, tmp) { notifier.update(it, expectedSize) }
+            if (size == null) {
+                notifier.finish(false, "download failed")
+                return
+            }
             // The archive's entries are already wrapped in a top-level "<archiveBase>/"
             // (comrade tars with `-C <parent> <basename>`), so extract into the parent
             // "cybersyn" dir and let tar recreate that named folder — extracting into a
             // dir already named archiveBase would double it up.
             val destDir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "cybersyn")
             if (extractTarZst(tmp, destDir)) {
-                notifyFileReceived(app, "$archiveBase/", size)
+                notifier.finish(true, "saved to Downloads/cybersyn/$archiveBase/")
+            } else {
+                notifier.finish(false, "extraction failed")
             }
             tmp.delete()
             return
         }
 
+        val notifier = TransferProgressNotifier(app, "Receiving $name")
+        notifier.start(indeterminate = expectedSize <= 0)
+
         val tmp = File(app.cacheDir, "cybersyn_incoming_${System.nanoTime()}_$name")
-        val size = CybersynFileTransfer.downloadToFile(candidates, tmp) ?: return
+        val size = CybersynFileTransfer.downloadToFile(candidates, tmp) { notifier.update(it, expectedSize) }
+        if (size == null) {
+            notifier.finish(false, "download failed")
+            return
+        }
         if (saveToDownloads(app, tmp, name)) {
-            notifyFileReceived(app, name, size)
+            notifier.finish(true, "${size / 1024} KB saved to Downloads/cybersyn")
+        } else {
+            notifier.finish(false, "save failed")
         }
         tmp.delete()
     }
@@ -135,32 +151,4 @@ class FileOfferContextSource : ContextSource {
         }
     }
 
-    private fun notifyFileReceived(app: Context, name: String, size: Long) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                CHANNEL_ID,
-                "File transfers",
-                NotificationManager.IMPORTANCE_DEFAULT,
-            )
-            app.getSystemService(NotificationManager::class.java)?.createNotificationChannel(channel)
-        }
-        val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            Notification.Builder(app, CHANNEL_ID)
-        } else {
-            @Suppress("DEPRECATION")
-            Notification.Builder(app)
-        }
-        val notification = builder
-            .setContentTitle("File received from comrade")
-            .setContentText("$name (${size / 1024} KB) saved to Downloads/cybersyn")
-            .setSmallIcon(android.R.drawable.stat_sys_download_done)
-            .setAutoCancel(true)
-            .build()
-        app.getSystemService(NotificationManager::class.java)?.notify(NOTIFICATION_ID, notification)
-    }
-
-    companion object {
-        private const val CHANNEL_ID = "cybersyn_files"
-        private const val NOTIFICATION_ID = 9002
-    }
 }

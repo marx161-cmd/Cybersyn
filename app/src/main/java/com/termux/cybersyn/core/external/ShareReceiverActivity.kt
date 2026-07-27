@@ -14,6 +14,7 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import com.termux.cybersyn.core.mqtt.MqttBridge
 import com.termux.cybersyn.core.transfer.TermuxExec
+import com.termux.cybersyn.core.transfer.TransferProgressNotifier
 import java.io.File
 import java.io.IOException
 import java.io.InputStream
@@ -34,6 +35,7 @@ class ShareReceiverActivity : ComponentActivity() {
                 val streamUri = intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)
                 if (streamUri != null) {
                     val name = resolveFileName(streamUri)
+                    val size = resolveFileSize(streamUri)
                     Thread {
                         try {
                             contentResolver.openInputStream(streamUri).use { input ->
@@ -41,7 +43,7 @@ class ShareReceiverActivity : ComponentActivity() {
                                     Log.w(TAG, "openInputStream returned null for $streamUri")
                                     notifyShareFailed(name)
                                 } else {
-                                    serveStream(name, input)
+                                    serveStream(name, input, size)
                                 }
                             }
                         } catch (e: Exception) {
@@ -99,7 +101,7 @@ class ShareReceiverActivity : ComponentActivity() {
             if (proc.waitFor() != 0) return
 
             val archiveName = "shared_${uris.size}_files.tar"
-            tarFile.inputStream().use { serveStream(archiveName, it) }
+            tarFile.inputStream().use { serveStream(archiveName, it, tarFile.length()) }
         } catch (e: Exception) {
             Log.w(TAG, "serveMultiple failed for $uris", e)
         } finally {
@@ -140,7 +142,7 @@ class ShareReceiverActivity : ComponentActivity() {
     private fun serveLocalPath(file: File) {
         if (!file.isDirectory) {
             try {
-                file.inputStream().use { serveStream(file.name, it) }
+                file.inputStream().use { serveStream(file.name, it, file.length()) }
             } catch (e: Exception) {
                 Log.w(TAG, "serveLocalPath failed for $file", e)
             }
@@ -155,7 +157,7 @@ class ShareReceiverActivity : ComponentActivity() {
                 notifyShareFailed(file.name)
                 return
             }
-            tarFile.inputStream().use { serveStream("${file.name}.tar", it) }
+            tarFile.inputStream().use { serveStream("${file.name}.tar", it, tarFile.length()) }
         } catch (e: Exception) {
             Log.w(TAG, "serveLocalPath (dir) failed for $file", e)
         } finally {
@@ -163,7 +165,11 @@ class ShareReceiverActivity : ComponentActivity() {
         }
     }
 
-    private fun serveStream(name: String, input: InputStream) {
+    /** [totalSize] enables a determinate progress bar; pass -1 (or leave default) when unknown. */
+    private fun serveStream(name: String, input: InputStream, totalSize: Long = -1) {
+        val notifier = TransferProgressNotifier(this, "Sending $name")
+        notifier.start(indeterminate = totalSize <= 0)
+
         // Some senders (MiXplorer's single-folder "Share" button, at least) hand back a
         // stream that looks fine but throws EISDIR on the first real read — they're pointing
         // at a raw directory fd with no zip/tar wrapping, no bytes to recover. Check that
@@ -173,6 +179,7 @@ class ShareReceiverActivity : ComponentActivity() {
             input.read()
         } catch (e: IOException) {
             Log.w(TAG, "cannot read \"$name\" — sender gave no real bytes (probably tried to share a folder directly)", e)
+            notifier.finish(false, "couldn't read \"$name\"")
             notifyShareFailed(name)
             return
         }
@@ -200,17 +207,25 @@ class ShareReceiverActivity : ComponentActivity() {
         try {
             val client = server.accept()
             client.getOutputStream().use { output ->
-                if (firstByte != -1) output.write(firstByte)
+                var sent = 0L
+                if (firstByte != -1) {
+                    output.write(firstByte)
+                    sent++
+                }
                 val buf = ByteArray(65536)
                 var bytesRead: Int
                 while (input.read(buf).also { bytesRead = it } != -1) {
                     output.write(buf, 0, bytesRead)
+                    sent += bytesRead
+                    notifier.update(sent, totalSize)
                 }
                 output.flush()
             }
             client.close()
+            notifier.finish(true, "sent to comrade")
         } catch (e: Exception) {
             Log.w(TAG, "serveStream failed for $name", e)
+            notifier.finish(false, "transfer failed")
         } finally {
             try { server.close() } catch (_: Exception) {}
         }
@@ -239,6 +254,17 @@ class ShareReceiverActivity : ComponentActivity() {
 
         val lastSegment = uri.lastPathSegment ?: "shared_file"
         return lastSegment.substringAfterLast('/')
+    }
+
+    /** -1 if the provider doesn't report a size (falls back to an indeterminate progress bar). */
+    private fun resolveFileSize(uri: Uri): Long {
+        contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+            if (cursor.moveToFirst()) {
+                val idx = cursor.getColumnIndex(OpenableColumns.SIZE)
+                if (idx >= 0 && !cursor.isNull(idx)) return cursor.getLong(idx)
+            }
+        }
+        return -1
     }
 
     /** This device's current WiFi IPv4 address, or null if not on WiFi (e.g. mobile data). */
