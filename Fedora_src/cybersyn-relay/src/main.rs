@@ -207,9 +207,64 @@ fn dispatch(
         "file" if arg.starts_with("serve:") => {
             let path_str = &arg[6..];
             let path = expand_home(path_str);
-            if !path.is_file() {
+            if !path.exists() {
                 return format!("error:file:not-found:{path_str}");
             }
+
+            if path.is_dir() {
+                // Archiving can take a while for a large tree — do the whole
+                // build-then-offer-then-send sequence off the MQTT event-loop
+                // thread (dispatch() runs synchronously in that loop) so a big
+                // folder doesn't stall clipboard/mpris/other actions meanwhile.
+                let path_owned = path.clone();
+                let mqtt_owned = mqtt.clone();
+                let file_offer_topic_owned = file_offer_topic.to_string();
+                std::thread::spawn(move || {
+                    let name = path_owned
+                        .file_name()
+                        .and_then(|n| n.to_str())
+                        .unwrap_or("archive")
+                        .to_string();
+                    let archive_path = file_transfer::temp_archive_path(&name, "tar.zst");
+                    if let Err(e) = file_transfer::build_archive_zst(&path_owned, &archive_path) {
+                        eprintln!("archive build failed: {e}");
+                        return;
+                    }
+                    match file_transfer::prepare_serve(&archive_path) {
+                        Ok((mut offer, ts_listener, lan_listener)) => {
+                            // prepare_serve derived `name` from the temp archive's unique
+                            // filename — swap in the clean source-directory-derived name
+                            // that's actually meant to reach the phone.
+                            offer.name = format!("{name}.tar.zst");
+                            let json =
+                                file_transfer::build_file_offer_json(&offer, "archive-zst");
+                            let _ = mqtt_owned.publish(
+                                &file_offer_topic_owned,
+                                QoS::AtLeastOnce,
+                                false,
+                                json,
+                            );
+                            match file_transfer::accept_and_send(ts_listener, lan_listener, &archive_path) {
+                                Ok(elapsed) => {
+                                    eprintln!(
+                                        "archive served: {} ({} bytes, {:.1}s)",
+                                        offer.name, offer.size, elapsed.as_secs_f64()
+                                    );
+                                }
+                                Err(e) => {
+                                    eprintln!("archive serve failed: {e}");
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            eprintln!("archive prepare failed: {e}");
+                        }
+                    }
+                    let _ = std::fs::remove_file(&archive_path);
+                });
+                return format!("file:archiving:{path_str}");
+            }
+
             match file_transfer::prepare_serve(&path) {
                 Ok((offer, ts_listener, lan_listener)) => {
                     let json =
@@ -262,6 +317,20 @@ fn dispatch(
                 match file_transfer::receive_file(&addr, &dest_clone) {
                     Ok(n) => {
                         eprintln!("file received: {dest_clone:?} ({n} bytes)");
+                        // Upload leg is intentionally uncompressed (see file_transfer.rs
+                        // comment) — a `.tar` suffix means the phone bundled multiple
+                        // shared files/a folder, so unpack it into a same-named directory.
+                        if let Some(stem) = dest_clone
+                            .file_name()
+                            .and_then(|n| n.to_str())
+                            .and_then(|n| n.strip_suffix(".tar"))
+                        {
+                            let extract_dir = dest_clone.with_file_name(stem);
+                            match file_transfer::extract_tar(&dest_clone, &extract_dir) {
+                                Ok(()) => eprintln!("archive extracted: {extract_dir:?}"),
+                                Err(e) => eprintln!("archive extract failed: {e}"),
+                            }
+                        }
                     }
                     Err(e) => {
                         eprintln!("file receive failed: {e}");

@@ -1,7 +1,7 @@
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream, SocketAddr, ToSocketAddrs};
-use std::path::Path;
-use std::process::Command;
+use std::path::{Path, PathBuf};
+use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
 const CHUNK_SIZE: usize = 65536;
@@ -251,6 +251,81 @@ pub fn lan_ip() -> Option<String> {
         }
     }
     None
+}
+
+/// A fresh path under the system temp dir for a one-shot archive, so concurrent
+/// transfers (the port range already allows a handful in parallel) don't collide.
+pub fn temp_archive_path(name: &str, ext: &str) -> PathBuf {
+    let unique = format!(
+        "{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0)
+    );
+    std::env::temp_dir().join(format!("cybersyn-{name}-{unique}.{ext}"))
+}
+
+/// Stream `tar -C <dir's parent> <dir's basename>` through `zstd -T0` into `out_path`,
+/// without ever holding the whole archive in memory. Level 12 + all-cores threading is
+/// chosen so compression stays comfortably ahead of realistic LAN/Tailscale throughput
+/// on this box (Ryzen 5 8600G, 12 threads) rather than becoming the bottleneck itself —
+/// see the phone-side counterpart in CybersynFileTransfer for why the upload direction
+/// (weaker, thermally-constrained phone CPU as sender) deliberately skips compression.
+pub fn build_archive_zst(dir: &Path, out_path: &Path) -> Result<(), String> {
+    let parent = dir.parent().ok_or_else(|| format!("{dir:?}: no parent dir"))?;
+    let base = dir.file_name().ok_or_else(|| format!("{dir:?}: no dir name"))?;
+
+    let mut tar_child = Command::new("tar")
+        .arg("-cf")
+        .arg("-")
+        .arg("-C")
+        .arg(parent)
+        .arg(base)
+        .stdout(Stdio::piped())
+        .spawn()
+        .map_err(|e| format!("tar spawn: {e}"))?;
+    let tar_stdout = tar_child.stdout.take().ok_or("tar: no stdout")?;
+
+    let zstd_status = Command::new("zstd")
+        .args(["-T0", "-12", "-q", "-f", "-o"])
+        .arg(out_path)
+        .stdin(Stdio::from(tar_stdout))
+        .status()
+        .map_err(|e| format!("zstd spawn: {e}"))?;
+
+    let tar_status = tar_child.wait().map_err(|e| format!("tar wait: {e}"))?;
+    if !tar_status.success() {
+        return Err(format!("tar exited: {tar_status}"));
+    }
+    if !zstd_status.success() {
+        return Err(format!("zstd exited: {zstd_status}"));
+    }
+    Ok(())
+}
+
+/// Extraction for the upload leg (phone -> comrade), which is deliberately plain
+/// (no zstd) since compression would otherwise run on the phone's weaker,
+/// thermally-constrained CPU as the sender. Unpacks the `.tar` and removes it.
+pub fn extract_tar(archive_path: &Path, dest_dir: &Path) -> Result<(), String> {
+    std::fs::create_dir_all(dest_dir)
+        .map_err(|e| format!("mkdir {dest_dir:?}: {e}"))?;
+
+    let status = Command::new("tar")
+        .arg("-xf")
+        .arg(archive_path)
+        .arg("-C")
+        .arg(dest_dir)
+        .status()
+        .map_err(|e| format!("tar spawn: {e}"))?;
+
+    let _ = std::fs::remove_file(archive_path);
+
+    if !status.success() {
+        return Err(format!("tar exited: {status}"));
+    }
+    Ok(())
 }
 
 pub fn build_file_offer_json(offer: &FileOffer, file_type: &str) -> String {
