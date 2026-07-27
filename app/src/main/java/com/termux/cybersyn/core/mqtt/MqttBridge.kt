@@ -135,7 +135,12 @@ object MqttBridge {
             while (running.get()) {
                 try {
                     val proc = if (bundled != null) {
-                        ProcessBuilder(bundled.absolutePath, "sub", "--broker", broker, "--port", port.toString(), "--topic", topicFilter)
+                        // Distinct client id per topic filter — the helper's default id is
+                        // fixed, so with 2+ concurrent subscriptions (as of FileOfferContextSource,
+                        // there are 4) every process shared it and each new connection kicked the
+                        // previous one off the broker, churning all of them indefinitely.
+                        val subId = "cybersyn-sub-" + topicFilter.replace(Regex("[^a-zA-Z0-9]"), "_")
+                        ProcessBuilder(bundled.absolutePath, "sub", "--broker", broker, "--port", port.toString(), "--topic", topicFilter, "--id", subId)
                             .start()
                     } else {
                         mosquitto(listOf("bin/mosquitto_sub", "-h", broker, "-p", port.toString(), "-t", topicFilter, "-F", "%t\t%p"))
