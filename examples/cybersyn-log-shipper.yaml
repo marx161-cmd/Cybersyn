@@ -1,0 +1,33 @@
+name: Cybersyn log shipper
+description: >
+  Full-device logcat capture (*:V, unfiltered) every 300s, gzipped and
+  pushed to comrade:/home/comrade/pixel_logs over Tailscale SSH (no key --
+  authenticated by tailnet identity). Capture+gzip runs synchronously inside
+  the task's 60s timeout; the scp push is backgrounded (setsid+nohup+flock)
+  so a slow/contended link can't get killed mid-transfer and lose that
+  cycle's capture -- see project_cybersyn_log_shipper memory for the
+  2026-07-27 timeout/data-loss fix this bundle reflects.
+  Script: ~/.termux/tasker/log-shipper.sh (root:root 700, useRoot required --
+  logcat -c needs privilege)
+tasks:
+  - name: "Ship device logs"
+    actions:
+      - type: script.termux.run
+        args:
+          executable: /data/data/com.termux/files/home/.termux/tasker/log-shipper.sh
+          arguments: ""
+          useRoot: "true"
+          timeoutMs: "60000"
+profiles:
+  - name: LogShipTimer
+    enabled: true
+    automationMode: SINGLE
+    cooldownSec: 300
+    enterTask: "Ship device logs"
+    contexts:
+      - type: TIME
+        config:
+          start: "00:00"
+          end: "23:59"
+    # Always-on time window; the actual 5-minute cadence comes from
+    # cooldownSec gating the ~60s reconcile tick, not the window itself.
