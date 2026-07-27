@@ -1,66 +1,54 @@
-//! Cybersyn relay agent — bullet 0 of the Cybersyn attack path.
-//!
-//! One binary, deployed identically to comrade and comintern. It subscribes to
-//! `cybersyn/<node>/action` on the MQTT bus, runs the requested local action,
-//! and publishes the outcome to `cybersyn/<node>/event`. Trust boundary is the
-//! Tailscale mesh; there is deliberately no auth layer on top (see RECON §1.6).
-//!
-//! The message schema is intentionally tiny for now (RECON §7.3: grow it against
-//! real rules). An action payload is `command` or `command:argument`, e.g.
-//!   mosquitto_pub -h 100.108.8.60 -t cybersyn/comrade/action -m 'notify:hi'
-//!
-//! Add new host capabilities in `dispatch()` — that match arm is the whole
-//! extension surface. New capability = new arm, nothing else changes.
+mod clipboard;
+mod file_transfer;
+mod mpris;
 
+use std::path::PathBuf;
 use std::process::Command;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use clap::Parser;
 use rumqttc::{Client, Event, MqttOptions, Packet, QoS};
 
+const CLIPBOARD_TOPIC_PIXEL: &str = "cybersyn/clipboard/pixel";
+const FILE_OFFER_TOPIC: &str = "cybersyn/file/offer";
+const DOWNLOADS_DIR: &str = "~/Downloads/cybersyn";
+
 #[derive(Parser, Debug)]
 #[command(
     name = "cybersyn-relay",
-    about = "Cybersyn relay agent: MQTT -> local action executor"
+    about = "Cybersyn relay agent: MQTT -> local action executor + MPRIS/clipboard/file-transfer"
 )]
 struct Args {
-    /// MQTT broker host. On comrade use 127.0.0.1; on comintern use comrade's
-    /// Tailscale IP 100.108.8.60.
     #[arg(long, env = "CYBERSYN_BROKER", default_value = "127.0.0.1")]
     broker: String,
 
-    /// MQTT broker port.
     #[arg(long, env = "CYBERSYN_PORT", default_value_t = 1883)]
     port: u16,
 
-    /// Node name. Defaults to the short hostname; forms the topic namespace
-    /// `cybersyn/<node>/{action,event}`.
     #[arg(long, env = "CYBERSYN_NODE")]
     node: Option<String>,
 
-    /// Directory holding this node's capability scripts, invoked as
-    /// `script:<name>` (see `dispatch()`). Dropping an executable file in here
-    /// is the whole "new capability" workflow — no rebuild, no redeploy.
     #[arg(long, env = "CYBERSYN_SCRIPT_DIR", default_value = "~/.config/cybersyn/scripts")]
     script_dir: String,
 
-    /// Enable the unbounded `shell:<command>` arm. Off by default: with it on,
-    /// anything that can publish to this node's action topic runs arbitrary
-    /// commands here, including an LLM composing a command string it has never
-    /// had reviewed. Use `script:` for normal capabilities; turn this on
-    /// deliberately when debugging, not as a standing door.
     #[arg(long, env = "CYBERSYN_ALLOW_SHELL", default_value_t = false)]
     allow_shell: bool,
+
+    #[arg(long, default_value_t = true)]
+    enable_mpris: bool,
+
+    #[arg(long, default_value_t = true)]
+    enable_clipboard: bool,
 }
 
-/// Expand a leading `~/` against $HOME; leave everything else alone.
-fn expand_home(path: &str) -> std::path::PathBuf {
+fn expand_home(path: &str) -> PathBuf {
     match path.strip_prefix("~/") {
         Some(rest) => match std::env::var_os("HOME") {
             Some(home) => std::path::Path::new(&home).join(rest),
-            None => std::path::PathBuf::from(path),
+            None => PathBuf::from(path),
         },
-        None => std::path::PathBuf::from(path),
+        None => PathBuf::from(path),
     }
 }
 
@@ -71,61 +59,6 @@ fn short_hostname() -> String {
         .unwrap_or_else(|| "node".to_string())
 }
 
-fn main() {
-    let args = Args::parse();
-    let node = args.node.clone().unwrap_or_else(short_hostname);
-    let script_dir = expand_home(&args.script_dir);
-    let action_topic = format!("cybersyn/{node}/action");
-    let event_topic = format!("cybersyn/{node}/event");
-
-    let client_id = format!("cybersyn-relay-{node}");
-    let mut opts = MqttOptions::new(&client_id, &args.broker, args.port);
-    opts.set_keep_alive(Duration::from_secs(30));
-    opts.set_clean_session(true);
-
-    let (client, mut connection) = Client::new(opts, 10);
-    client
-        .subscribe(&action_topic, QoS::AtLeastOnce)
-        .expect("initial subscribe should queue");
-
-    println!(
-        "cybersyn-relay: node={node} broker={}:{} listening on {action_topic}, results -> {event_topic}",
-        args.broker, args.port
-    );
-
-    // rumqttc's event loop auto-reconnects; on error we log and keep iterating
-    // (with a short backoff) so the relay survives broker restarts / net blips.
-    for notification in connection.iter() {
-        match notification {
-            Ok(Event::Incoming(Packet::Publish(p))) => {
-                let payload = String::from_utf8_lossy(&p.payload).to_string();
-                println!("recv {} -> {payload:?}", p.topic);
-                let result = dispatch(&payload, &script_dir, args.allow_shell);
-                if let Err(e) =
-                    client.publish(&event_topic, QoS::AtLeastOnce, false, result.into_bytes())
-                {
-                    eprintln!("failed to publish result: {e}");
-                }
-            }
-            Ok(Event::Incoming(Packet::ConnAck(_))) => {
-                // Re-subscribe after every (re)connect so a dropped session recovers.
-                if let Err(e) = client.subscribe(&action_topic, QoS::AtLeastOnce) {
-                    eprintln!("re-subscribe failed: {e}");
-                }
-                println!("connected to broker, subscribed to {action_topic}");
-            }
-            Ok(_) => {}
-            Err(e) => {
-                eprintln!("mqtt connection error: {e}; retrying");
-                std::thread::sleep(Duration::from_secs(2));
-            }
-        }
-    }
-}
-
-/// A capability script name is a bare filename: letters, digits, `_`, `-`, `.`.
-/// No separators, no `..`, no leading dot. This is what keeps `script:` a
-/// closed vocabulary — the caller picks a name, it can never compose a path.
 fn valid_script_name(name: &str) -> bool {
     !name.is_empty()
         && !name.starts_with('.')
@@ -135,42 +68,188 @@ fn valid_script_name(name: &str) -> bool {
             .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-' || c == '.')
 }
 
-/// Parse `command` or `command:argument` and run the matching host action.
-/// Returns a short result string that gets published to the event topic.
-fn dispatch(payload: &str, script_dir: &std::path::Path, allow_shell: bool) -> String {
+fn run_playerctl(args: &[&str]) -> Result<String, String> {
+    let output = Command::new("playerctl")
+        .args(args)
+        .output()
+        .map_err(|e| format!("playerctl spawn: {e}"))?;
+    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+    if output.status.success() {
+        Ok(stdout)
+    } else {
+        Err(if stderr.is_empty() { stdout } else { stderr })
+    }
+}
+
+fn dispatch(
+    payload: &str,
+    script_dir: &std::path::Path,
+    allow_shell: bool,
+    mqtt: &Client,
+    clipboard_state: &Arc<Mutex<clipboard::ClipboardState>>,
+    file_offer_topic: &str,
+) -> String {
     let (cmd, arg) = match payload.split_once(':') {
         Some((c, a)) => (c.trim(), a.trim()),
         None => (payload.trim(), ""),
     };
 
+    // Handle dot-separated mpris commands (e.g., "mpris.players")
+    if let Some(sub) = cmd.strip_prefix("mpris.") {
+        return dispatch_mpris(sub);
+    }
+
     match cmd {
-        // Guaranteed-observable round-trip proof; needs no display/dbus.
         "ping" => "pong".to_string(),
 
-        // Desktop notification. Needs a notification daemon + session bus in the
-        // relay's environment (a --user unit inherits these; see README).
         "notify" => {
             let body = if arg.is_empty() { "Cybersyn relay" } else { arg };
-            match Command::new("notify-send").arg("Cybersyn").arg(body).status() {
+            match Command::new("notify-send")
+                .arg("Cybersyn")
+                .arg(body)
+                .status()
+            {
                 Ok(s) if s.success() => format!("notify:ok:{body}"),
                 Ok(s) => format!("notify:exit:{}", s.code().unwrap_or(-1)),
                 Err(e) => format!("notify:err:{e}"),
             }
         }
 
-        // --- Cybersyn extension point ---------------------------------------
-        // Add new host capabilities here, one match arm per capability. This is
-        // the entire surface that grows as rules are added (OVERVIEW: new
-        // capability = new rule in the same engine).
-        // --------------------------------------------------------------------
+        // --- Clipboard ---
+        "clipboard" if arg.starts_with("get") => {
+            match Command::new("xclip")
+                .args(["-selection", "clipboard", "-o"])
+                .output()
+            {
+                Ok(o) if o.status.success() => {
+                    let text = String::from_utf8_lossy(&o.stdout).to_string();
+                    format!("clipboard:ok:{text}")
+                }
+                Ok(o) => format!(
+                    "clipboard:exit:{}",
+                    o.status.code().unwrap_or(-1)
+                ),
+                Err(e) => format!("clipboard:err:{e}"),
+            }
+        }
 
-        // Named capability script: `script:<name>` or `script:<name> <args>`.
-        // This is the normal action surface. The scripts are ordinary shell, so
-        // anything expressible via `shell:` is still expressible — the
-        // difference is that the operator writes them here ahead of time
-        // instead of the caller composing a command string over MQTT. Mirrors
-        // the phone side, where the brain invokes named Termux scripts
-        // (hidkey.sh, click.sh) rather than arbitrary commands.
+        "clipboard" if arg.starts_with("set:") => {
+            let text = &arg[4..];
+            clipboard::set_content(text, clipboard_state);
+            format!("clipboard:set:ok")
+        }
+
+        // --- MPRIS control (via playerctl) ---
+        "mpris" => dispatch_mpris(arg),
+
+        // --- Album art (via file-transfer channel) ---
+        "albumart" => {
+            let hash = arg.trim();
+            if hash.is_empty() {
+                return "error:albumart:missing-hash".to_string();
+            }
+            match mpris::get_art_path(hash) {
+                Some(path) => {
+                    match file_transfer::prepare_serve(&path) {
+                        Ok((offer, listener)) => {
+                            let json = file_transfer::build_file_offer_json(
+                                &offer, "albumart",
+                            );
+                            let _ = mqtt.publish(
+                                file_offer_topic,
+                                QoS::AtLeastOnce,
+                                false,
+                                json,
+                            );
+                            let path_clone = path.clone();
+                            std::thread::spawn(move || {
+                                match file_transfer::accept_and_send(listener, &path_clone) {
+                                    Ok(elapsed) => {
+                                        eprintln!("albumart served: {} ({:.1}s)", offer.name, elapsed.as_secs_f64());
+                                    }
+                                    Err(e) => {
+                                        eprintln!("albumart serve failed: {e}");
+                                    }
+                                }
+                            });
+                        }
+                        Err(e) => {
+                            return format!("error:albumart:prepare:{e}");
+                        }
+                    }
+                    format!("albumart:serving:{hash}")
+                }
+                None => format!("error:albumart:not-cached:{hash}"),
+            }
+        }
+
+        // --- File transfer ---
+        "file" if arg.starts_with("serve:") => {
+            let path_str = &arg[6..];
+            let path = expand_home(path_str);
+            if !path.is_file() {
+                return format!("error:file:not-found:{path_str}");
+            }
+            match file_transfer::prepare_serve(&path) {
+                Ok((offer, listener)) => {
+                    let json =
+                        file_transfer::build_file_offer_json(&offer, "file");
+                    let _ = mqtt.publish(
+                        file_offer_topic,
+                        QoS::AtLeastOnce,
+                        false,
+                        json,
+                    );
+                    let path_clone = path.clone();
+                    std::thread::spawn(move || {
+                        match file_transfer::accept_and_send(listener, &path_clone) {
+                            Ok(elapsed) => {
+                                eprintln!(
+                                    "file served: {} ({} bytes, {:.1}s)",
+                                    offer.name, offer.size, elapsed.as_secs_f64()
+                                );
+                            }
+                            Err(e) => {
+                                eprintln!("file serve failed: {e}");
+                            }
+                        }
+                    });
+                }
+                Err(e) => {
+                    return format!("error:file:prepare:{e}");
+                }
+            }
+            format!("file:serving:{path_str}")
+        }
+
+        "file" if arg.starts_with("receive:") => {
+            if arg.len() <= 8 {
+                return "error:file:receive:missing-address".to_string();
+            }
+            let addr_and_path = &arg[8..];
+            let parts: Vec<&str> = addr_and_path.splitn(2, ' ').collect();
+            if parts.len() < 2 {
+                return "error:file:receive:need <addr:port> <dest-name>".to_string();
+            }
+            let addr = parts[0].to_string();
+            let dest_name = parts[1].to_string();
+            let dest = expand_home(DOWNLOADS_DIR).join(&dest_name);
+            let dest_clone = dest.clone();
+            std::thread::spawn(move || {
+                match file_transfer::receive_file(&addr, &dest_clone) {
+                    Ok(n) => {
+                        eprintln!("file received: {dest_clone:?} ({n} bytes)");
+                    }
+                    Err(e) => {
+                        eprintln!("file receive failed: {e}");
+                    }
+                }
+            });
+            format!("file:receiving:{dest_name}")
+        }
+
+        // --- Script dispatch (existing) ---
         "script" => {
             let (name, script_args) = match arg.split_once(char::is_whitespace) {
                 Some((n, a)) => (n.trim(), a.trim()),
@@ -198,16 +277,16 @@ fn dispatch(payload: &str, script_dir: &std::path::Path, allow_shell: bool) -> S
                     if output.status.success() {
                         format!("script:{name}:ok:{}", stdout.trim())
                     } else {
-                        format!("script:{name}:exit:{code}:stderr:{}", stderr.trim())
+                        format!(
+                            "script:{name}:exit:{code}:stderr:{}",
+                            stderr.trim()
+                        )
                     }
                 }
                 Err(e) => format!("script:{name}:err:{e}"),
             }
         }
 
-        // Enumerate this node's capabilities. Lets the MCP catalog be generated
-        // from what each node actually has, instead of a hand-kept list that
-        // drifts from reality.
         "capabilities" => match std::fs::read_dir(script_dir) {
             Ok(entries) => {
                 let mut names: Vec<String> = entries
@@ -217,14 +296,18 @@ fn dispatch(payload: &str, script_dir: &std::path::Path, allow_shell: bool) -> S
                     .filter(|n| valid_script_name(n))
                     .collect();
                 names.sort();
-                format!("capabilities:ping,notify,{}", names.join(","))
+                format!(
+                    "capabilities:ping,notify,clipboard,mpris,albumart,file,{}",
+                    names.join(",")
+                )
             }
-            Err(e) => format!("capabilities:ping,notify (script dir unreadable: {e})"),
+            Err(e) => {
+                format!(
+                    "capabilities:ping,notify,clipboard,mpris,albumart,file (script dir unreadable: {e})"
+                )
+            }
         },
 
-        // Unbounded shell pass-through — OFF unless --allow-shell is set.
-        // With it on, any MQTT publisher (including an LLM composing a string
-        // nobody reviewed) runs arbitrary commands here. Prefer `script:`.
         "shell" => {
             if !allow_shell {
                 return "error:shell:disabled (relay started without --allow-shell; use script:<name>)"
@@ -251,6 +334,295 @@ fn dispatch(payload: &str, script_dir: &std::path::Path, allow_shell: bool) -> S
         other => {
             eprintln!("unknown command: {other:?}");
             format!("error:unknown-command:{other}")
+        }
+    }
+}
+
+fn dispatch_mpris(arg: &str) -> String {
+    if arg.is_empty() {
+        return "error:mpris:missing-command".to_string();
+    }
+
+    let (subcmd, subarg) = match arg.split_once(':') {
+        Some((c, a)) => (c.trim(), a.trim()),
+        None => (arg, ""),
+    };
+
+    match subcmd {
+        "play" => {
+            let active = mpris::get_active_player();
+            let player = if subarg.is_empty() {
+                active.as_deref().unwrap_or("")
+            } else {
+                subarg
+            };
+            if player.is_empty() {
+                return "error:mpris:no-player".to_string();
+            }
+            match run_playerctl(&["--player", player, "play"]) {
+                Ok(_) => format!("mpris:play:ok:{player}"),
+                Err(e) => format!("mpris:play:err:{e}"),
+            }
+        }
+
+        "pause" => {
+            let active = mpris::get_active_player();
+            let player = if subarg.is_empty() {
+                active.as_deref().unwrap_or("")
+            } else {
+                subarg
+            };
+            if player.is_empty() {
+                return "error:mpris:no-player".to_string();
+            }
+            match run_playerctl(&["--player", player, "pause"]) {
+                Ok(_) => format!("mpris:pause:ok:{player}"),
+                Err(e) => format!("mpris:pause:err:{e}"),
+            }
+        }
+
+        "play-pause" => {
+            let active = mpris::get_active_player();
+            let player = if subarg.is_empty() {
+                active.as_deref().unwrap_or("")
+            } else {
+                subarg
+            };
+            if player.is_empty() {
+                return "error:mpris:no-player".to_string();
+            }
+            match run_playerctl(&["--player", player, "play-pause"]) {
+                Ok(_) => format!("mpris:play-pause:ok:{player}"),
+                Err(e) => format!("mpris:play-pause:err:{e}"),
+            }
+        }
+
+        "next" | "prev" | "previous" | "stop" => {
+            let active = mpris::get_active_player();
+            let player = if subarg.is_empty() {
+                active.as_deref().unwrap_or("")
+            } else {
+                subarg
+            };
+            if player.is_empty() {
+                return "error:mpris:no-player".to_string();
+            }
+            let cmd = if subcmd == "previous" { "previous" } else { subcmd };
+            match run_playerctl(&["--player", player, cmd]) {
+                Ok(_) => format!("mpris:{subcmd}:ok:{player}"),
+                Err(e) => format!("mpris:{subcmd}:err:{e}"),
+            }
+        }
+
+        "seek" => {
+            let active = mpris::get_active_player();
+            let (player, offset_secs) = if let Some((p, o)) = subarg.split_once(' ') {
+                (p, o)
+            } else {
+                (active.as_deref().unwrap_or(""), subarg)
+            };
+            if player.is_empty() {
+                return "error:mpris:no-player".to_string();
+            }
+            match run_playerctl(&[
+                "--player",
+                player,
+                "position",
+                &format!("{offset_secs}+"),
+            ]) {
+                Ok(_) => format!("mpris:seek:ok:{player}:{offset_secs}"),
+                Err(e) => format!("mpris:seek:err:{e}"),
+            }
+        }
+
+        "position" => {
+            let active = mpris::get_active_player();
+            let (player, pos_secs) = if let Some((p, o)) = subarg.split_once(' ') {
+                (p, o)
+            } else {
+                (active.as_deref().unwrap_or(""), subarg)
+            };
+            if player.is_empty() {
+                return "error:mpris:no-player".to_string();
+            }
+            match run_playerctl(&["--player", player, "position", pos_secs]) {
+                Ok(_) => {
+                    format!("mpris:position:ok:{player}:{pos_secs}")
+                }
+                Err(e) => format!("mpris:position:err:{e}"),
+            }
+        }
+
+        "volume" => {
+            let active = mpris::get_active_player();
+            let (player, vol) = if let Some((p, v)) = subarg.split_once(' ') {
+                (p, v)
+            } else {
+                (active.as_deref().unwrap_or(""), subarg)
+            };
+            if player.is_empty() {
+                return "error:mpris:no-player".to_string();
+            }
+            let vol_f: f64 = vol.parse().unwrap_or(100.0) / 100.0;
+            match run_playerctl(&[
+                "--player",
+                player,
+                "volume",
+                &format!("{vol_f}"),
+            ]) {
+                Ok(_) => format!("mpris:volume:ok:{player}:{vol}"),
+                Err(e) => format!("mpris:volume:err:{e}"),
+            }
+        }
+
+        "loop" => {
+            let active = mpris::get_active_player();
+            let (player, mode) = if let Some((p, m)) = subarg.split_once(' ') {
+                (p, m)
+            } else {
+                (active.as_deref().unwrap_or(""), subarg)
+            };
+            if player.is_empty() {
+                return "error:mpris:no-player".to_string();
+            }
+            match run_playerctl(&["--player", player, "loop", mode]) {
+                Ok(_) => format!("mpris:loop:ok:{player}:{mode}"),
+                Err(e) => format!("mpris:loop:err:{e}"),
+            }
+        }
+
+        "shuffle" => {
+            let active = mpris::get_active_player();
+            let (player, val) = if let Some((p, v)) = subarg.split_once(' ') {
+                (p, v)
+            } else {
+                (active.as_deref().unwrap_or(""), subarg)
+            };
+            if player.is_empty() {
+                return "error:mpris:no-player".to_string();
+            }
+            match run_playerctl(&["--player", player, "shuffle", val]) {
+                Ok(_) => format!("mpris:shuffle:ok:{player}:{val}"),
+                Err(e) => format!("mpris:shuffle:err:{e}"),
+            }
+        }
+
+        "players" => match mpris::get_players() {
+            Ok(list) => format!("mpris:players:{}", list.join(",")),
+            Err(e) => format!("mpris:players:err:{e}"),
+        },
+
+        "active" => match mpris::get_active_player() {
+            Some(player) => format!("mpris:active:{player}"),
+            None => "mpris:active:none".to_string(),
+        },
+
+        other => format!("error:mpris:unknown-command:{other}"),
+    }
+}
+
+fn main() {
+    let args = Args::parse();
+    let node = args.node.unwrap_or_else(short_hostname);
+    let script_dir = expand_home(&args.script_dir);
+    let action_topic = format!("cybersyn/{node}/action");
+    let event_topic = format!("cybersyn/{node}/event");
+
+    let client_id = format!("cybersyn-relay-{node}");
+    let mut opts = MqttOptions::new(&client_id, &args.broker, args.port);
+    opts.set_keep_alive(Duration::from_secs(30));
+    opts.set_clean_session(true);
+
+    let (client, mut connection) = Client::new(opts, 10);
+
+    client
+        .subscribe(&action_topic, QoS::AtLeastOnce)
+        .expect("subscribe action topic");
+
+    // Also subscribe to incoming clipboard from phone
+    client
+        .subscribe(CLIPBOARD_TOPIC_PIXEL, QoS::AtLeastOnce)
+        .expect("subscribe clipboard topic");
+
+    println!(
+        "cybersyn-relay: node={node} broker={}:{} listening on {action_topic} + {CLIPBOARD_TOPIC_PIXEL}, results -> {event_topic}",
+        args.broker, args.port
+    );
+
+    let clipboard_state = Arc::new(Mutex::new(clipboard::ClipboardState {
+        last_content: String::new(),
+        last_published: String::new(),
+    }));
+
+    if args.enable_mpris {
+        let mqtt_clone = client.clone();
+        println!("mpris-monitor: starting D-Bus MPRIS watcher");
+        mpris::start(mqtt_clone);
+    }
+
+    if args.enable_clipboard {
+        let mqtt_clone = client.clone();
+        let state = clipboard_state.clone();
+        println!("clipboard-monitor: starting 1s poll");
+        clipboard::start_monitor(mqtt_clone, state);
+    }
+
+    std::fs::create_dir_all(expand_home(DOWNLOADS_DIR)).ok();
+    std::fs::create_dir_all(expand_home("~/.cache/cybersyn/albumart")).ok();
+
+    for notification in connection.iter() {
+        match notification {
+            Ok(Event::Incoming(Packet::Publish(p))) => {
+                let payload_str =
+                    String::from_utf8_lossy(&p.payload).to_string();
+
+                if p.topic == CLIPBOARD_TOPIC_PIXEL {
+                    if let Some(content) = clipboard::parse_payload(&payload_str) {
+                        clipboard::set_content(&content, &clipboard_state);
+                        println!("clipboard: received from pixel: {} chars", content.len());
+                    }
+                    continue;
+                }
+
+                println!("recv {} -> {payload_str:?}", p.topic);
+                let result = dispatch(
+                    &payload_str,
+                    &script_dir,
+                    args.allow_shell,
+                    &client,
+                    &clipboard_state,
+                    FILE_OFFER_TOPIC,
+                );
+                if let Err(e) = client.publish(
+                    &event_topic,
+                    QoS::AtLeastOnce,
+                    false,
+                    result.into_bytes(),
+                ) {
+                    eprintln!("failed to publish result: {e}");
+                }
+            }
+            Ok(Event::Incoming(Packet::ConnAck(_))) => {
+                if let Err(e) = client
+                    .subscribe(&action_topic, QoS::AtLeastOnce)
+                    .and_then(|_| {
+                        client.subscribe(
+                            CLIPBOARD_TOPIC_PIXEL,
+                            QoS::AtLeastOnce,
+                        )
+                    })
+                {
+                    eprintln!("re-subscribe failed: {e}");
+                }
+                println!(
+                    "connected, subscribed to {action_topic} + {CLIPBOARD_TOPIC_PIXEL}"
+                );
+            }
+            Ok(_) => {}
+            Err(e) => {
+                eprintln!("mqtt connection error: {e}; retrying");
+                std::thread::sleep(Duration::from_secs(2));
+            }
         }
     }
 }
