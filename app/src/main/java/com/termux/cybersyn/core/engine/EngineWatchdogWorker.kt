@@ -19,6 +19,7 @@ class EngineWatchdogWorker(
         val now = System.currentTimeMillis()
         val scheduler = TimeEventScheduler(applicationContext)
         val heartbeat = EngineHeartbeatStore(applicationContext).read()
+        ChildProcessAudit.check()
         return runCatching {
             if (heartbeat.needsRecovery(now)) {
                 scheduler.scheduleRecovery(now)

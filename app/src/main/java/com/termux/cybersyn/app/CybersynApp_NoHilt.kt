@@ -39,7 +39,7 @@ class CybersynApp_NoHilt : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        installStrictModeInDebug()
+        installStrictMode()
         CrashLogHandler.install(this)
         AppVisibilityTracker.register(this)
         ShizukuPowerBackend.initialize(this)
@@ -79,12 +79,13 @@ class CybersynApp_NoHilt : Application() {
     }
 
     /**
-     * In debug builds, surface accidental main-thread disk/network I/O and leaked closeables or
-     * receivers/services to logcat (never crashes the app). Helps keep the automation engine's
-     * work off the UI thread as the codebase evolves.
+     * Surfaces accidental main-thread disk/network I/O and leaked closeables or
+     * receivers/services to logcat (never crashes the app, penaltyLog() only). This app only
+     * ever ships as a release build on-device (needs the Termux platform signature to join
+     * sharedUserId="com.termux"), so this used to be gated behind BuildConfig.DEBUG and never
+     * actually ran -- it's unconditional now so the detection it already had written is live.
      */
-    private fun installStrictModeInDebug() {
-        if (!BuildConfig.DEBUG) return
+    private fun installStrictMode() {
         StrictMode.setThreadPolicy(
             StrictMode.ThreadPolicy.Builder()
                 .detectDiskReads()
