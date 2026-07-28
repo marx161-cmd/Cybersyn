@@ -1,0 +1,16 @@
+[Unit]
+Description=Cybersyn HID relay — unified MQTT→uinput bridge (gyro + trackpad)
+After=network-online.target
+Wants=network-online.target
+After=mosquitto.service
+
+[Service]
+Type=simple
+Environment=DISPLAY=:0
+Environment=XAUTHORITY=/home/comrade/.Xauthority
+ExecStart=/usr/bin/python3 -u /home/comrade/homelab/cybersyn-hid-relay.py --host 127.0.0.1 --port 1883 --invert-y --vertical-axis roll
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=default.target

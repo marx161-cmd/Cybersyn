@@ -33,6 +33,12 @@ public final class TrackpadStubActivity extends Activity
     private GestureDetector gestureDetector;
     private SensorManager sensorManager;
     private Sensor gameRotationSensor;
+    // Magnetometer-corrected reference only (not used for motion directly): game_rotation_vector
+    // has no absolute yaw reference and drifts slowly over time by design (Android's own docs -
+    // it deliberately skips the magnetometer for smoothness). The Pixel has a real magnetometer,
+    // so stream this too at a slow rate; the relay uses it to gently bleed that drift back
+    // toward magnetic-true "front" without ever fighting active movement.
+    private Sensor rotationVectorSensor;
     private float previousX;
     private float previousY;
     private boolean dragging;
@@ -45,6 +51,10 @@ public final class TrackpadStubActivity extends Activity
         super.onCreate(savedInstanceState);
         Window window = getWindow();
         window.setBackgroundDrawableResource(android.R.color.transparent);
+        // This surface only ever needs MotionEvent/SensorEvent, never KeyEvent, so it doesn't
+        // need window focus. Without this flag, taking focus is exactly what makes Android
+        // dismiss whatever IME (e.g. SpectreBoard) was up when the freeform popup opened.
+        window.addFlags(android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE);
         publisher = new MqttPublisher();
         gestureDetector = new GestureDetector(this, this);
         gestureDetector.setOnDoubleTapListener(this);
@@ -52,6 +62,7 @@ public final class TrackpadStubActivity extends Activity
         sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
         if (sensorManager != null) {
             gameRotationSensor = sensorManager.getDefaultSensor(Sensor.TYPE_GAME_ROTATION_VECTOR);
+            rotationVectorSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR);
         }
 
         View surface = new View(this);
@@ -67,6 +78,10 @@ public final class TrackpadStubActivity extends Activity
         if (sensorManager != null && gameRotationSensor != null) {
             sensorManager.registerListener(this, gameRotationSensor, SensorManager.SENSOR_DELAY_GAME);
         }
+        // Slow reference only - SENSOR_DELAY_NORMAL is plenty, this never drives motion directly.
+        if (sensorManager != null && rotationVectorSensor != null) {
+            sensorManager.registerListener(this, rotationVectorSensor, SensorManager.SENSOR_DELAY_NORMAL);
+        }
     }
 
     @Override
@@ -77,15 +92,19 @@ public final class TrackpadStubActivity extends Activity
 
     @Override
     public void onSensorChanged(SensorEvent event) {
-        if (event.sensor.getType() != Sensor.TYPE_GAME_ROTATION_VECTOR) return;
+        int type = event.sensor.getType();
+        if (type != Sensor.TYPE_GAME_ROTATION_VECTOR && type != Sensor.TYPE_ROTATION_VECTOR) return;
         float x = event.values[0];
         float y = event.values[1];
         float z = event.values[2];
         float w = event.values.length >= 4
                 ? event.values[3]
                 : (float) Math.sqrt(Math.max(0f, 1f - (x * x + y * y + z * z)));
+        String typeName = type == Sensor.TYPE_ROTATION_VECTOR
+                ? "android.sensor.rotation_vector"
+                : "android.sensor.game_rotation_vector";
         publish(TOPIC_SENSOR,
-                "{\"type\":\"android.sensor.game_rotation_vector\",\"values\":["
+                "{\"type\":\"" + typeName + "\",\"values\":["
                         + x + "," + y + "," + z + "," + w + "]}");
     }
 
