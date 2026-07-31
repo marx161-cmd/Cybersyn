@@ -19,6 +19,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 class AutomationCliReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -119,13 +120,25 @@ class AutomationCliReceiver : BroadcastReceiver() {
 
     private suspend fun runTask(appContext: Context, intent: Intent, extras: Bundle): Int {
         val task = resolveTask(intent) ?: error("Task not found")
-        val result = executeAndLogTask(
-            appContext = appContext,
-            db = CybersynApp_NoHilt.db,
-            task = task,
-            source = "CLI",
-            logTag = TAG,
-        )
+        // See AutomationTargetReceiver.runTask() for why this is timeout-bounded: a
+        // self-recursive task (task.run -> wait -> task.run itself again, forever) never
+        // returns, and awaiting it directly here used to hang this broadcast's goAsync()
+        // pending result until Android's ANR watchdog killed the whole app ~60s later (real
+        // incident 2026-07-31, see project_cybersyn_runtask_anr_bug memory).
+        val result = withTimeoutOrNull(5_000) {
+            executeAndLogTask(
+                appContext = appContext,
+                db = CybersynApp_NoHilt.db,
+                task = task,
+                source = "CLI",
+                logTag = TAG,
+            )
+        }
+        if (result == null) {
+            extras.putBoolean(AutomationTargetContract.EXTRA_TASK_TIMED_OUT, true)
+            extras.putBoolean(AutomationTargetContract.EXTRA_TASK_SUCCESS, false)
+            return Activity.RESULT_OK
+        }
         extras.putBoolean(AutomationTargetContract.EXTRA_TASK_SUCCESS, result.report.success)
         extras.putLong(AutomationTargetContract.EXTRA_TASK_DURATION_MS, result.report.durationMs)
         return if (result.report.success) Activity.RESULT_OK else Activity.RESULT_CANCELED

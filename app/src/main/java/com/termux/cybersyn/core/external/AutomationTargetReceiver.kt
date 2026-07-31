@@ -16,6 +16,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 object AutomationTargetContract {
     const val PERMISSION = "com.termux.cybersyn.permission.AUTOMATION"
@@ -34,6 +35,7 @@ object AutomationTargetContract {
     const val EXTRA_ERROR = "com.termux.cybersyn.extra.ERROR"
     const val EXTRA_TASK_SUCCESS = "com.termux.cybersyn.extra.TASK_SUCCESS"
     const val EXTRA_TASK_DURATION_MS = "com.termux.cybersyn.extra.TASK_DURATION_MS"
+    const val EXTRA_TASK_TIMED_OUT = "com.termux.cybersyn.extra.TASK_TIMED_OUT"
     const val EXTRA_PROFILE_FOUND = "com.termux.cybersyn.extra.PROFILE_FOUND"
     const val EXTRA_PROFILE_ENABLED = "com.termux.cybersyn.extra.PROFILE_ENABLED"
     const val EXTRA_PROFILE_CONTEXT_COUNT = "com.termux.cybersyn.extra.PROFILE_CONTEXT_COUNT"
@@ -90,15 +92,34 @@ class AutomationTargetReceiver : BroadcastReceiver() {
             ?: return failure("Task not found. Provide ${AutomationTargetContract.EXTRA_TASK_ID} or ${AutomationTargetContract.EXTRA_TASK_NAME}.")
 
         val suppliedVariables = extractVariables(intent.extras)
-        val result = executeAndLogTask(
-            appContext = appContext,
-            db = db,
-            task = task,
-            source = "External intent",
-            metadata = listOf("Variables: ${suppliedVariables.size} provided"),
-            initialVariables = suppliedVariables,
-            logTag = TAG,
-        )
+        // A task that never returns (the self-recursive watchdog family — task.run -> wait ->
+        // task.run itself again, forever, by design) used to hang this whole broadcast's
+        // goAsync() pending result until Android's own ANR watchdog killed the app ~60s later
+        // (real incident 2026-07-31, see project_cybersyn_runtask_anr_bug memory). withTimeoutOrNull
+        // cancels the execution (not just the wait) once this fires, so the caller gets a clean
+        // "still running" response instead of an ANR — RUN_TASK was never a meaningful way to
+        // invoke a self-recursive task anyway; use its underlying action directly for that.
+        val result = withTimeoutOrNull(5_000) {
+            executeAndLogTask(
+                appContext = appContext,
+                db = db,
+                task = task,
+                source = "External intent",
+                metadata = listOf("Variables: ${suppliedVariables.size} provided"),
+                initialVariables = suppliedVariables,
+                logTag = TAG,
+            )
+        }
+
+        if (result == null) {
+            return TargetResponse(
+                Activity.RESULT_OK,
+                Bundle().apply {
+                    putBoolean(AutomationTargetContract.EXTRA_TASK_TIMED_OUT, true)
+                    putBoolean(AutomationTargetContract.EXTRA_TASK_SUCCESS, false)
+                },
+            )
+        }
 
         return TargetResponse(
             if (result.report.success) Activity.RESULT_OK else Activity.RESULT_CANCELED,
