@@ -128,8 +128,29 @@ object MqttBridge {
         port: Int,
     ): Flow<Message> = callbackFlow {
         val running = AtomicBoolean(true)
-        val procRef = AtomicReference<Process?>()
+        // Spawning a process and recording it in procRef are two separate steps, so a plain
+        // AtomicReference left a TOCTOU window: awaitClose could run its one-shot
+        // getAndSet(null) between proc.start() returning and procRef.set(proc), destroying
+        // nothing while a brand-new process kept running with nobody left holding a handle
+        // to it. It would then block forever on its own blocking read (nothing to interrupt
+        // it — Thread.interrupt() doesn't unblock a Process's stdout read) and leak. Real
+        // incident: ~1 leaked `sub` process per shareIn restart cycle, 66 accumulated over a
+        // day (all still parented to the live app, all fighting over one client id).
+        // procLock makes "record the process" and "destroy the process" the same critical
+        // section, so whichever side loses the race still sees a consistent currentProc.
+        val procLock = Any()
+        var currentProc: Process? = null
         val bundled = bundledHelper(context)
+
+        fun killCurrent() {
+            synchronized(procLock) {
+                // SIGKILL, not destroy()'s SIGTERM — this is a short-lived network helper
+                // with nothing to flush, and a caught-or-ignored SIGTERM would just reopen
+                // the same leak by a different door.
+                currentProc?.let { runCatching { it.destroyForcibly() } }
+                currentProc = null
+            }
+        }
 
         val worker = Thread({
             while (running.get()) {
@@ -145,7 +166,20 @@ object MqttBridge {
                     } else {
                         mosquitto(listOf("bin/mosquitto_sub", "-h", broker, "-p", port.toString(), "-t", topicFilter, "-F", "%t\t%p"))
                     }
-                    procRef.set(proc)
+                    val shouldRun = synchronized(procLock) {
+                        if (running.get()) {
+                            currentProc = proc
+                            true
+                        } else {
+                            false
+                        }
+                    }
+                    if (!shouldRun) {
+                        // awaitClose already ran before this process could be registered —
+                        // it's an orphan-in-waiting, kill it immediately instead of leaking.
+                        runCatching { proc.destroyForcibly() }
+                        break
+                    }
                     // Both the helper and mosquitto -F '%t\t%p' emit identical lines.
                     proc.inputStream.bufferedReader().useLines { lines ->
                         for (line in lines) {
@@ -156,7 +190,7 @@ object MqttBridge {
                 } catch (_: Exception) {
                     // fall through to backoff + respawn
                 } finally {
-                    procRef.getAndSet(null)?.let { runCatching { it.destroy() } }
+                    killCurrent()
                 }
                 if (!running.get()) break
                 try {
@@ -171,7 +205,7 @@ object MqttBridge {
 
         awaitClose {
             running.set(false)
-            procRef.getAndSet(null)?.let { runCatching { it.destroy() } }
+            killCurrent()
             worker.interrupt()
         }
     }
