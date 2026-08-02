@@ -105,6 +105,7 @@ fn dispatch(
     mqtt: &Client,
     clipboard_state: &Arc<Mutex<clipboard::ClipboardState>>,
     file_offer_topic: &str,
+    event_topic: &str,
 ) -> String {
     let (cmd, arg) = match payload.split_once(':') {
         Some((c, a)) => (c.trim(), a.trim()),
@@ -121,15 +122,27 @@ fn dispatch(
 
         "notify" => {
             let body = if arg.is_empty() { "Cybersyn relay" } else { arg };
-            match Command::new("notify-send")
-                .arg("Cybersyn")
-                .arg(body)
-                .status()
-            {
-                Ok(s) if s.success() => format!("notify:ok:{body}"),
-                Ok(s) => format!("notify:exit:{}", s.code().unwrap_or(-1)),
-                Err(e) => format!("notify:err:{e}"),
-            }
+            let mqtt_clone = mqtt.clone();
+            let event_topic_clone = event_topic.to_string();
+            let notify_body = body.to_string();
+            std::thread::spawn(move || {
+                let result = match Command::new("notify-send")
+                    .arg("Cybersyn")
+                    .arg(&notify_body)
+                    .status()
+                {
+                    Ok(s) if s.success() => format!("notify:ok:{notify_body}"),
+                    Ok(s) => format!("notify:exit:{}", s.code().unwrap_or(-1)),
+                    Err(e) => format!("notify:err:{e}"),
+                };
+                let _ = mqtt_clone.publish(
+                    &event_topic_clone,
+                    QoS::AtLeastOnce,
+                    false,
+                    result.into_bytes(),
+                );
+            });
+            format!("notify:dispatched:{body}")
         }
 
         // --- Clipboard ---
@@ -151,7 +164,8 @@ fn dispatch(
         }
 
         "clipboard" if arg.starts_with("set:") => {
-            let text = &arg[4..];
+            let prefix = "clipboard:set:";
+            let text = &payload[prefix.len()..];
             clipboard::set_content(text, clipboard_state);
             format!("clipboard:set:ok")
         }
@@ -356,26 +370,40 @@ fn dispatch(
             if !path.is_file() {
                 return format!("error:script:not-found:{name}");
             }
-            let mut cmd = Command::new(&path);
-            if !script_args.is_empty() {
-                cmd.args(script_args.split_whitespace());
-            }
-            match cmd.output() {
-                Ok(output) => {
-                    let stdout = String::from_utf8_lossy(&output.stdout);
-                    let stderr = String::from_utf8_lossy(&output.stderr);
-                    let code = output.status.code().unwrap_or(-1);
-                    if output.status.success() {
-                        format!("script:{name}:ok:{}", stdout.trim())
-                    } else {
-                        format!(
-                            "script:{name}:exit:{code}:stderr:{}",
-                            stderr.trim()
-                        )
-                    }
+            let mqtt_clone = mqtt.clone();
+            let event_topic_clone = event_topic.to_string();
+            let path_clone = path.clone();
+            let script_args_clone = script_args.to_string();
+            let name_owned = name.to_string();
+            std::thread::spawn(move || {
+                let mut cmd = Command::new(&path_clone);
+                if !script_args_clone.is_empty() {
+                    cmd.args(script_args_clone.split_whitespace());
                 }
-                Err(e) => format!("script:{name}:err:{e}"),
-            }
+                let result = match cmd.output() {
+                    Ok(output) => {
+                        let stdout = String::from_utf8_lossy(&output.stdout);
+                        let stderr = String::from_utf8_lossy(&output.stderr);
+                        let code = output.status.code().unwrap_or(-1);
+                        if output.status.success() {
+                            format!("script:{name_owned}:ok:{}", stdout.trim())
+                        } else {
+                            format!(
+                                "script:{name_owned}:exit:{code}:stderr:{}",
+                                stderr.trim()
+                            )
+                        }
+                    }
+                    Err(e) => format!("script:{name_owned}:err:{e}"),
+                };
+                let _ = mqtt_clone.publish(
+                    &event_topic_clone,
+                    QoS::AtLeastOnce,
+                    false,
+                    result.into_bytes(),
+                );
+            });
+            format!("script:dispatched:{name}")
         }
 
         "capabilities" => match std::fs::read_dir(script_dir) {
@@ -407,19 +435,31 @@ fn dispatch(
             if arg.is_empty() {
                 return "error:shell:missing-command".to_string();
             }
-            match Command::new("sh").arg("-c").arg(arg).output() {
-                Ok(output) => {
-                    let stdout = String::from_utf8_lossy(&output.stdout);
-                    let stderr = String::from_utf8_lossy(&output.stderr);
-                    let code = output.status.code().unwrap_or(-1);
-                    if output.status.success() {
-                        format!("shell:ok:{}", stdout.trim())
-                    } else {
-                        format!("shell:exit:{}:stderr:{}", code, stderr.trim())
+            let mqtt_clone = mqtt.clone();
+            let event_topic_clone = event_topic.to_string();
+            let shell_cmd = arg.to_string();
+            std::thread::spawn(move || {
+                let result = match Command::new("sh").arg("-c").arg(&shell_cmd).output() {
+                    Ok(output) => {
+                        let stdout = String::from_utf8_lossy(&output.stdout);
+                        let stderr = String::from_utf8_lossy(&output.stderr);
+                        let code = output.status.code().unwrap_or(-1);
+                        if output.status.success() {
+                            format!("shell:ok:{}", stdout.trim())
+                        } else {
+                            format!("shell:exit:{}:stderr:{}", code, stderr.trim())
+                        }
                     }
-                }
-                Err(e) => format!("shell:err:{e}"),
-            }
+                    Err(e) => format!("shell:err:{e}"),
+                };
+                let _ = mqtt_clone.publish(
+                    &event_topic_clone,
+                    QoS::AtLeastOnce,
+                    false,
+                    result.into_bytes(),
+                );
+            });
+            format!("shell:dispatched")
         }
 
         other => {
@@ -683,6 +723,7 @@ fn main() {
                     &client,
                     &clipboard_state,
                     FILE_OFFER_TOPIC,
+                    &event_topic,
                 );
                 if let Err(e) = client.publish(
                     &event_topic,

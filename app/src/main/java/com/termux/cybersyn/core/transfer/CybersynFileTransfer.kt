@@ -22,10 +22,12 @@ object CybersynFileTransfer {
     private const val CONNECT_TIMEOUT_MS = 10_000
     private const val READ_TIMEOUT_MS = 30_000
 
-    /** Download into [destFile]. Returns bytes written, or null on failure (partial file removed). */
+    /** Download into [destFile]. Returns bytes written, or null on failure (partial file removed).
+     *  Caps at [maxBytes] to prevent a hostile/malformed offer from filling the phone's cache. */
     fun downloadToFile(
         candidates: List<Pair<String, Int>>,
         destFile: File,
+        maxBytes: Long = 100 * 1024 * 1024,
         onProgress: ((bytesSoFar: Long) -> Unit)? = null,
     ): Long? {
         val socket = connect(candidates) ?: return null
@@ -40,12 +42,16 @@ object CybersynFileTransfer {
                     while (true) {
                         val n = input.read(buf)
                         if (n == -1) break
+                        if (total + n > maxBytes) {
+                            // exceeded cap — discard
+                            return@use null
+                        }
                         out.write(buf, 0, n)
                         total += n
                         onProgress?.invoke(total)
                     }
                 }
-                total
+                total.takeIf { it <= maxBytes }
             }
         } catch (_: Exception) {
             destFile.delete()

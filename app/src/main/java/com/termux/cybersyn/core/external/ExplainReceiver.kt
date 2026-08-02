@@ -39,6 +39,10 @@ class ExplainReceiver : BroadcastReceiver() {
                 val textFile = File(outputDir, "latest.txt")
                 jsonFile.writeText(report.json.toString(2))
                 textFile.writeText(report.text)
+                // Grant traversal on the directory AND readability on the files so a plain
+                // `adb shell` (non-root) can read them without traversing a 700 dir.
+                outputDir.setExecutable(true, false)
+                outputDir.setReadable(true, false)
                 jsonFile.setReadable(true, false)
                 textFile.setReadable(true, false)
                 extras.putString(EXTRA_JSON_PATH, jsonFile.absolutePath)
@@ -60,14 +64,35 @@ class ExplainReceiver : BroadcastReceiver() {
         val scope = intent.getStringExtra(EXTRA_SCOPE)?.lowercase(Locale.ROOT) ?: "all"
         val now = System.currentTimeMillis()
         val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss Z", Locale.ROOT)
+        val errors = mutableListOf<String>()
+
         val db = CybersynApp_NoHilt.db
-        val tasks = db.taskDao().getAll().mapNotNull { it.toDomainDecodeResult().value }
-        val profiles = db.profileDao().getAll().mapNotNull { it.toDomainDecodeResult().value }
-        val runLogs = db.runLogDao().getRecent()
-        val appLog = AppLogger.snapshot().takeLast(80)
+
+        // Each section is independently faults-tolerant — one bad row/source can't kill the whole report.
+        val tasks = runCatching {
+            db.taskDao().getAll().mapNotNull { it.toDomainDecodeResult().value }
+        }.getOrElse { e -> errors.add("tasks: ${e.message}"); emptyList() }
+
+        val profiles = runCatching {
+            db.profileDao().getAll().mapNotNull { it.toDomainDecodeResult().value }
+        }.getOrElse { e -> errors.add("profiles: ${e.message}"); emptyList() }
+
+        val runLogs = runCatching {
+            db.runLogDao().getRecent()
+        }.getOrElse { e -> errors.add("run_logs: ${e.message}"); emptyList() }
+
+        val appLog = runCatching {
+            AppLogger.snapshot().takeLast(80)
+        }.getOrElse { e -> errors.add("app_log: ${e.message}"); emptyList() }
+
         val engineHealth = runCatching { EngineHealthReader.read(context, now) }.getOrNull()
-        val termuxStatus = TermuxScriptBackend.inspect(context)
-        val shizukuStatus = ShizukuPowerBackend.inspect(context)
+        if (engineHealth == null) errors.add("engine_health: unavailable")
+
+        val termuxStatus = runCatching { TermuxScriptBackend.inspect(context) }.getOrNull()
+        if (termuxStatus == null) errors.add("termux: unavailable")
+
+        val shizukuStatus = runCatching { ShizukuPowerBackend.inspect(context) }.getOrNull()
+        if (shizukuStatus == null) errors.add("shizuku: unavailable")
 
         val runtime = JSONObject()
             .put("generated_at", dateFormat.format(Date(now)))
@@ -85,13 +110,13 @@ class ExplainReceiver : BroadcastReceiver() {
                 .put("last_matcher_error", engineHealth?.lastMatcherError))
             .put("bridges", JSONObject()
                 .put("termux", JSONObject()
-                    .put("state", termuxStatus.state.name)
-                    .put("ready", termuxStatus.isReady)
-                    .put("summary", termuxStatus.summary))
+                    .put("state", termuxStatus?.state?.name ?: "unknown")
+                    .put("ready", termuxStatus?.isReady ?: false)
+                    .put("summary", termuxStatus?.summary ?: "unavailable"))
                 .put("shizuku", JSONObject()
-                    .put("state", shizukuStatus.state.name)
-                    .put("ready", shizukuStatus.isReady)
-                    .put("summary", shizukuStatus.summary)))
+                    .put("state", shizukuStatus?.state?.name ?: "unknown")
+                    .put("ready", shizukuStatus?.isReady ?: false)
+                    .put("summary", shizukuStatus?.summary ?: "unavailable")))
             .put("profiles", JSONArray(profiles.map { profile ->
                 JSONObject()
                     .put("id", profile.id)
@@ -157,6 +182,7 @@ class ExplainReceiver : BroadcastReceiver() {
         val root = JSONObject()
             .put("runtime_info", runtime)
             .put("build_state", buildState)
+            .put("collection_errors", JSONArray(errors))
             .put("operational_notes", JSONArray(OPERATIONAL_NOTES))
             .put("next_commands", JSONArray(listOf(
                 "adb shell am broadcast -a $ACTION_EXPLAIN --es scope all",

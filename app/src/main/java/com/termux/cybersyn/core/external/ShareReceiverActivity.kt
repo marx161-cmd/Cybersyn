@@ -18,7 +18,10 @@ import com.termux.cybersyn.core.transfer.TransferProgressNotifier
 import java.io.File
 import java.io.IOException
 import java.io.InputStream
+import java.net.DatagramSocket
 import java.net.Inet4Address
+import java.net.InetAddress
+import java.net.InetSocketAddress
 import java.net.ServerSocket
 
 class ShareReceiverActivity : ComponentActivity() {
@@ -98,7 +101,11 @@ class ShareReceiverActivity : ComponentActivity() {
             }
 
             val proc = TermuxExec.exec(listOf("bin/tar", "-cf", tarFile.absolutePath, "-C", stagingDir.absolutePath, "."))
-            if (proc.waitFor() != 0) return
+            if (proc.waitFor() != 0) {
+                Log.w(TAG, "tar failed for $uris")
+                notifyShareFailed("shared_${uris.size}_files")
+                return
+            }
 
             val archiveName = "shared_${uris.size}_files.tar"
             tarFile.inputStream().use { serveStream(archiveName, it, tarFile.length()) }
@@ -184,17 +191,27 @@ class ShareReceiverActivity : ComponentActivity() {
             return
         }
 
-        // Bound with no explicit address, so it's already listening on every
-        // interface (WiFi LAN and the Tailscale VPN interface both) — the only
-        // thing that needs deciding is which address comrade should try first.
-        val server = ServerSocket(0)
+        // Bind explicitly to the device's own addresses — never 0.0.0.0, matching the
+        // relay's deliberate policy (file_transfer.rs documents why).
+        val tailscaleIp = tailscaleIpv4()
+        val lanIp = currentWifiIpv4(this)
+        val server = if (tailscaleIp != null && lanIp != null && tailscaleIp != lanIp) {
+            // Two interfaces: bind the Tailscale one; the LAN shortcut won't help if
+            // comrade is on the same WiFi (since the phone is also on it), but having
+            // an explicit bind address is still the right security posture.
+            ServerSocket().also { it.bind(InetSocketAddress(InetAddress.getByName(tailscaleIp), 0)) }
+        } else if (tailscaleIp != null) {
+            ServerSocket().also { it.bind(InetSocketAddress(InetAddress.getByName(tailscaleIp), 0)) }
+        } else if (lanIp != null) {
+            ServerSocket().also { it.bind(InetSocketAddress(InetAddress.getByName(lanIp), 0)) }
+        } else {
+            // Last resort: no known interface; bind localhost (won't help comrade, but
+            // at least it doesn't expose anything unintended).
+            ServerSocket().also { it.bind(InetSocketAddress(InetAddress.getByName("127.0.0.1"), 0)) }
+        }
         server.reuseAddress = true
         val port = server.localPort
 
-        val tailscaleIp = "100.69.13.12"
-        val lanIp = currentWifiIpv4(this)
-        // LAN first (when on WiFi) — comrade tries it with a short timeout before
-        // falling back to Tailscale, same convention as the relay's own offers.
         val addrs = listOfNotNull(lanIp?.let { "$it:$port" }, "$tailscaleIp:$port").joinToString(",")
         MqttBridge.publish(
             this,
@@ -235,7 +252,7 @@ class ShareReceiverActivity : ComponentActivity() {
         Handler(Looper.getMainLooper()).post {
             Toast.makeText(
                 applicationContext,
-                "Couldn't share \"$name\" — if it's a folder, select the files inside and share those instead",
+                "Couldn't share \"$name\" — if it's a folder, share its filesystem path as text instead (copy path → paste into share)",
                 Toast.LENGTH_LONG,
             ).show()
         }
@@ -265,6 +282,19 @@ class ShareReceiverActivity : ComponentActivity() {
             }
         }
         return -1
+    }
+
+    /** This device's Tailscale IPv4 address via the same UDP-connect trick the relay uses. */
+    private fun tailscaleIpv4(): String {
+        return try {
+            val socket = DatagramSocket()
+            socket.connect(InetAddress.getByName("100.100.100.100"), 0)
+            val addr = socket.localAddress
+            socket.close()
+            addr.hostAddress ?: "100.69.13.12"
+        } catch (_: Exception) {
+            "100.69.13.12"
+        }
     }
 
     /** This device's current WiFi IPv4 address, or null if not on WiFi (e.g. mobile data). */

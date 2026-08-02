@@ -1,14 +1,14 @@
-name: Quick Tap sidebar toggle
-description: Route Pixel Quick Tap relay events to the Smart Edge sidebar toggle intent.
+name: Quick Tap volume slider
+description: Route Pixel Quick Tap relay events to show the volume slider.
 tasks:
   - name: QuickTap Toggle Sidebar
     priority: 6
     collisionMode: ABORT_NEW
     actions:
-      - type: intent.launch
-        label: Toggle Smart Edge sidebar
+      - type: key.send
+        label: Show volume slider
         args:
-          uri: "#Intent;action=com.imi.smartedge.sidebar.panel.TOGGLE;extendedLaunchFlags=0x4;component=com.imi.smartedge.sidebar.panel/.ToggleActivity;end"
+          code: KEYCODE_VOLUME_UP
 profiles:
   - name: QuickTapSidebarTrigger
     enabled: true

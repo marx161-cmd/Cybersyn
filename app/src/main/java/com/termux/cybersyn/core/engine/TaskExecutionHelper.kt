@@ -71,6 +71,18 @@ suspend fun executeAndLogTask(
         audioEligibility = audioEligibility,
     ) { msg -> AppLogger.info(logTag, msg) }
     val runner = TaskRunner(ctx, resolveTask = dbSubTaskResolver(db))
+    val classified = RunLogSource.classify(source)
+    val startedEntry = RunLogEntry(
+        taskId = task.id,
+        taskName = task.name,
+        timestamp = System.currentTimeMillis(),
+        durationMs = 0,
+        success = false,
+        message = "started (source=$source)",
+        source = classified.key,
+        sourceLabel = classified.label,
+    )
+    insertRunLog(db, startedEntry)
     val report = runner.run(task)
     val globalCommitMetadata = persistChangedGlobals(
         variableRepository,
@@ -82,7 +94,6 @@ suspend fun executeAndLogTask(
         logTag,
     )
     AppLogger.info(logTag, "Task ${report.taskName} completed: ${report.success} (${report.durationMs}ms)")
-    val classified = RunLogSource.classify(source)
     val riskMetadata = taskPowerRunLogMetadata(task)
     val logEntry = RunLogEntry(
         taskId = task.id,

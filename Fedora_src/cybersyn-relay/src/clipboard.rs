@@ -73,17 +73,15 @@ pub fn set_content(content: &str, state: &Mutex<ClipboardState>) {
 }
 
 fn read_clipboard() -> Option<String> {
-    Command::new("xclip")
+    let output = Command::new("xclip")
         .args(["-selection", "clipboard", "-o"])
         .output()
-        .ok()
-        .and_then(|o| {
-            if o.status.success() {
-                Some(String::from_utf8_lossy(&o.stdout).to_string())
-            } else {
-                None
-            }
-        })
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    // Validate UTF-8 strictly — skip binary/image clipboards.
+    String::from_utf8(output.stdout).ok()
 }
 
 fn write_clipboard(text: &str) {
@@ -100,20 +98,10 @@ fn write_clipboard(text: &str) {
 }
 
 fn build_payload(content: &str) -> String {
-    let escaped = content
-        .replace('\\', "\\\\")
-        .replace('"', "\\\"")
-        .replace('\n', "\\n")
-        .replace('\r', "\\r");
-    format!(r#"{{"content":"{escaped}"}}"#)
+    serde_json::json!({"content": content}).to_string()
 }
 
 pub fn parse_payload(payload: &str) -> Option<String> {
     let v: serde_json::Value = serde_json::from_str(payload).ok()?;
-    v.get("content")?.as_str().map(|s| {
-        s.replace("\\n", "\n")
-            .replace("\\r", "\r")
-            .replace("\\\"", "\"")
-            .replace("\\\\", "\\")
-    })
+    v.get("content")?.as_str().map(|s| s.to_string())
 }

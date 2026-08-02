@@ -15,6 +15,7 @@ import com.termux.cybersyn.core.actions.GoHomeAction
 import com.termux.cybersyn.core.actions.HttpGetAction
 import com.termux.cybersyn.core.actions.HttpPostAction
 import com.termux.cybersyn.core.actions.HttpRequestAction
+import com.termux.cybersyn.core.actions.KeyEventAction
 import com.termux.cybersyn.core.actions.KillAppAction
 import com.termux.cybersyn.core.actions.LaunchAppAction
 import com.termux.cybersyn.core.actions.LaunchIntentAction
@@ -135,6 +136,7 @@ private fun registerBuiltInActions() {
         LocalePluginSettingAction(),
         LocalePluginConditionQueryAction(),
         KillAppAction(),
+        KeyEventAction(),
         GoHomeAction(),
         OpenUrlAction(),
         SendSmsAction(),

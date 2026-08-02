@@ -94,6 +94,29 @@ class LockDeviceAction : Action {
 }
 
 /**
+ * Send a key event — the same mechanism as pressing a physical key.
+ * Shows the volume slider with KEYCODE_VOLUME_UP, sleeps with KEYCODE_SLEEP, etc.
+ *
+ * Args:
+ *   - "code": keycode name (e.g. KEYCODE_VOLUME_UP, KEYCODE_VOLUME_DOWN)
+ */
+class KeyEventAction : Action {
+    override val id = "key.send"
+    override val category = ActionCategory.SETTINGS
+
+    override suspend fun run(ctx: ActionContext, args: Map<String, String>): ActionResult {
+        val code = args["code"] ?: return ActionResult.Failure("missing code (e.g. KEYCODE_VOLUME_UP)")
+        ctx.logger("key.send $code")
+        val result = runRootCommand(ctx, "input keyevent $code")
+        return if (result.exitCode == 0) {
+            ActionResult.Success
+        } else {
+            ActionResult.Failure("key.send failed: ${result.stderr.ifBlank { result.stdout }}")
+        }
+    }
+}
+
+/**
  * Turn off screen.
  */
 class ScreenOffAction : Action {

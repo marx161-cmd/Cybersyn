@@ -39,7 +39,6 @@ object MqttBridge {
     const val DEFAULT_PORT = 1883
 
     private const val HELPER_LIB = "libcybersyn-mqtt.so"
-    private const val TERMUX_PREFIX = "/data/data/com.termux/files/usr"
 
     data class Message(val topic: String, val payload: String)
 
@@ -56,7 +55,10 @@ object MqttBridge {
         port: Int = DEFAULT_PORT,
     ): Boolean {
         val bundled = bundledHelper(context)
-        if (bundled == null) return publishViaMosquitto(topic, message, broker, port)
+        if (bundled == null) {
+            android.util.Log.e("MqttBridge", "Bundled mqtt helper ($HELPER_LIB) missing; cannot publish. Termux mosquitto clients were deliberately removed from this phone — no fallback path exists.")
+            return false
+        }
 
         val line = "$topic\t$message\n".toByteArray(Charsets.UTF_8)
         pubStream.get()?.let { out ->
@@ -85,16 +87,6 @@ object MqttBridge {
         pubStream.getAndSet(null)?.let { runCatching { it.close() } }
         pubProcess.getAndSet(null)?.let { runCatching { it.destroy() } }
     }
-
-    private fun publishViaMosquitto(topic: String, message: String, broker: String, port: Int): Boolean =
-        try {
-            val proc = mosquitto(
-                listOf("bin/mosquitto_pub", "-h", broker, "-p", port.toString(), "-q", "0", "-t", topic, "-m", message),
-            )
-            proc.waitFor() == 0
-        } catch (_: Exception) {
-            false
-        }
 
     // ---- subscribe: one shared, ref-counted subscription per (broker, port, topic) ----
     //
@@ -156,15 +148,14 @@ object MqttBridge {
             while (running.get()) {
                 try {
                     val proc = if (bundled != null) {
-                        // Distinct client id per topic filter — the helper's default id is
-                        // fixed, so with 2+ concurrent subscriptions (as of FileOfferContextSource,
-                        // there are 4) every process shared it and each new connection kicked the
-                        // previous one off the broker, churning all of them indefinitely.
                         val subId = "cybersyn-sub-" + topicFilter.replace(Regex("[^a-zA-Z0-9]"), "_")
                         ProcessBuilder(bundled.absolutePath, "sub", "--broker", broker, "--port", port.toString(), "--topic", topicFilter, "--id", subId)
                             .start()
                     } else {
-                        mosquitto(listOf("bin/mosquitto_sub", "-h", broker, "-p", port.toString(), "-t", topicFilter, "-F", "%t\t%p"))
+                        // Termux mosquitto clients were deliberately removed from this phone;
+                        // there is no fallback subscription path.
+                        android.util.Log.e("MqttBridge", "Bundled mqtt helper ($HELPER_LIB) missing; cannot subscribe to $topicFilter")
+                        break
                     }
                     val shouldRun = synchronized(procLock) {
                         if (running.get()) {
@@ -220,14 +211,4 @@ object MqttBridge {
     /** The bundled native helper if present and executable, else null. */
     private fun bundledHelper(context: Context): File? =
         File(context.applicationInfo.nativeLibraryDir, HELPER_LIB).takeIf { it.canExecute() }
-
-    /** Spawn a Termux mosquitto client with the linker env it needs (same UID). */
-    private fun mosquitto(relativeArgv: List<String>): Process {
-        val argv = relativeArgv.toMutableList()
-        argv[0] = "$TERMUX_PREFIX/${argv[0]}"
-        val pb = ProcessBuilder(argv)
-        pb.environment()["PREFIX"] = TERMUX_PREFIX
-        pb.environment()["LD_LIBRARY_PATH"] = "$TERMUX_PREFIX/lib"
-        return pb.start()
-    }
 }

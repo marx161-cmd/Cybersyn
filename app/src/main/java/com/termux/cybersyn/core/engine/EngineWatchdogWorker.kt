@@ -7,6 +7,7 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.termux.cybersyn.automation.scheduler.TimeEventScheduler
+import com.termux.cybersyn.app.CybersynApp_NoHilt
 import com.termux.cybersyn.core.logging.AppLogger
 import java.util.concurrent.TimeUnit
 
@@ -20,6 +21,10 @@ class EngineWatchdogWorker(
         val scheduler = TimeEventScheduler(applicationContext)
         val heartbeat = EngineHeartbeatStore(applicationContext).read()
         ChildProcessAudit.check()
+        runCatching {
+            CybersynApp_NoHilt.db.openHelper.writableDatabase
+                .execSQL("PRAGMA wal_checkpoint(TRUNCATE)")
+        }
         return runCatching {
             if (heartbeat.needsRecovery(now)) {
                 scheduler.scheduleRecovery(now)

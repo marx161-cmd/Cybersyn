@@ -20,10 +20,12 @@ class LogcatContextSource : SubscriptionReadyContextSource {
     override val type = "logcat"
 
     private val subscriberCount = AtomicInteger(0)
+    private val procLock = Any()
     private var readerJob: Job? = null
     private var readerProcess: Process? = null
     private var readerScope: CoroutineScope? = null
     @Volatile private var readerPid: Int? = null
+    @Volatile private var readerActive = false
 
     private val sharedFlow = MutableSharedFlow<ContextEvent>(
         replay = 0,
@@ -53,24 +55,41 @@ class LogcatContextSource : SubscriptionReadyContextSource {
     override fun events(app: Context): Flow<ContextEvent> = events(app) {}
 
     private fun startReader(app: Context) {
-        if (readerProcess?.isAlive == true) {
-            AppLogger.warn(TAG, "startReader called with a reader already running; ignoring")
-            return
+        val shouldStart = synchronized(procLock) {
+            if (readerActive) {
+                AppLogger.warn(TAG, "startReader called with a reader already running; ignoring")
+                false
+            } else {
+                readerActive = true
+                true
+            }
         }
+        if (!shouldStart) return
+
         val scope = CoroutineScope(Dispatchers.IO + Job())
         readerScope = scope
         readerJob = scope.launch {
             try {
                 val pb = ProcessBuilder(
                     "su", "-c",
-                    // `exec` replaces this shell's image with logcat's, so the pid this shell
-                    // reports via `$$` is logcat's real pid for the rest of its life — captured
-                    // here since it re-execs as root and Process.pid()/destroy() can't reach it.
                     "echo READER_PID:\$\$; exec logcat -v threadtime *:E *:S",
                 )
                 pb.redirectErrorStream(true)
                 val process = pb.start()
-                readerProcess = process
+
+                val shouldKeep = synchronized(procLock) {
+                    if (readerActive) {
+                        readerProcess = process
+                        true
+                    } else {
+                        false
+                    }
+                }
+                if (!shouldKeep) {
+                    runCatching { process.destroyForcibly() }
+                    return@launch
+                }
+
                 AppLogger.info(TAG, "logcat reader started")
 
                 BufferedReader(InputStreamReader(process.inputStream), 8192).use { reader ->
@@ -80,7 +99,10 @@ class LogcatContextSource : SubscriptionReadyContextSource {
                         line = reader.readLine() ?: break
                         if (!pidLineConsumed) {
                             pidLineConsumed = true
-                            readerPid = line.removePrefix("READER_PID:").trim().toIntOrNull()
+                            val pid = line.removePrefix("READER_PID:").trim().toIntOrNull()
+                            // Capture pid synchronously so stopReader can always root-kill,
+                            // even if it fires before the rest of the coroutine body runs.
+                            synchronized(procLock) { readerPid = pid }
                             continue
                         }
                         if (line.isBlank()) continue
@@ -92,10 +114,13 @@ class LogcatContextSource : SubscriptionReadyContextSource {
             } catch (e: Exception) {
                 AppLogger.error(TAG, "logcat reader error", e)
             } finally {
-                killReaderProcess(readerProcess, readerPid)
-                readerProcess = null
-                readerPid = null
-                readerJob = null
+                synchronized(procLock) {
+                    killReaderProcess(readerProcess, readerPid)
+                    readerProcess = null
+                    readerPid = null
+                    readerJob = null
+                    readerActive = false
+                }
                 AppLogger.info(TAG, "logcat reader stopped")
             }
         }
@@ -104,9 +129,12 @@ class LogcatContextSource : SubscriptionReadyContextSource {
     private fun stopReader() {
         readerJob?.cancel()
         readerJob = null
-        killReaderProcess(readerProcess, readerPid)
-        readerProcess = null
-        readerPid = null
+        synchronized(procLock) {
+            killReaderProcess(readerProcess, readerPid)
+            readerProcess = null
+            readerPid = null
+            readerActive = false
+        }
         readerScope = null
     }
 

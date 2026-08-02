@@ -107,7 +107,7 @@ fn build_status(art_cache_dir: &PathBuf) -> Result<MediaStatus, String> {
 
         let position_ms: i64 = position_str
             .parse::<f64>()
-            .map(|p| (p / 1000.0) as i64)
+            .map(|p| (p * 1000.0) as i64)
             .unwrap_or(0);
 
         let length_ms: i64 = metadata
