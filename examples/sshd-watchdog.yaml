@@ -1,0 +1,40 @@
+name: sshd poll watchdog
+description: >
+  Restore sshd only when it is actually down.
+
+  The previous task ran "Restore SSHD" unconditionally with no health check, and its
+  flow.wait(300000) never elapsed because RESTART mode cancelled and relaunched the task
+  every minute -- so a "poll every 5 minutes" watchdog restarted sshd every minute.
+
+  Now: check the listening port first (not pgrep, which is blind under hidepid without
+  AID_READPROC), and only run Restore SSHD when the check fails. Loop dropped; the TIME
+  context already pulses once a minute, so SINGLE mode is correct.
+tasks:
+  - name: "sshd: poll watchdog check"
+    priority: 5
+    collisionMode: ABORT_NEW
+    actions:
+      - type: script.termux.run
+        label: check sshd is listening
+        continueOnError: false
+        args:
+          executable: ~/.termux/tasker/sshd_watchdog.sh
+          arguments: ""
+          useRoot: "true"
+          timeoutMs: "15000"
+      - type: task.run
+        label: restore sshd (only reached when the check fails)
+        args:
+          task: "Restore SSHD"
+profiles:
+  - name: SshdPollWatchdog
+    enabled: true
+    group: System
+    automationMode: SINGLE
+    cooldownSec: 0
+    enterTask: "sshd: poll watchdog check"
+    contexts:
+      - type: TIME
+        config:
+          start: "00:00"
+          end: "23:59"
