@@ -39,11 +39,32 @@ object KeyHijackController {
     private val keyState = mutableMapOf<Int, Boolean>()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    // Set by caller (AutomationService)
+    // Set by caller (AutomationService). Both push the routing mode down to the helper,
+    // because the consume decision has to be made inside the native callback -- see the
+    // comment in EvdevRootHelper.
     var appContext: Context? = null
-    var imeShown: Boolean = false
-    var browserForeground: Boolean = false
     var deviceId: Int = 0
+
+    var imeShown: Boolean = false
+        set(value) {
+            field = value
+            pushMode()
+        }
+
+    var browserForeground: Boolean = false
+        set(value) {
+            field = value
+            pushMode()
+        }
+
+    private fun pushMode() {
+        val mode = when {
+            imeShown -> "gyro"
+            browserForeground -> "browser"
+            else -> "normal"
+        }
+        send("MODE $mode")
+    }
 
     fun start(context: Context) {
         if (appContext == null) appContext = context.applicationContext
@@ -91,12 +112,22 @@ object KeyHijackController {
                     }
                 } catch (_: Exception) {
                 } finally {
-                    synchronized(procLock) {
-                        if (running.get()) {
-                            AppLogger.warn(TAG, "root helper died unexpectedly; restart")
+                    val shouldRestart = synchronized(procLock) {
+                        if (running.get() && helperProcess === proc) {
+                            AppLogger.warn(TAG, "root helper died unexpectedly; restarting")
                             cleanup()
-                            start(context)
+                            // Must clear `running` before restarting: start() bails out
+                            // on the already-running guard otherwise, so the helper
+                            // would never actually come back.
+                            running.set(false)
+                            true
+                        } else {
+                            false
                         }
+                    }
+                    if (shouldRestart) {
+                        start(context)
+                        pushMode()
                     }
                 }
             }
@@ -171,11 +202,16 @@ object KeyHijackController {
                     val code = parts[2].toInt()
                     keyState[code] = true
 
-                    // Screenshot: power held + vol_down press
-                    if (code == KEY_VOLUME_DOWN && keyState[KEY_POWER] == true) {
-                        screencap()
-                        return
-                    }
+                    // NOTE: pass-through is NOT handled here. The helper's callback
+                    // returns false for anything the current mode doesn't consume, and
+                    // the native layer re-emits it verbatim with real timing. Emitting
+                    // it again from here would deliver every key twice, and would also
+                    // turn a power hold into a discrete press.
+                    //
+                    // Same for the power+vol_down screenshot: the helper hands the
+                    // volume keys back while power is held, so Android's own chord
+                    // fires. Re-implementing it would double-fire.
+                    if (keyState[KEY_POWER] == true) return
 
                     if (imeShown && code in listOf(KEY_VOLUME_DOWN, KEY_VOLUME_UP)) {
                         // Gyro mode
@@ -184,23 +220,15 @@ object KeyHijackController {
                             KEY_VOLUME_UP -> startHold()
                         }
                     } else if (!imeShown && browserForeground && code in listOf(KEY_VOLUME_DOWN, KEY_VOLUME_UP)) {
-                        // Browser nav mode
-                        emitKeycode(id, if (code == KEY_VOLUME_DOWN) 88 else 87, 1) // MEDIA_PREV=88, MEDIA_NEXT=87
+                        // Browser nav mode. MEDIA_PREV=88, MEDIA_NEXT=87.
+                        emitKeycode(id, if (code == KEY_VOLUME_DOWN) 88 else 87, 1)
                         emitKeycode(id, if (code == KEY_VOLUME_DOWN) 88 else 87, 0)
-                    } else if (!imeShown || code == KEY_POWER) {
-                        // Normal pass-through
-                        passThrough(id, code)
                     }
                 }
                 "EV_RAW" -> {} // Raw events streamed; EV_DOWN/EV_UP are derived
                 "EV_REPEAT" -> {} // Ignore repeats for now
             }
         } catch (_: Exception) {}
-    }
-
-    private fun passThrough(deviceId: Int, code: Int) {
-        send("EMIT_KC $deviceId $code 1")
-        send("EMIT_KC $deviceId $code 0")
     }
 
     private fun emitKeycode(deviceId: Int, code: Int, value: Int) {
@@ -235,13 +263,4 @@ object KeyHijackController {
         }.also { it.name = "gyro-pub" }.start()
     }
 
-    private fun screencap() {
-        Thread {
-            try {
-                val proc = Runtime.getRuntime().exec(arrayOf("input", "keyevent", "KEYCODE_SYSRQ"))
-                proc.waitFor()
-                AppLogger.info(TAG, "screencap taken (power+vol_down)")
-            } catch (_: Exception) {}
-        }.also { it.name = "screencap" }.start()
-    }
 }
