@@ -6,6 +6,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
@@ -20,6 +21,7 @@ import com.termux.cybersyn.automation.network.ConnectivityMonitor
 import com.termux.cybersyn.automation.network.WiFiNetworkMonitor
 import com.termux.cybersyn.automation.sensor.ShakeDetector
 import com.termux.cybersyn.automation.scheduler.TimeEventScheduler
+import com.termux.cybersyn.core.evdev.KeyHijackController
 import com.termux.cybersyn.core.logging.AppLogger
 import com.termux.cybersyn.core.contexts.BluetoothContextEvents
 import com.termux.cybersyn.core.contexts.ContextSourceRegistry
@@ -31,6 +33,7 @@ import com.termux.cybersyn.core.contexts.PluginConditionSubscription
 import com.termux.cybersyn.core.contexts.PluginConditionSubscriptions
 import com.termux.cybersyn.core.contexts.TimeContextEvents
 import com.termux.cybersyn.core.model.AutomationMode
+import com.termux.cybersyn.core.mqtt.MqttBridge
 import com.termux.cybersyn.core.model.Profile
 import com.termux.cybersyn.core.model.Task
 import com.termux.cybersyn.core.platform.AudioForegroundServiceEligibility
@@ -164,6 +167,7 @@ class AutomationService : Service() {
         scope.launch(Dispatchers.IO) { killStrayLogcatReaders() }
         startForegroundCompat()
         startSystemContextSources()
+        startKeyHijack()
         timeEventScheduler.scheduleNextMinute()
         engineHeartbeatStore.recordAlive()
         scope.launch {
@@ -265,7 +269,36 @@ class AutomationService : Service() {
         stopSelf(startId)
     }
 
+    /**
+     * Start the evdev key-hijack helper and feed it IME visibility.
+     *
+     * SpectreBoard publishes spectreboard/ime_shown on transitions only and not retained,
+     * so the current state is seeded from the system first -- otherwise a service start
+     * while the keyboard is already up leaves the helper in the wrong mode until the next
+     * show/hide, which silently routes the gyro keys to the volume slider.
+     */
+    private fun startKeyHijack() {
+        KeyHijackController.appContext = applicationContext
+        KeyHijackController.imeShown = queryImeShown()
+        KeyHijackController.start(applicationContext)
+        scope.launch(Dispatchers.IO) {
+            MqttBridge.subscribe(applicationContext, "spectreboard/ime_shown").collect { msg ->
+                KeyHijackController.imeShown = msg.payload.trim().equals("ON", ignoreCase = true)
+            }
+        }
+    }
+
+    /** Current IME visibility, straight from the system. */
+    private fun queryImeShown(): Boolean = runCatching {
+        val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager
+        imm?.let {
+            @Suppress("DEPRECATION")
+            it.isAcceptingText
+        } ?: false
+    }.getOrDefault(false)
+
     override fun onDestroy() {
+        KeyHijackController.stop()
         val matcherJobSnapshot = matcherJobs.values.toList()
         val taskJobSnapshot = profileTaskJobs.values.toList()
         matcherJobSnapshot.forEach { it.cancel() }

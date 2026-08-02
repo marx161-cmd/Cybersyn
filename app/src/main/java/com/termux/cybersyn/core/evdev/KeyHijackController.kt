@@ -19,25 +19,52 @@ import java.util.concurrent.atomic.AtomicBoolean
  * Uses the same procLock + running-flag pattern from MqttBridge.rawSubscribe and
  * LogcatContextSource. No separate daemon — one su -c process, stdin/stdout protocol.
  *
- * Routing rules (carried over from volume_daemon.py):
- *   - power+vol_down held → screenshot (KEYCODE_SYSRQ via shell)
- *   - IME shown + vol keys → MQTT publish android/clutch or android/click
- *   - browser foreground + no keyboard + vol keys → media prev/next
- *   - everything else → EMIT to root helper (pass-through to Android)
+ * Routing:
+ *   - IME shown + vol keys        → MQTT android/clutch (gyro) / android/click (hold)
+ *   - browser foreground, no IME  → media prev/next
+ *   - registered KeyTriggers      → classified short/long/double/chord matches
+ *
+ * Pass-through is NOT done here. The helper's callback returns false for anything the
+ * current mode doesn't consume and the native layer re-emits it verbatim, so Android's
+ * own long-press power handling and the power+vol_down screenshot chord keep working.
+ * Emitting a pass-through from this side would deliver every key twice.
+ *
+ * Codes on this side are ANDROID keycodes (the helper maps them); the helper's own
+ * consume logic works in raw Linux evdev codes.
  */
 object KeyHijackController {
     private const val TAG = "KeyHijackController"
     private val KEY_VOLUME_DOWN = 25
     private val KEY_VOLUME_UP = 24
     private val KEY_POWER = 26
+    private const val TICK_INTERVAL_MS = 50L
 
     private val procLock = Any()
     private var helperProcess: Process? = null
     private var helperWriter: OutputStreamWriter? = null
     private var helperReaderJob: Job? = null
+    private var tickJob: Job? = null
     private val running = AtomicBoolean(false)
     private val keyState = mutableMapOf<Int, Boolean>()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    /**
+     * Classified triggers (long press, double press, chords). Gyro and hold are
+     * deliberately NOT expressed here: they are hold-to-act, firing on key-down and
+     * again on key-up, which a click-type model can't represent -- ClickType describes a
+     * completed press, and a hold has no completion until release. Those stay on the raw
+     * down/up path below; the detector adds the press classification Cybersyn never had.
+     */
+    private var detector: KeyTriggerDetector? = null
+
+    /** Replace the classified trigger set. Safe to call while running. */
+    fun setTriggers(triggers: List<KeyTrigger>, onTrigger: (KeyTrigger) -> Unit) {
+        detector = if (triggers.isEmpty()) {
+            null
+        } else {
+            KeyTriggerDetector(triggers, onTrigger)
+        }
+    }
 
     // Set by caller (AutomationService). Both push the routing mode down to the helper,
     // because the consume decision has to be made inside the native callback -- see the
@@ -102,6 +129,18 @@ object KeyHijackController {
 
             AppLogger.info(TAG, "root helper started")
 
+            // Long-press and deferred short-press fire on elapsed time, not on an event,
+            // so they need a clock: a key held down produces no further stdout traffic
+            // once autorepeat is exhausted. 50ms is well under the 300ms double-press
+            // window and costs nothing while idle (the detector is null unless triggers
+            // are registered).
+            tickJob = scope.launch {
+                while (running.get()) {
+                    detector?.tick()
+                    kotlinx.coroutines.delay(TICK_INTERVAL_MS)
+                }
+            }
+
             helperReaderJob = scope.launch {
                 try {
                     val reader = BufferedReader(InputStreamReader(proc.inputStream))
@@ -142,6 +181,9 @@ object KeyHijackController {
     }
 
     private fun cleanup() {
+        tickJob?.cancel()
+        tickJob = null
+        detector?.reset()
         helperReaderJob?.cancel()
         helperReaderJob = null
         try { helperWriter?.close() } catch (_: Exception) {}
@@ -189,6 +231,7 @@ object KeyHijackController {
                     val id = parts[1].toInt()
                     val code = parts[2].toInt()
                     keyState[code] = false
+                    detector?.onKeyEvent(code, 0)
                     // Key up routing: only needed for gyro stop events
                     if (imeShown) {
                         when (code) {
@@ -201,6 +244,7 @@ object KeyHijackController {
                     val id = parts[1].toInt()
                     val code = parts[2].toInt()
                     keyState[code] = true
+                    detector?.onKeyEvent(code, 1)
 
                     // NOTE: pass-through is NOT handled here. The helper's callback
                     // returns false for anything the current mode doesn't consume, and
@@ -226,7 +270,10 @@ object KeyHijackController {
                     }
                 }
                 "EV_RAW" -> {} // Raw events streamed; EV_DOWN/EV_UP are derived
-                "EV_REPEAT" -> {} // Ignore repeats for now
+                "EV_REPEAT" -> {
+                    val code = parts[2].toIntOrNull() ?: return
+                    detector?.onKeyEvent(code, 2)
+                }
             }
         } catch (_: Exception) {}
     }

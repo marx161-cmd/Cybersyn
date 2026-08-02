@@ -32,8 +32,10 @@ sealed class TriggerMode {
 /**
  * One key within a trigger.
  *
- * @param code Linux evdev key code (KEY_VOLUMEDOWN 114, ...), NOT an Android keycode --
- *   these arrive straight off the grabbed device.
+ * @param code Android keycode (KEYCODE_VOLUME_DOWN 25, ...) as delivered by
+ *   EvdevRootHelper's EV_DOWN/EV_UP lines, which map from raw evdev via the native
+ *   keylayout. The helper's own consume logic works in Linux codes (114/115/116);
+ *   don't mix the two.
  * @param clickType how this key must be pressed for the trigger to match.
  * @param consumeEvent whether matching swallows the key. This is Key Mapper's
  *   "override key" behaviour: false lets the key through to Android as well, which is

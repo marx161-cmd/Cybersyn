@@ -4,6 +4,7 @@ import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
 import android.view.accessibility.AccessibilityEvent
 import com.termux.cybersyn.core.logging.AppLogger
+import com.termux.cybersyn.core.evdev.KeyHijackController
 import com.termux.cybersyn.core.mqtt.MqttBridge
 
 class ForegroundAccessibilityService : AccessibilityService() {
@@ -50,6 +51,10 @@ class ForegroundAccessibilityService : AccessibilityService() {
 
     private fun publishBrowserMode(on: Boolean) {
         AppLogger.info(TAG, "browser_mode -> $on (pkg=${lastPackage})")
+        // Direct, in-process. The MQTT publish below stays only for the legacy python
+        // volume_daemon; once KeyHijackController owns the keys it is pure round trip --
+        // this service detects the browser inside Cybersyn, and the consumer is Cybersyn.
+        KeyHijackController.browserForeground = on
         Thread {
             MqttBridge.publish(
                 this,
