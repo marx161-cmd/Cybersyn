@@ -102,6 +102,13 @@ object KeyHijackController {
             }
             running.set(true)
 
+            // The helper is a root child of a `su` we spawned, so it outlives us: an app
+            // crash, a force-stop or a reinstall leaves it running and still holding
+            // EVIOCGRAB on event0. The next generation then fails to grab with EBUSY(-16)
+            // and the keys are dead. Process.destroyForcibly() can't signal a root child,
+            // so sweep by cmdline first -- same remedy as killStrayLogcatReaders().
+            killStrayHelpers()
+
             val nativeLibDir = context.applicationInfo.nativeLibraryDir
             val apkPath = context.packageCodePath
             val cmd = arrayOf(
@@ -192,6 +199,20 @@ object KeyHijackController {
         helperProcess = null
         keyState.clear()
         deviceId = 0
+    }
+
+    /**
+     * Kill any EvdevRootHelper left over from a previous generation. Matches on the class
+     * name in the cmdline, which is stable across the changing /data/app hash, and covers
+     * both the `sh -c` wrapper and the app_process child.
+     */
+    private fun killStrayHelpers() {
+        runCatching {
+            ProcessBuilder(
+                "su", "-c",
+                "pkill -9 -f com.termux.cybersyn.core.evdev.EvdevRootHelper",
+            ).start().waitFor()
+        }.onFailure { AppLogger.warn(TAG, "Failed to sweep stray evdev helpers", it) }
     }
 
     /** Set which keys to grab. Must be called after READY is received. */
