@@ -1,0 +1,38 @@
+name: npud watchdog
+description: >
+  Supervise npud via its socket, not via pgrep.
+
+  The previous version gated the socket check behind `pgrep -x npud` with useRoot:false.
+  /proc is mounted hidepid=invisible and Cybersyn lacks AID_READPROC(3009), so that pgrep
+  can never see npud, the socket check was skipped, and npud was respawned every cycle --
+  each respawn orphaning the last, because npud unlinks and rebinds its own socket on
+  startup. 130 npud processes had accumulated by 2026-08-02.
+
+  Also drops the flow.wait + self task.run loop: the TIME context already pulses once a
+  minute, and the loop only made the task never return -- which deadlocks SINGLE mode and
+  leaves a permanent "started" run_log row instead of a result.
+tasks:
+  - name: "npud: watchdog check"
+    priority: 5
+    collisionMode: ABORT_NEW
+    actions:
+      - type: script.termux.run
+        label: health-check and restart npud if unresponsive
+        continueOnError: true
+        args:
+          executable: ~/.termux/tasker/npud_watchdog.sh
+          arguments: ""
+          useRoot: "true"
+          timeoutMs: "35000"
+profiles:
+  - name: NpudWatchdog
+    enabled: true
+    group: System
+    automationMode: SINGLE
+    cooldownSec: 0
+    enterTask: "npud: watchdog check"
+    contexts:
+      - type: TIME
+        config:
+          start: "00:00"
+          end: "23:59"
