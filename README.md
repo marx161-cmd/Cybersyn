@@ -8,7 +8,7 @@ Android-native, system-signed automation brain — trigger/action engine with lo
 
 Cybersyn is built on the shoulders of:
 
-- **[OpenTasker](https://github.com/SysAdminDoc/OpenTasker)** — the core rule engine: profiles, contexts, tasks, actions, Tasker XML import, and the Room persistence layer. Cybersyn forked from OpenTasker and retains its GPL-3.0 license.
+- **[OpenTasker](https://github.com/SysAdminDoc/OpenTasker)** — the core rule engine: profiles, contexts, tasks, actions, Tasker XML import, and the Room persistence layer. OpenTasker is MIT-licensed; Cybersyn forked from it and is distributed under GPL-3.0 (see [License](#license)).
 - **[KDE Connect](https://invent.kde.org/network/kdeconnect-android)** — device pairing, encrypted transport, and plugin architecture concepts that informed the relay design.
 
 ## What it does
@@ -50,4 +50,14 @@ blazer-sysapp-update rollback com.termux.cybersyn
 
 ## License
 
-Cybersyn retains OpenTasker's GPL-3.0 license. Original copyright belongs to the OpenTasker authors. Modifications in this fork are provided under the same license.
+Cybersyn is distributed under the **GNU General Public License v3.0** — see [`LICENSE`](LICENSE).
+
+Cybersyn forked from [OpenTasker](https://github.com/SysAdminDoc/OpenTasker), which is
+**MIT-licensed** (Copyright © 2026 SysAdminDoc). MIT permits redistribution under GPL-3.0, so
+the OpenTasker-derived engine is included here under GPL-3.0 while its original copyright
+notice is preserved in [`LICENSE.OpenTasker`](LICENSE.OpenTasker), as MIT requires.
+
+> Earlier revisions of this README stated that OpenTasker was GPL-3.0 and that this fork
+> "retained" it. That was wrong on both points — upstream is MIT, and the `LICENSE` file in
+> this repo was still MIT. Corrected 2026-08-02: the intent was always GPL-3.0, and the
+> licensing now matches it.
