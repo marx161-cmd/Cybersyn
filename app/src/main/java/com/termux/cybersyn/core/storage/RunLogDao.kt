@@ -40,7 +40,15 @@ fun RunLogEntry.toEntity() = RunLogEntity(
 
 @Dao
 interface RunLogDao {
-    @Insert suspend fun insert(e: RunLogEntity)
+    /** Returns the generated rowId so a long-running task's "started" row can be finalised in place. */
+    @Insert suspend fun insert(e: RunLogEntity): Long
+    /**
+     * Completes the placeholder row written before a task starts, instead of appending a
+     * second row. Without this an infinite/self-recursive task leaves a permanent
+     * success=false row behind on every trigger and buries the rest of the table.
+     */
+    @Query("UPDATE run_logs SET timestamp = :timestamp, durationMs = :durationMs, success = :success, message = :message WHERE id = :id")
+    suspend fun finalizeRun(id: Long, timestamp: Long, durationMs: Long, success: Boolean, message: String): Int
     @Query("SELECT * FROM run_logs ORDER BY timestamp DESC, id DESC LIMIT 100")
     suspend fun getRecent(): List<RunLogEntity>
     @Query("SELECT * FROM run_logs ORDER BY timestamp DESC, id DESC LIMIT 100")

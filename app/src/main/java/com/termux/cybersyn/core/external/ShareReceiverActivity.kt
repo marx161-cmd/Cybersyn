@@ -191,28 +191,23 @@ class ShareReceiverActivity : ComponentActivity() {
             return
         }
 
-        // Bind explicitly to the device's own addresses — never 0.0.0.0, matching the
-        // relay's deliberate policy (file_transfer.rs documents why).
-        val tailscaleIp = tailscaleIpv4()
-        val lanIp = currentWifiIpv4(this)
-        val server = if (tailscaleIp != null && lanIp != null && tailscaleIp != lanIp) {
-            // Two interfaces: bind the Tailscale one; the LAN shortcut won't help if
-            // comrade is on the same WiFi (since the phone is also on it), but having
-            // an explicit bind address is still the right security posture.
-            ServerSocket().also { it.bind(InetSocketAddress(InetAddress.getByName(tailscaleIp), 0)) }
-        } else if (tailscaleIp != null) {
-            ServerSocket().also { it.bind(InetSocketAddress(InetAddress.getByName(tailscaleIp), 0)) }
-        } else if (lanIp != null) {
-            ServerSocket().also { it.bind(InetSocketAddress(InetAddress.getByName(lanIp), 0)) }
-        } else {
-            // Last resort: no known interface; bind localhost (won't help comrade, but
-            // at least it doesn't expose anything unintended).
-            ServerSocket().also { it.bind(InetSocketAddress(InetAddress.getByName("127.0.0.1"), 0)) }
+        // Bind explicitly to one of the device's own addresses — never 0.0.0.0, matching the
+        // relay's deliberate policy (file_transfer.rs documents why). Tailscale is preferred
+        // because it's the only interface comrade is guaranteed to reach us on.
+        val bindIp = tailscaleIpv4() ?: currentWifiIpv4(this) ?: LOOPBACK
+        val server = ServerSocket().also {
+            // Must precede bind() to have any effect.
+            it.reuseAddress = true
+            it.bind(InetSocketAddress(InetAddress.getByName(bindIp), 0))
         }
-        server.reuseAddress = true
         val port = server.localPort
 
-        val addrs = listOfNotNull(lanIp?.let { "$it:$port" }, "$tailscaleIp:$port").joinToString(",")
+        if (bindIp == LOOPBACK) {
+            Log.w(TAG, "No Tailscale or WiFi address; bound loopback, comrade cannot reach this offer")
+        }
+        // Advertise only what we actually listen on. Offering the LAN address while bound to
+        // Tailscale made comrade's LAN-first attempt fail on every single transfer.
+        val addrs = "$bindIp:$port"
         MqttBridge.publish(
             this,
             "cybersyn/comrade/action",
@@ -284,17 +279,36 @@ class ShareReceiverActivity : ComponentActivity() {
         return -1
     }
 
-    /** This device's Tailscale IPv4 address via the same UDP-connect trick the relay uses. */
-    private fun tailscaleIpv4(): String {
-        return try {
-            val socket = DatagramSocket()
-            socket.connect(InetAddress.getByName("100.100.100.100"), 0)
-            val addr = socket.localAddress
-            socket.close()
-            addr.hostAddress ?: "100.69.13.12"
-        } catch (_: Exception) {
-            "100.69.13.12"
-        }
+    /**
+     * This device's Tailscale IPv4 address via the same UDP-connect trick the relay uses,
+     * or null if it can't be determined.
+     *
+     * The result is validated against the CGNAT range Tailscale uses (100.64.0.0/10). An
+     * unroutable tailnet makes the kernel hand back the wildcard address, and binding that
+     * would silently listen on every interface — the exact exposure this bind is meant to
+     * prevent.
+     */
+    private fun tailscaleIpv4(): String? {
+        val addr = try {
+            DatagramSocket().use { socket ->
+                socket.connect(InetAddress.getByName(TAILSCALE_PROBE), 9)
+                socket.localAddress?.hostAddress
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Tailscale address probe failed", e)
+            null
+        } ?: return null
+        return addr.takeIf { isTailscaleCgnat(it) }
+            ?: run { Log.w(TAG, "Address probe returned non-tailnet address $addr; ignoring"); null }
+    }
+
+    /** True for 100.64.0.0/10, the CGNAT block Tailscale assigns from. */
+    private fun isTailscaleCgnat(ip: String): Boolean {
+        val octets = ip.split('.')
+        if (octets.size != 4) return false
+        val first = octets[0].toIntOrNull() ?: return false
+        val second = octets[1].toIntOrNull() ?: return false
+        return first == 100 && second in 64..127
     }
 
     /** This device's current WiFi IPv4 address, or null if not on WiFi (e.g. mobile data). */
@@ -316,5 +330,8 @@ class ShareReceiverActivity : ComponentActivity() {
 
     companion object {
         private const val TAG = "ShareReceiver"
+        private const val LOOPBACK = "127.0.0.1"
+        /** Tailscale's own DNS/coordination address — only used to pick a source interface. */
+        private const val TAILSCALE_PROBE = "100.100.100.100"
     }
 }

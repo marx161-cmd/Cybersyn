@@ -425,4 +425,8 @@
     <string name="catalog_action_log_name" formatted="false">Log Message</string>
     <string name="catalog_action_log_description" formatted="false">Write message to task log</string>
     <string name="catalog_action_log_field_message_label" formatted="false">Message</string>
+    <string name="catalog_action_key_send_name" formatted="false">Send Key Event</string>
+    <string name="catalog_action_key_send_description" formatted="false">Inject a key event, as if the physical key were pressed</string>
+    <string name="catalog_action_key_send_field_code_label" formatted="false">Key code</string>
+    <string name="catalog_action_key_send_field_code_hint" formatted="false">e.g. KEYCODE_VOLUME_UP</string>
 </resources>

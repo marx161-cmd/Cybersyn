@@ -164,8 +164,14 @@ fn dispatch(
         }
 
         "clipboard" if arg.starts_with("set:") => {
-            let prefix = "clipboard:set:";
-            let text = &payload[prefix.len()..];
+            // Re-split the raw payload rather than indexing a fixed prefix length: cmd/arg
+            // above are trimmed, so "clipboard: set:x" reaches this arm while a fixed
+            // 14-byte slice would cut mid-content. Everything after the second ':' is the
+            // clipboard body and must survive verbatim, whitespace included.
+            let text = payload
+                .splitn(3, ':')
+                .nth(2)
+                .unwrap_or("");
             clipboard::set_content(text, clipboard_state);
             format!("clipboard:set:ok")
         }

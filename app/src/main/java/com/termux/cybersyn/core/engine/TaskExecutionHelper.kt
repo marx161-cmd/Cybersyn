@@ -72,6 +72,10 @@ suspend fun executeAndLogTask(
     ) { msg -> AppLogger.info(logTag, msg) }
     val runner = TaskRunner(ctx, resolveTask = dbSubTaskResolver(db))
     val classified = RunLogSource.classify(source)
+    // Placeholder row written before the run so a task that never returns (the
+    // self-recursive watchdogs) is still observable. Finalised in place below rather
+    // than followed by a second row -- two rows per run would double the table and
+    // leave every completed run looking like a failure.
     val startedEntry = RunLogEntry(
         taskId = task.id,
         taskName = task.name,
@@ -82,7 +86,9 @@ suspend fun executeAndLogTask(
         source = classified.key,
         sourceLabel = classified.label,
     )
-    insertRunLog(db, startedEntry)
+    val startedRowId = runCatching { db.runLogDao().insert(startedEntry.toEntity()) }
+        .onFailure { e -> AppLogger.error(logTag, "Failed to write started run log for task ${task.id}", e) }
+        .getOrNull()
     val report = runner.run(task)
     val globalCommitMetadata = persistChangedGlobals(
         variableRepository,
@@ -109,7 +115,22 @@ suspend fun executeAndLogTask(
         source = classified.key,
         sourceLabel = classified.label,
     )
-    val inserted = insertRunLog(db, logEntry)
+    val inserted = if (startedRowId != null) {
+        runCatching {
+            db.runLogDao().finalizeRun(
+                id = startedRowId,
+                timestamp = logEntry.timestamp,
+                durationMs = logEntry.durationMs,
+                success = logEntry.success,
+                message = logEntry.message,
+            ) > 0
+        }.onFailure { e ->
+            AppLogger.error(logTag, "Failed to finalize run log for task ${task.id}", e)
+        }.getOrDefault(false)
+    } else {
+        // Placeholder never landed (or was pruned) -- fall back to a standalone row.
+        insertRunLog(db, logEntry)
+    }
     TaskExecutionResult(report, inserted)
 }
 

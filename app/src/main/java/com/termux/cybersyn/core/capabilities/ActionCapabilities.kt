@@ -57,6 +57,7 @@ object ActionCapabilityRegistry {
         "lock" to ActionCapability(CapabilityLevel.Unsupported, "Device lock requires configured device-admin support.", R.string.capability_lock_unsupported),
         "tile.set" to ActionCapability(CapabilityLevel.Unsupported, "Quick Settings tile updates are not functional yet; per-task tiles are a planned feature.", R.string.capability_tile_unsupported),
         "screen.off" to rootCapability("Screen-off requires a superuser grant."),
+        "key.send" to rootCapability("Key event injection requires a superuser grant."),
         "wake" to rootCapability("Wake requires a superuser grant."),
         TermuxScriptBackend.ACTION_ID to ActionCapability(
             CapabilityLevel.RequiresSetup,

@@ -5,12 +5,24 @@ Grabs /dev/input/event0 (VOLUME_DOWN, VOLUME_UP, POWER) exclusively and never
 releases. On daemon crash the kernel closes the fd, releasing the grab, so
 normal key behaviour returns.
 
-Modes:
-  - Screenshot: power+vol_down held together → always works, any mode.
-  - Gyro mode (keyboard SHOWN):         vol_down/up → GYRO/HOLD signals.
+Modes (routing is latched per press, on key-down — see KeyGrab._route_for):
+  - Power held:                          vol keys pass through, so Android's own
+    power+vol_down screenshot fires (and suppresses the power action itself).
+  - Gyro mode (keyboard SHOWN):          vol_down/up → GYRO/HOLD signals.
   - Browser mode (keyboard HIDDEN + browser foreground): vol keys → media prev/next.
     (Cybersyn publishes ON/OFF to volume_daemon/browser_mode via a profile.)
-  - Normal (keyboard HIDDEN, no browser):  all keys forwarded to Android as usual.
+  - Normal (keyboard HIDDEN, no browser): all keys forwarded to Android as usual.
+
+The power key is never remapped — it always passes through.
+
+Keys we don't remap are re-emitted verbatim through a uinput virtual keyboard, NOT
+via `input keyevent`. This matters: the grab takes the physical keys away from
+Android entirely, and `input keyevent` produces a synthetic event that SystemUI's
+power-key policy ignores — verified on blazer, `input keyevent --longpress
+KEYCODE_POWER` does not open the power menu. Re-emitting through uinput produces a
+real hardware-path key with real press/hold/release timing, so Android's own
+handling (long-press power menu, power+vol_down screenshot, volume long-press
+repeat) works unmodified, and no subprocess is spawned per keypress.
 """
 
 import fcntl
@@ -37,6 +49,17 @@ KEY_VOLUMEUP = 115
 KEY_POWER = 116
 
 BROWSER_MODE_TOPIC = "volume_daemon/browser_mode"
+
+# uinput, for re-emitting grabbed keys as real hardware keys.
+UINPUT_DEV = "/dev/uinput"
+UI_SET_EVBIT = 0x40045564
+UI_SET_KEYBIT = 0x40045565
+UI_DEV_CREATE = 0x5501
+UI_DEV_DESTROY = 0x5502
+EV_SYN = 0
+EV_KEY = 1
+SYN_REPORT = 0
+UINPUT_NAME = b"cybersyn-keys"
 
 KEYCODE_MAP = {
     KEY_VOLUMEDOWN: "KEYCODE_VOLUME_DOWN",
@@ -83,18 +106,72 @@ def reinject_key(code):
         pass
 
 
-def screencap():
-    try:
-        subprocess.run(
-            ["input", "keyevent", "KEYCODE_SYSRQ"],
-            timeout=10, capture_output=True,
-        )
-        log("screencap (power+vol_down)")
-    except Exception as e:
-        log(f"screencap FAILED: {e}")
+class UinputKeyboard:
+    """Virtual keyboard for re-emitting grabbed keys as genuine hardware events.
+
+    Falls back to `input keyevent` if /dev/uinput can't be opened — degraded (no
+    long-press power menu, no volume repeat) but not dead.
+    """
+
+    def __init__(self):
+        self.fd = None
+        try:
+            fd = os.open(UINPUT_DEV, os.O_WRONLY | os.O_NONBLOCK)
+            fcntl.ioctl(fd, UI_SET_EVBIT, EV_KEY)
+            for code in KEYCODE_MAP:
+                fcntl.ioctl(fd, UI_SET_KEYBIT, code)
+            # Legacy uinput_user_dev setup: name[80], input_id(4x u16),
+            # ff_effects_max, then absmin/absmax/absfuzz/absflat (4 x ABS_CNT s32).
+            dev = struct.pack(
+                "<80sHHHHI" + "i" * 256,
+                UINPUT_NAME, 0x0003, 0x1209, 0xC5B0, 1, 0, *([0] * 256),
+            )
+            os.write(fd, dev)
+            fcntl.ioctl(fd, UI_DEV_CREATE)
+            self.fd = fd
+            log("uinput virtual keyboard created")
+        except Exception as e:
+            log(f"uinput unavailable ({e}); falling back to `input keyevent`")
+
+    def emit(self, code, value):
+        """Forward one key event verbatim, preserving value (0=up, 1=down, 2=repeat)."""
+        if self.fd is not None:
+            try:
+                now = time.time()
+                sec, usec = int(now), int((now % 1) * 1_000_000)
+                os.write(self.fd, struct.pack(EVENT_FMT, sec, usec, EV_KEY, code, value))
+                os.write(self.fd, struct.pack(EVENT_FMT, sec, usec, EV_SYN, SYN_REPORT, 0))
+                return
+            except Exception as e:
+                log(f"uinput emit failed ({e}); falling back to `input keyevent`")
+                self.close()
+        # Fallback can only express a discrete press.
+        if value == 1:
+            reinject_key(code)
+
+    def close(self):
+        if self.fd is None:
+            return
+        try:
+            fcntl.ioctl(self.fd, UI_DEV_DESTROY)
+        except Exception:
+            pass
+        try:
+            os.close(self.fd)
+        except Exception:
+            pass
+        self.fd = None
 
 
 def reap_orphans():
+    """Kill helper subs left behind by a previous daemon generation.
+
+    Matches on the `--id daemon-...` marker this daemon stamps on every helper it
+    spawns, so it covers every topic we subscribe to (matching a single topic name
+    is what let browser_mode helpers survive as root orphans re-parented to init),
+    while never touching Cybersyn's own subs, which use `cybersyn-sub-*` ids.
+    Runs before any of our own children exist, so nothing live can be caught.
+    """
     try:
         out = subprocess.run(
             ["su", "-c", "ps -A -o PID,ARGS"],
@@ -104,7 +181,7 @@ def reap_orphans():
         return
     my_pid = os.getpid()
     for line in out.splitlines():
-        if IME_TOPIC not in line:
+        if "--id daemon-" not in line:
             continue
         parts = line.strip().split(None, 1)
         if not parts:
@@ -235,10 +312,32 @@ class BrowserModeWatcher:
 
 
 class KeyGrab:
-    def __init__(self):
+    def __init__(self, keyboard):
         self.f = None
         self._pressed = {}
+        # code -> where this press was routed, latched on key-down. Re-deciding per
+        # event would desynchronise Android's key state whenever a mode flips mid-hold:
+        # a down we passed through followed by an up we swallowed leaves the key stuck
+        # down on the virtual device forever.
+        self._routing = {}
+        self.keyboard = keyboard
         self._grab()
+
+    def _route_for(self, code, ime_shown, browser_active):
+        """Decide where a press goes. Called once per press, on key-down."""
+        if code not in (KEY_VOLUMEDOWN, KEY_VOLUMEUP):
+            return "pass"
+        # Power held: hand the volume keys to Android so its own power+vol_down
+        # screenshot fires. Re-implementing the combo here can't work now that power
+        # passes through — Android would still resolve the power hold as a real press
+        # on release, firing the assistant on top of the screenshot.
+        if self._pressed.get(KEY_POWER, False):
+            return "pass"
+        if ime_shown:
+            return "gyro"
+        if browser_active:
+            return "browser"
+        return "pass"
 
     def _grab(self):
         try:
@@ -266,45 +365,45 @@ class KeyGrab:
         is_up = (value == 0)
         if is_down:
             self._pressed[code] = True
-        elif is_up:
-            self._pressed[code] = False
+            route = self._route_for(code, ime_shown, browser_active)
+            self._routing[code] = route
+        else:
+            # Autorepeat and release follow wherever the press went, whatever the
+            # mode is now. Unknown key (down missed) falls through to Android.
+            route = self._routing.get(code, "pass")
+            if is_up:
+                self._pressed[code] = False
+                self._routing.pop(code, None)
 
-        # Screenshot: power held + vol_down press — works in any mode
-        if code == KEY_VOLUMEDOWN and is_down and self._pressed.get(KEY_POWER, False):
-            screencap()
-            return
-
-        # Gyro mode: keyboard shown, remap volume keys
-        if ime_shown and code in (KEY_VOLUMEDOWN, KEY_VOLUMEUP):
+        if route == "gyro":
             if code == KEY_VOLUMEDOWN:
                 if is_down:
                     dispatch("GYRO_START")
                 elif is_up:
                     dispatch("GYRO_STOP")
-            elif code == KEY_VOLUMEUP:
+            else:
                 if is_down:
                     dispatch("HOLD_START")
                 elif is_up:
                     dispatch("HOLD_STOP")
             return
 
-        # Browser nav mode: keyboard hidden + browser_mode ON
-        if not ime_shown and code in (KEY_VOLUMEDOWN, KEY_VOLUMEUP) and is_down and browser_active:
-            if code == KEY_VOLUMEDOWN:
-                subprocess.run(
-                    ["input", "keyevent", "KEYCODE_MEDIA_PREVIOUS"],
-                    timeout=5, capture_output=True,
+        if route == "browser":
+            # Fires on the press; the release is swallowed so Android never sees a
+            # half key. Autorepeat is ignored — one skip per press, not a stream.
+            if is_down:
+                media_key = (
+                    "KEYCODE_MEDIA_PREVIOUS" if code == KEY_VOLUMEDOWN else "KEYCODE_MEDIA_NEXT"
                 )
-            elif code == KEY_VOLUMEUP:
                 subprocess.run(
-                    ["input", "keyevent", "KEYCODE_MEDIA_NEXT"],
+                    ["input", "keyevent", media_key],
                     timeout=5, capture_output=True,
                 )
             return
 
-        # All other cases: forward normally
-        if is_down:
-            reinject_key(code)
+        # Re-emit verbatim so Android sees a real key with real timing — this is what
+        # gives back long-press power behaviour and the native screenshot combo.
+        self.keyboard.emit(code, value)
 
 
 def main():
@@ -315,6 +414,9 @@ def main():
         log(f"another volume_daemon holds {PIDFILE} — exiting")
         os.close(pid_fd)
         sys.exit(0)
+    # Truncate first: a shorter pid than the previous generation's would otherwise
+    # leave trailing digits behind and `kill $(cat pidfile)` would target a stranger.
+    os.ftruncate(pid_fd, 0)
     os.write(pid_fd, f"{os.getpid()}\n".encode())
     os.fsync(pid_fd)
 
@@ -322,7 +424,8 @@ def main():
 
     ime = ImeWatcher()
     browser_mode = BrowserModeWatcher()
-    keys = KeyGrab()
+    keyboard = UinputKeyboard()
+    keys = KeyGrab(keyboard)
 
     log("volume_daemon started (always-grab)")
     while True:
@@ -335,6 +438,8 @@ def main():
         if key_fd is not None:
             fds.append(key_fd)
 
+        # No hold timers to service any more — Android does its own long-press timing
+        # off the re-emitted events, so this can idle.
         r, _, _ = select.select(fds, [], [], 2.0)
 
         for watcher in (ime, browser_mode):

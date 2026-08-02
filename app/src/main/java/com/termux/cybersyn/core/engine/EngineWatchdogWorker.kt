@@ -21,10 +21,21 @@ class EngineWatchdogWorker(
         val scheduler = TimeEventScheduler(applicationContext)
         val heartbeat = EngineHeartbeatStore(applicationContext).read()
         ChildProcessAudit.check()
+        // wal_checkpoint returns a row, and execSQL() is documented as not for statements
+        // that return data -- it can no-op instead of checkpointing. query() runs it properly
+        // and hands back (busy, log_pages, checkpointed_pages); busy != 0 means a reader held
+        // it off and the WAL did not shrink, which is worth seeing rather than swallowing.
         runCatching {
             CybersynApp_NoHilt.db.openHelper.writableDatabase
-                .execSQL("PRAGMA wal_checkpoint(TRUNCATE)")
-        }
+                .query("PRAGMA wal_checkpoint(TRUNCATE)").use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        val busy = cursor.getInt(0)
+                        if (busy != 0) {
+                            AppLogger.warn(TAG, "WAL checkpoint blocked (busy=$busy, log=${cursor.getInt(1)} pages)")
+                        }
+                    }
+                }
+        }.onFailure { AppLogger.warn(TAG, "WAL checkpoint failed", it) }
         return runCatching {
             if (heartbeat.needsRecovery(now)) {
                 scheduler.scheduleRecovery(now)

@@ -929,6 +929,23 @@ fun registerActionMetadata() {
 
     ActionMetadataRegistry.register(
         ActionMetadata(
+            id = "key.send",
+            nameRes = R.string.catalog_action_key_send_name,
+            descriptionRes = R.string.catalog_action_key_send_description,
+            categoryRes = R.string.catalog_category_system,
+            fields = listOf(
+                ActionField(
+                    "code",
+                    R.string.catalog_action_key_send_field_code_label,
+                    required = true,
+                    hintRes = R.string.catalog_action_key_send_field_code_hint,
+                ),
+            ),
+        )
+    )
+
+    ActionMetadataRegistry.register(
+        ActionMetadata(
             id = "wake",
             nameRes = R.string.catalog_action_wake_name,
             descriptionRes = R.string.catalog_action_wake_description,

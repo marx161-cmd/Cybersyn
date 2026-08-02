@@ -1,0 +1,40 @@
+name: Volume Daemon watchdog
+description: >
+  Supervise the volume-key hijack daemon the same way NpudWatchdog supervises npud.
+  Task 139 existed since 2026-07 but had no profile attached, so nothing ever
+  triggered it and the daemon was the one component Cybersyn could not self-restore.
+
+  The health check is the whole task: no flow.wait + self task.run loop. The TIME
+  context already pulses once a minute, so the loop added nothing except making the
+  task never return -- which deadlocks SINGLE mode, needs RESTART as a workaround,
+  and leaves a permanent "started" run_log row on every trigger instead of a real
+  result. With the loop gone, SINGLE is correct and each run completes and logs.
+tasks:
+  - name: "Volume Daemon: watchdog check"
+    priority: 5
+    collisionMode: ABORT_NEW
+    actions:
+      # script.termux.run only accepts executables inside ~/.termux/tasker
+      # (TermuxScriptPolicy.normalizeExecutable). The original task 139 used an inline
+      # /data/data/com.termux/files/usr/bin/sh -c '...', which is rejected before it
+      # runs -- it never surfaced only because task 139 had no profile to trigger it.
+      - type: script.termux.run
+        label: health-check and restart volume_daemon if down
+        continueOnError: true
+        args:
+          executable: ~/.termux/tasker/volume_daemon.sh
+          arguments: ensure
+          useRoot: "true"
+          timeoutMs: "15000"
+profiles:
+  - name: VolumeDaemonWatchdog
+    enabled: true
+    group: System
+    automationMode: SINGLE
+    cooldownSec: 0
+    enterTask: "Volume Daemon: watchdog check"
+    contexts:
+      - type: TIME
+        config:
+          start: "00:00"
+          end: "23:59"

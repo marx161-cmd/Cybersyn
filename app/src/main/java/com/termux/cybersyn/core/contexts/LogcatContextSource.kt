@@ -69,13 +69,16 @@ class LogcatContextSource : SubscriptionReadyContextSource {
         val scope = CoroutineScope(Dispatchers.IO + Job())
         readerScope = scope
         readerJob = scope.launch {
+            // Hoisted so the finally block can tell this coroutine's own process apart from
+            // a replacement reader's.
+            var process: Process? = null
             try {
                 val pb = ProcessBuilder(
                     "su", "-c",
                     "echo READER_PID:\$\$; exec logcat -v threadtime *:E *:S",
                 )
                 pb.redirectErrorStream(true)
-                val process = pb.start()
+                process = pb.start()
 
                 val shouldKeep = synchronized(procLock) {
                     if (readerActive) {
@@ -87,6 +90,7 @@ class LogcatContextSource : SubscriptionReadyContextSource {
                 }
                 if (!shouldKeep) {
                     runCatching { process.destroyForcibly() }
+                    process = null
                     return@launch
                 }
 
@@ -115,11 +119,17 @@ class LogcatContextSource : SubscriptionReadyContextSource {
                 AppLogger.error(TAG, "logcat reader error", e)
             } finally {
                 synchronized(procLock) {
-                    killReaderProcess(readerProcess, readerPid)
-                    readerProcess = null
-                    readerPid = null
-                    readerJob = null
-                    readerActive = false
+                    // Only tear down if the recorded process is still *this* coroutine's.
+                    // A stop immediately followed by a start hands readerProcess to the new
+                    // reader before this block runs, and clearing it unconditionally would
+                    // kill the healthy replacement and leave readerActive falsely false.
+                    if (process != null && readerProcess === process) {
+                        killReaderProcess(readerProcess, readerPid)
+                        readerProcess = null
+                        readerPid = null
+                        readerJob = null
+                        readerActive = false
+                    }
                 }
                 AppLogger.info(TAG, "logcat reader stopped")
             }
