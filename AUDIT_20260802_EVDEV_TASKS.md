@@ -1,5 +1,12 @@
 # Cybersyn Audit #2 — 2026-08-02 (post-KeyMapper-merge) — Work Queue
 
+> **STATUS 2026-08-02 14:10 — ALL ITEMS BELOW ARE DONE, live-verified on blazer.**
+> Commits `0208ad2`, `031bb26`, `70b079d` (Cybersyn) and `ebe49ae6` (SpectreBoard),
+> all pushed. See "Resolution" at the bottom for what was proven on-device, the
+> three *additional* bugs that verification uncovered, and the one pre-existing
+> test failure deliberately left alone. The unchecked `[ ]` boxes below are the
+> original queue, kept as written for the record.
+
 Second audit of the day, covering the vendored-KeyMapper evdev merge (commits
 `2bc2e0e`..`0736c74`) plus the watchdog rebuild (`3f55765`..`2845fca`) and live state on
 blazer + comrade. Every finding verified live or against the exact code path; nothing was
@@ -212,3 +219,63 @@ profiles, python daemon gone with no successor debt.
   old tasks 116/135/139 replaced by 144/145/147.
 - MQTT `pub` helper is one persistent process (24650); `spectreboard/ime_shown` sub is
   stable (28705, not churned by §7 since it lives outside the matchers).
+
+---
+
+# Resolution — 2026-08-02, live-verified
+
+Commits: `0208ad2` (the swap), `031bb26` (time_tick + sshd uid), `70b079d` (logcat
+registration + sweep race) in Cybersyn; `ebe49ae6` in SpectreBoard. All pushed.
+
+## Proven on the device, not inferred
+
+| What | Evidence |
+|---|---|
+| §1 consume/routing latch | Held vol-down in gyro, flipped IME to hidden **mid-hold**, released: `android/clutch` published `ON` then `OFF`. Before, the release was routed by the new mode and the clutch stuck ON. Volume unchanged afterwards, so no key leaked to Android. |
+| §2 media nav | uinput clone key bitmask went `1c000000000000 0` → `2800000000 1c000000000000 0`, i.e. bits 163/165 (`KEY_NEXTSONG`/`KEY_PREVIOUSSONG`) now registered. The kernel had been silently dropping every media event. |
+| §3 IME seed | `dumpsys input_method` → `mInputShown` (verified to be the field that actually tracks live state; `mIsInputViewShown` is sticky). SpectreBoard now publishes retained: a fresh subscriber gets `spectreboard/ime_shown OFF` immediately, agreeing with the system. |
+| §7 reload churn | Zero `cybersyn-sub-cybersyn___event` reconnects at the broker across ~12 min (was one per minute); reader/helper/subscriber pids identical across four consecutive minute boundaries. |
+| §10 trigger seam | `Registered 2 key trigger(s): vol_down_double, vol_up_long`, then real evdev injections into the grabbed device produced `Key trigger 'vol_down_double' matched` and `Key trigger 'vol_up_long' matched`. |
+| Stray-helper sweep | The pre-existing root helper from the old APK path was gone after install; exactly one generation runs. |
+
+## Three bugs that only verification could have found
+
+1. **sshd was restored as root.** The watchdog task runs `useRoot:true`, so its bare
+   `sshd` produced a root-owned daemon reading root's `authorized_keys` — every login
+   answered `Permission denied (publickey)`. Hit live when the reinstall killed sshd and
+   the watchdog "fixed" it. `sshd_watchdog.sh` now drops to uid 1000 itself rather than
+   trusting a DB flag. Verified: killed sshd, ran the watchdog as root, got a
+   system-owned sshd and a working key login.
+
+2. **Removing the per-minute reload silently stopped every periodic profile.** TIME is a
+   *level* context (only EVENT and LOGCAT are pulses), so `00:00–23:59` activates once, on
+   its false→true edge. The watchdogs and LogShipTimer only looked periodic because the
+   rebuild manufactured a fresh edge each minute. Fixed with a real once-a-minute
+   `time_tick` EVENT pulse; profiles 20/31/33 repointed. Making TIME itself a pulse would
+   have been wrong — a `09:00–17:00` profile means "when the window is entered".
+
+3. **LOGCAT profiles were dead after a cold start.** `ContextMonitor.LOGCAT.start()` *is*
+   the source registration, but `reconcile()` runs after the matchers are built, so on a
+   fresh process nothing could subscribe and the reader never spawned. Masked for the same
+   reason as #2. The source is now registered in `onCreate`. Separately,
+   `killStrayLogcatReaders()` could complete just after a reader started and kill it
+   (it matches by cmdline); `reloadProfiles()` now awaits the sweep.
+
+**The pattern worth remembering:** the per-minute `reloadProfiles()` was load-bearing for
+two subsystems by accident. Removing a wasteful rebuild exposed everything that had been
+quietly depending on it. Both dependencies were invisible in the diff and obvious within
+minutes of watching `run_logs` and `ps` on the device.
+
+## Deliberately not done
+
+`RuntimeRegistriesTest.everyRuntimeActionHasUiMetadata` still fails. 24 relay actions
+(`mpv.*`, `media.*`, `clipboard.*`, `file.serve/receive`) have been registered with no
+`ActionMetadata` since `6a32638` (2026-07-24) — red for nine days, unrelated to this work.
+Fixing it means authoring ~60 user-facing catalog strings plus 24 sensitivity
+classifications, i.e. deciding what belongs in the action picker. That is a catalog design
+call, not a bug fix. The other four tests that were red this morning are fixed; the suite
+is 580/581.
+
+Also left alone: `cybersyn-stub1/2` and `quicktap-stub` are tracked, which audit #1 §8
+called hygiene — but stub1 is *live* (it connected to the broker today), so they are real
+components, not clutter.
