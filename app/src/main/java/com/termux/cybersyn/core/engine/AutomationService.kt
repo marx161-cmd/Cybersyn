@@ -42,6 +42,7 @@ import com.termux.cybersyn.core.platform.AudioForegroundServiceEligibility
 import com.termux.cybersyn.core.storage.RunLogRetentionSettings
 import com.termux.cybersyn.core.storage.minimumTimestamp
 import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -159,14 +160,44 @@ class AutomationService : Service() {
     @Volatile private var audioForegroundServiceEligibility = AudioForegroundServiceEligibility.BACKGROUND_STARTED
     @Volatile private var engineLoaded = false
 
+    /** Completes when the stray-logcat-reader sweep has finished. See onCreate. */
+    private val strayLogcatSweep = CompletableDeferred<Unit>()
+
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onCreate() {
         super.onCreate()
+        // Register the logcat source before anything can reload profiles.
+        //
+        // ContextMonitor.LOGCAT's start() *is* this registration, but reconcile() runs at
+        // the END of reloadProfiles(), after the matchers are built -- so on a cold start
+        // the source is not in the registry yet, no LOGCAT matcher can subscribe, and the
+        // reader never spawns. It only appeared to work because reloadProfiles() used to
+        // run every minute: the second pass found the source registered by the first.
+        // With the per-minute rebuild gone, LOGCAT profiles stayed dead until something
+        // else forced a reload (observed live 2026-08-02: no reader process at all).
+        //
+        // Registering is not starting: the reader is reference-counted on subscribers, so
+        // with no LOGCAT profile this costs nothing, and the monitor's start() stays
+        // correct as an idempotent re-registration.
+        ContextSourceRegistry.register(logcatContextSource)
         // A prior instance that crashed/was killed (not onDestroy()'d) leaves its su-spawned
         // `logcat` reader orphaned under init, since that child process's lifetime was never
         // tied to this service's. Sweep those before this instance registers its own reader.
-        scope.launch(Dispatchers.IO) { killStrayLogcatReaders() }
+        //
+        // reloadProfiles() waits on strayLogcatSweep before starting any matcher. The sweep
+        // matches by cmdline, so it cannot tell this generation's reader from a previous
+        // one: left unsynchronised it races the reader that reloadProfiles() has just
+        // started and kills it, leaving every LOGCAT profile silently dead with no reader
+        // process at all. Observed live 2026-08-02 -- the su spawn here takes long enough
+        // to routinely lose that race.
+        scope.launch(Dispatchers.IO) {
+            try {
+                killStrayLogcatReaders()
+            } finally {
+                strayLogcatSweep.complete(Unit)
+            }
+        }
         startForegroundCompat()
         startSystemContextSources()
         startKeyHijack()
@@ -385,6 +416,10 @@ class AutomationService : Service() {
     }
 
     private suspend fun reloadProfiles() = profileReloadMutex.withLock {
+        // Never register matchers while the stray-reader sweep is still in flight: it
+        // matches readers by cmdline and would kill the one a LOGCAT matcher is about to
+        // start. See onCreate.
+        strayLogcatSweep.await()
         val oldJobs = matcherJobs.values.toList()
         matcherJobs.clear()
         matchers.clear()
