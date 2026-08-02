@@ -25,6 +25,7 @@ import kotlinx.coroutines.launch
  *   - "tile_clicked": Quick Settings tile toggled
  *   - "mqtt": inbound MQTT message on cybersyn/+/event (Cybersyn relay return channel)
  *   - "external_trigger": explicit trigger broadcasts from tiny launcher stubs
+ *   - "time_tick": once-a-minute pulse for periodic profiles (watchdogs, timers)
  */
 class EventContextSourceImpl : SubscriptionReadyContextSource {
     override val type = "event"
@@ -55,6 +56,7 @@ class EventContextSourceImpl : SubscriptionReadyContextSource {
         LocalePluginRequestQueryEvents.events(app),
         QuickSettingsTileContextEvents.events,
         ExternalTriggerContextEvents.events,
+        TimeTickContextEvents.events,
         MqttContextEvents.events(app),
     )
 }

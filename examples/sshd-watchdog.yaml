@@ -33,7 +33,13 @@ profiles:
     cooldownSec: 0
     enterTask: "sshd: poll watchdog check"
     contexts:
-      - type: TIME
+      # EVENT/time_tick, not a TIME range. TIME is a level context: a 00:00-23:59 range
+      # matches continuously and activates exactly ONCE, on its false->true edge. These
+      # watchdogs only looked periodic because the service used to call reloadProfiles()
+      # on every minute tick, rebuilding the matchers and manufacturing a fresh edge --
+      # which also respawned the logcat reader and MQTT subscriber 1440x/day and leaked
+      # root children. time_tick is a real once-a-minute pulse, so the cadence is
+      # explicit and costs nothing.
+      - type: EVENT
         config:
-          start: "00:00"
-          end: "23:59"
+          event: time_tick

@@ -33,6 +33,7 @@ import com.termux.cybersyn.core.contexts.PackageContextEvents
 import com.termux.cybersyn.core.contexts.PluginConditionSubscription
 import com.termux.cybersyn.core.contexts.PluginConditionSubscriptions
 import com.termux.cybersyn.core.contexts.TimeContextEvents
+import com.termux.cybersyn.core.contexts.TimeTickContextEvents
 import com.termux.cybersyn.core.model.AutomationMode
 import com.termux.cybersyn.core.mqtt.MqttBridge
 import com.termux.cybersyn.core.model.Profile
@@ -257,6 +258,11 @@ class AutomationService : Service() {
             }
             if (timeTickTrigger) {
                 TimeContextEvents.publish()
+                // Periodic profiles (watchdogs, log shipping) run off this pulse. TIME is
+                // a level context and activates only on its false->true edge, so before
+                // this existed they only appeared periodic because reloadProfiles() ran
+                // every tick and rebuilt their matchers.
+                TimeTickContextEvents.publish()
             }
         }
         return START_STICKY
