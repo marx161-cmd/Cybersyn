@@ -85,10 +85,86 @@ def resolve_mqtt_bin():
     return None
 
 
-def dispatch(action):
+# Hot-path actions, published directly instead of shelling out to dispatch_input.sh.
+# Mapping mirrors that script exactly -- keep them in sync.
+DISPATCH_TOPICS = {
+    "GYRO_START": ("android/clutch", "ON"),
+    "GYRO_STOP": ("android/clutch", "OFF"),
+    "HOLD_START": ("android/click", "ON"),
+    "HOLD_STOP": ("android/click", "OFF"),
+}
+
+
+class MqttPub:
+    """Persistent publisher, mirroring MqttBridge.kt's one-process-reused design.
+
+    `dispatch_input.sh` costs ~315ms per call (bash startup + a `dumpsys package`
+    lookup + a fresh MQTT connect), and dispatch() runs inline in the input loop, so
+    GYRO_STOP only reached the relay ~315ms after the key was physically released --
+    the cursor kept tracking for a third of a second after letting go. A long-lived
+    `pub` process turns each dispatch into a pipe write.
+    """
+
+    def __init__(self):
+        self.proc = None
+
+    def _ensure(self):
+        if self.proc is not None and self.proc.poll() is None:
+            return True
+        mqtt_bin = resolve_mqtt_bin()
+        if not mqtt_bin or not os.access(mqtt_bin, os.X_OK):
+            return False
+        try:
+            self.proc = subprocess.Popen(
+                [mqtt_bin, "pub", "--broker", BROKER, "--port", PORT],
+                stdin=subprocess.PIPE,
+            )
+            log("mqtt pub process started")
+            return True
+        except Exception as e:
+            log(f"mqtt pub spawn failed: {e}")
+            self.proc = None
+            return False
+
+    def publish(self, topic, payload):
+        if not self._ensure():
+            return False
+        try:
+            self.proc.stdin.write(f"{topic}\t{payload}\n".encode())
+            self.proc.stdin.flush()
+            return True
+        except Exception as e:
+            log(f"mqtt pub write failed ({e}); respawning next time")
+            try:
+                self.proc.kill()
+            except Exception:
+                pass
+            self.proc = None
+            return False
+
+    def close(self):
+        if self.proc is None:
+            return
+        try:
+            self.proc.stdin.close()
+        except Exception:
+            pass
+        try:
+            self.proc.terminate()
+        except Exception:
+            pass
+        self.proc = None
+
+
+def dispatch(action, pub=None):
+    mapped = DISPATCH_TOPICS.get(action)
+    if mapped is not None and pub is not None and pub.publish(*mapped):
+        log(f"dispatch {action}")
+        return
+    # Fallback for everything else, and if the persistent publisher is unavailable.
     try:
         subprocess.run([DISPATCH, action], timeout=10)
-        log(f"dispatch {action}")
+        log(f"dispatch {action} (via script)")
     except Exception as e:
         log(f"dispatch {action} FAILED: {e}")
 
@@ -267,9 +343,34 @@ class MqttSub:
             self.on_message(payload.strip())
 
 
+def query_ime_shown():
+    """Current IME visibility straight from the system.
+
+    SpectreBoard publishes spectreboard/ime_shown on transitions only and not
+    retained, so a daemon that starts (or is restarted by the watchdog) while the
+    keyboard is already up would believe it is hidden until the next show/hide --
+    routing gyro/hold keys to the volume slider for the whole window in between.
+    Seed from the system instead of assuming hidden.
+    """
+    try:
+        out = subprocess.run(
+            ["dumpsys", "input_method"],
+            capture_output=True, text=True, timeout=10,
+        ).stdout
+    except Exception as e:
+        log(f"ime seed query failed ({e}); assuming hidden")
+        return False
+    for line in out.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("mInputShown="):
+            return stripped.split("=", 1)[1].strip().lower() == "true"
+    return False
+
+
 class ImeWatcher:
     def __init__(self):
-        self.shown = False
+        self.shown = query_ime_shown()
+        log(f"ime_shown seeded from system: {self.shown}")
         self._sub = MqttSub(IME_TOPIC, self._on_ime)
 
     def _on_ime(self, payload):
@@ -312,8 +413,9 @@ class BrowserModeWatcher:
 
 
 class KeyGrab:
-    def __init__(self, keyboard):
+    def __init__(self, keyboard, pub):
         self.f = None
+        self.pub = pub
         self._pressed = {}
         # code -> where this press was routed, latched on key-down. Re-deciding per
         # event would desynchronise Android's key state whenever a mode flips mid-hold:
@@ -378,14 +480,14 @@ class KeyGrab:
         if route == "gyro":
             if code == KEY_VOLUMEDOWN:
                 if is_down:
-                    dispatch("GYRO_START")
+                    dispatch("GYRO_START", self.pub)
                 elif is_up:
-                    dispatch("GYRO_STOP")
+                    dispatch("GYRO_STOP", self.pub)
             else:
                 if is_down:
-                    dispatch("HOLD_START")
+                    dispatch("HOLD_START", self.pub)
                 elif is_up:
-                    dispatch("HOLD_STOP")
+                    dispatch("HOLD_STOP", self.pub)
             return
 
         if route == "browser":
@@ -425,7 +527,8 @@ def main():
     ime = ImeWatcher()
     browser_mode = BrowserModeWatcher()
     keyboard = UinputKeyboard()
-    keys = KeyGrab(keyboard)
+    pub = MqttPub()
+    keys = KeyGrab(keyboard, pub)
 
     log("volume_daemon started (always-grab)")
     while True:

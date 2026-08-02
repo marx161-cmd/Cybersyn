@@ -102,6 +102,8 @@ android {
         // Extract libcybersyn-mqtt.so to nativeLibraryDir as a real executable file so the
         // MqttBridge can exec it (bundled MQTT transport helper).
         jniLibs.useLegacyPackaging = true
+        // Required on Android 15+ for native libraries loaded via System.loadLibrary.
+        jniLibs.keepDebugSymbols.add("**/*.so")
     }
 
     sourceSets {

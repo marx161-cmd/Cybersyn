@@ -30,3 +30,13 @@
 -keepclassmembers class <1>$Companion {
     kotlinx.serialization.KSerializer serializer(...);
 }
+
+# Cybersyn evdev native bridge — EvdevRootHelper.main() is called via app_process,
+# not from within the app, so R8 would strip them as unreachable code.
+-keep class com.termux.cybersyn.core.evdev.EvdevRootHelper { *; }
+-keep class com.termux.cybersyn.core.evdev.CybersynEvdevBridge { *; }
+-keep class com.termux.cybersyn.core.evdev.KeyHijackController { *; }
+-keep class com.termux.cybersyn.core.evdev.EvdevDeviceInfo { *; }
+-keep class com.termux.cybersyn.core.evdev.GrabTargetKeyCode { *; }
+-keep class com.termux.cybersyn.core.evdev.GrabbedDeviceHandle { *; }
+-keep class com.termux.cybersyn.core.evdev.ShellResult { *; }

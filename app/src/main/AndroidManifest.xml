@@ -16,6 +16,22 @@
         android:name="android.permission.SCHEDULE_EXACT_ALARM"
         tools:ignore="ProtectedPermissions" />
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!--
+      Direct evdev/uinput access without root. Both are signature-level, which this app
+      can hold because it is platform-signed with the ROM key, and both map to a
+      supplementary GID in platform.xml:
+        DIAGNOSTIC           -> gid "input" (AID_INPUT 1004)  -> /dev/input/event0 (root:input 0660)
+        VIRTUAL_INPUT_DEVICE -> gid "uhid"  (AID_UHID  3011)  -> /dev/uinput      (uhid:uhid  0660)
+      With these the key-hijack path runs in-process, so no su, no sidecar, and no
+      separate supervised daemon.
+    -->
+    <uses-permission
+        android:name="android.permission.DIAGNOSTIC"
+        tools:ignore="ProtectedPermissions" />
+    <uses-permission
+        android:name="android.permission.VIRTUAL_INPUT_DEVICE"
+        tools:ignore="ProtectedPermissions" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
