@@ -67,6 +67,9 @@ object AutomationSensitivityRegistry {
         "screenshot.take",
         "file.read",
         "file.list",
+        // Relay legs that read local content before sending it
+        "clipboard.push",
+        "file.serve",
     )
 
     private val externalTransmissionActionIds = setOf(
@@ -84,6 +87,26 @@ object AutomationSensitivityRegistry {
         "download",
         "wol",
         "mqtt.publish",
+        // Every media.* action is a fixed-payload mqtt.publish to the relay, so they carry
+        // exactly mqtt.publish's power and no more -- the player they drive is on the
+        // desktop, not this device.
+        "media.play",
+        "media.pause",
+        "media.play_pause",
+        "media.next",
+        "media.prev",
+        "media.stop",
+        "media.seek",
+        "media.position",
+        "media.volume",
+        "media.loop",
+        "media.shuffle",
+        "media.request_art",
+        // Relay transfer legs: content leaves or enters the device over the network
+        "clipboard.push",
+        "clipboard.pull",
+        "file.serve",
+        "file.receive",
     )
 
     private val deviceControlActionIds = setOf(
@@ -129,6 +152,18 @@ object AutomationSensitivityRegistry {
         "wake",
         // Injects a key event system-wide via root, so it can drive any app on screen.
         "key.send",
+        // mpv playback/window control, by package-targeted broadcast to com.termux.mpv
+        "mpv.enter_freeform",
+        "mpv.enter_pip",
+        "mpv.exit_fullscreen",
+        "mpv.toggle_play",
+        "mpv.toggle_pause",
+        "mpv.aspect_widescreen",
+        "mpv.aspect_cinema",
+        "mpv.aspect_square",
+        // Writes the system clipboard / lands a file in shared storage
+        "clipboard.pull",
+        "file.receive",
     )
 
     private val destructiveActionIds = setOf(
@@ -138,6 +173,8 @@ object AutomationSensitivityRegistry {
         "file.delete",
         "download",
         "reboot",
+        // Writes attacker-influenced bytes into shared storage, same as download.
+        "file.receive",
     )
 
     private val explicitActionIds = localOnlyActionIds +

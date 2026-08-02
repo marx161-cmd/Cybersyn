@@ -98,6 +98,49 @@ import com.termux.cybersyn.core.contexts.StateContextSourceImpl
 import com.termux.cybersyn.core.contexts.TimeContextSourceImpl
 import com.termux.cybersyn.core.engine.ActionRegistry
 
+/**
+ * Actions that run but are deliberately absent from the UI action catalog.
+ *
+ * These are driven by the relay, an MQTT round trip or the CLI/LLM — never picked from
+ * the action list by hand — so they carry no `ActionMetadata` and no catalog strings.
+ * That is a supported state, not an oversight: the UI falls back to the raw action id,
+ * which is the identifier every other surface (bundles, CLI, EXPLAIN) uses anyway.
+ *
+ * The contract that still holds strictly is the other direction — nothing may be
+ * advertised in the UI that has no runtime implementation. See RuntimeRegistriesTest.
+ *
+ * Adding UI metadata for any of these later is fine; just drop it from this set.
+ */
+val RUNTIME_ONLY_ACTION_IDS: Set<String> = setOf(
+    // mpv window/playback control, by package-targeted broadcast to com.termux.mpv
+    "mpv.enter_freeform",
+    "mpv.enter_pip",
+    "mpv.exit_fullscreen",
+    "mpv.toggle_play",
+    "mpv.toggle_pause",
+    "mpv.aspect_widescreen",
+    "mpv.aspect_cinema",
+    "mpv.aspect_square",
+    // MPRIS control of the desktop's players, published to the relay
+    "media.play",
+    "media.pause",
+    "media.play_pause",
+    "media.next",
+    "media.prev",
+    "media.stop",
+    "media.seek",
+    "media.position",
+    "media.volume",
+    "media.loop",
+    "media.shuffle",
+    "media.request_art",
+    // Clipboard and file transfer legs of the relay protocol
+    "clipboard.push",
+    "clipboard.pull",
+    "file.serve",
+    "file.receive",
+)
+
 fun registerCoreRuntime() {
     registerBuiltInActions()
     registerContextSources()

@@ -1,5 +1,6 @@
 package com.termux.cybersyn.core.capabilities
 
+import com.termux.cybersyn.core.RUNTIME_ONLY_ACTION_IDS
 import com.termux.cybersyn.core.actions.ActionMetadataRegistry
 import com.termux.cybersyn.core.actions.registerActionMetadata
 import com.termux.cybersyn.core.model.ActionSpec
@@ -11,12 +12,18 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class AutomationSensitivityTest {
+    /**
+     * Sensitivity is keyed on the action id and is independent of UI metadata, so it must
+     * cover the runtime-only actions too: an unclassified action fails closed to *every*
+     * power, and that shows up on every run_log line for a task that uses it. Relay
+     * actions used to sit in exactly that state, reporting as maximally dangerous.
+     */
     @Test
-    fun everyMetadataActionHasAnExplicitSensitivityClassification() {
+    fun everyActionHasAnExplicitSensitivityClassification() {
         registerActionMetadata()
 
         assertEquals(
-            ActionMetadataRegistry.all().mapTo(sortedSetOf()) { it.id },
+            (ActionMetadataRegistry.all().map { it.id } + RUNTIME_ONLY_ACTION_IDS).toSortedSet(),
             AutomationSensitivityRegistry.classifiedActionIds().toSortedSet(),
         )
     }
