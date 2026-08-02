@@ -3,8 +3,8 @@
 > **STATUS 2026-08-02 14:10 — ALL ITEMS BELOW ARE DONE, live-verified on blazer.**
 > Commits `0208ad2`, `031bb26`, `70b079d` (Cybersyn) and `ebe49ae6` (SpectreBoard),
 > all pushed. See "Resolution" at the bottom for what was proven on-device, the
-> three *additional* bugs that verification uncovered, and the one pre-existing
-> test failure deliberately left alone. The unchecked `[ ]` boxes below are the
+> three *additional* bugs that verification uncovered. The one pre-existing test
+> failure was resolved separately in `9256676` — suite is now 581/581. The unchecked `[ ]` boxes below are the
 > original queue, kept as written for the record.
 
 Second audit of the day, covering the vendored-KeyMapper evdev merge (commits
@@ -266,15 +266,26 @@ two subsystems by accident. Removing a wasteful rebuild exposed everything that 
 quietly depending on it. Both dependencies were invisible in the diff and obvious within
 minutes of watching `run_logs` and `ps` on the device.
 
-## Deliberately not done
+## The pre-existing test failure — resolved in `9256676`
 
-`RuntimeRegistriesTest.everyRuntimeActionHasUiMetadata` still fails. 24 relay actions
-(`mpv.*`, `media.*`, `clipboard.*`, `file.serve/receive`) have been registered with no
-`ActionMetadata` since `6a32638` (2026-07-24) — red for nine days, unrelated to this work.
-Fixing it means authoring ~60 user-facing catalog strings plus 24 sensitivity
-classifications, i.e. deciding what belongs in the action picker. That is a catalog design
-call, not a bug fix. The other four tests that were red this morning are fixed; the suite
-is 580/581.
+`RuntimeRegistriesTest.everyRuntimeActionHasUiMetadata` had been red since `6a32638`
+(2026-07-24): 24 relay actions (`mpv.*`, `media.*`, `clipboard.*`, `file.serve/receive`)
+run with no `ActionMetadata`. Per the user, a missing UI catalog entry should not read as
+a warning — this setup is authored by LLM/CLI and the UI is only for seeing what is
+running and what failed.
+
+So UI metadata is now optional and explicit: those actions are declared in
+`RUNTIME_ONLY_ACTION_IDS`, and the test asserts every runtime action either has metadata
+or is declared runtime-only, that the list cannot go stale, and — still strict — that
+nothing is advertised in the UI without a runtime implementation. Confirmed on-device that
+no task in the database references any of them; they are driven purely by the relay.
+
+The real defect underneath was separate: sensitivity is keyed on action id, independent of
+metadata, and those 24 were unclassified there too. `classify()` fails closed, so each
+reported *every* power including destructive on the run_log line of any task using it.
+Now classified from existing conventions, verified live — `mpv.toggle_pause` logs
+`Powers: device control` instead of all four. Suite 581/581.
+
 
 Also left alone: `cybersyn-stub1/2` and `quicktap-stub` are tracked, which audit #1 §8
 called hygiene — but stub1 is *live* (it connected to the broker today), so they are real
