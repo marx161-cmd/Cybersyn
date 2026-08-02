@@ -17,4 +17,10 @@ if nc -w 2 -z 127.0.0.1 "$PORT" >/dev/null 2>&1; then
 fi
 
 printf '[%s] watchdog: sshd not listening on %s, restoring\n' "$(date -Iseconds)" "$PORT" >> "$BOOTLOG"
-exit 1
+
+# Restore inline rather than as a second task action. A separate action cannot express
+# "only if the check failed": continueOnError:false stops on ERROR, so a healthy check
+# (exit 0) falls through and restores anyway, while an unhealthy one aborts before it
+# can. Same one-script shape as npud_watchdog.sh.
+sh /data/data/com.termux/files/home/.termux/tasker/restore_sshd.sh
+exit 0
