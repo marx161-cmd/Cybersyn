@@ -14,6 +14,7 @@ import java.io.OutputStream
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
+import com.termux.cybersyn.core.logging.AppLogger
 
 /**
  * Cybersyn's MQTT transport.
@@ -56,7 +57,7 @@ object MqttBridge {
     ): Boolean {
         val bundled = bundledHelper(context)
         if (bundled == null) {
-            android.util.Log.e("MqttBridge", "Bundled mqtt helper ($HELPER_LIB) missing; cannot publish. Termux mosquitto clients were deliberately removed from this phone — no fallback path exists.")
+            AppLogger.error("MqttBridge", "Bundled mqtt helper ($HELPER_LIB) missing; cannot publish. Termux mosquitto clients were deliberately removed from this phone — no fallback path exists.")
             return false
         }
 
@@ -154,7 +155,7 @@ object MqttBridge {
                     } else {
                         // Termux mosquitto clients were deliberately removed from this phone;
                         // there is no fallback subscription path.
-                        android.util.Log.e("MqttBridge", "Bundled mqtt helper ($HELPER_LIB) missing; cannot subscribe to $topicFilter")
+                        AppLogger.error("MqttBridge", "Bundled mqtt helper ($HELPER_LIB) missing; cannot subscribe to $topicFilter")
                         break
                     }
                     val shouldRun = synchronized(procLock) {

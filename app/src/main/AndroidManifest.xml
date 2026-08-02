@@ -18,13 +18,17 @@
     <uses-permission android:name="android.permission.INTERNET" />
 
     <!--
-      Direct evdev/uinput access without root. Both are signature-level, which this app
-      can hold because it is platform-signed with the ROM key, and both map to a
-      supplementary GID in platform.xml:
+      Requested for a FUTURE in-process key-hijack path. NOT in effect today: the grab
+      still runs through the `su` sidecar in EvdevRootHelper, because platform-signing
+      alone does not grant a signature permission on this ROM. There is a separate
+      privileged-permission allowlist, and it fails near-silently when an entry is
+      missing. Until that is sorted these two are requested but ungranted and change
+      nothing; the sidecar is the working path.
+
+      Both map to a supplementary GID in platform.xml:
         DIAGNOSTIC           -> gid "input" (AID_INPUT 1004)  -> /dev/input/event0 (root:input 0660)
         VIRTUAL_INPUT_DEVICE -> gid "uhid"  (AID_UHID  3011)  -> /dev/uinput      (uhid:uhid  0660)
-      With these the key-hijack path runs in-process, so no su, no sidecar, and no
-      separate supervised daemon.
+      With them granted the helper could drop `su` entirely and run in-process.
     -->
     <uses-permission
         android:name="android.permission.DIAGNOSTIC"

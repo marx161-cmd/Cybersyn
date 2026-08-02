@@ -65,8 +65,11 @@ class AutomationTargetContractTest {
             "true",
             targetReceiver.attributes.getNamedItem("android:exported").nodeValue,
         )
+        // DUMP, not the app's own signature permission: adb shell can hold DUMP but can
+        // never be granted a signature permission owned by this app. See
+        // AutomationTargetContract.RECEIVER_PERMISSION.
         assertEquals(
-            AutomationTargetContract.PERMISSION,
+            AutomationTargetContract.RECEIVER_PERMISSION,
             targetReceiver.attributes.getNamedItem("android:permission").nodeValue,
         )
     }

@@ -7,6 +7,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.BufferedReader
 import java.io.InputStreamReader
@@ -29,15 +30,43 @@ import java.util.concurrent.atomic.AtomicBoolean
  * own long-press power handling and the power+vol_down screenshot chord keep working.
  * Emitting a pass-through from this side would deliver every key twice.
  *
+ * Routing is decided at key-down and LATCHED: the release of a press is routed by what
+ * the press started (see [activePress]), never by the mode at release time — a keyboard
+ * that hides mid-hold must still end the gyro clutch it started. The helper latches its
+ * consume decision the same way.
+ *
  * Codes on this side are ANDROID keycodes (the helper maps them); the helper's own
  * consume logic works in raw Linux evdev codes.
  */
 object KeyHijackController {
     private const val TAG = "KeyHijackController"
-    private val KEY_VOLUME_DOWN = 25
-    private val KEY_VOLUME_UP = 24
-    private val KEY_POWER = 26
+    private const val KEY_VOLUME_DOWN = 25
+    private const val KEY_VOLUME_UP = 24
+    private const val KEY_POWER = 26
+    private const val KEY_MEDIA_NEXT = 87
+    private const val KEY_MEDIA_PREVIOUS = 88
     private const val TICK_INTERVAL_MS = 50L
+
+    // A helper that dies faster than this counts toward the give-up threshold.
+    private const val FAST_DEATH_MS = 5_000L
+    private const val MAX_FAST_DEATHS = 8
+    private const val MAX_BACKOFF_MS = 30_000L
+
+    /**
+     * Android → Linux evdev code map for the CONSUME pushdown. Only keys we actually
+     * grab need entries. Power is deliberately absent: the helper never consumes power
+     * (its callback handles KEY_POWER before consulting the consume set), so a trigger
+     * asking to consume it would silently misbehave — better to fail the mapping loudly.
+     */
+    private val ANDROID_TO_LINUX = mapOf(
+        KEY_VOLUME_UP to 115,
+        KEY_VOLUME_DOWN to 114,
+        KEY_MEDIA_NEXT to 163,
+        KEY_MEDIA_PREVIOUS to 165,
+    )
+
+    /** What a key-down started, so its release routes the same way. */
+    private enum class PressKind { GYRO, HOLD, BROWSER_NAV, PASSIVE }
 
     private val procLock = Any()
     private var helperProcess: Process? = null
@@ -46,7 +75,17 @@ object KeyHijackController {
     private var tickJob: Job? = null
     private val running = AtomicBoolean(false)
     private val keyState = mutableMapOf<Int, Boolean>()
+    private val activePress = mutableMapOf<Int, PressKind>()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    // Restart bookkeeping (guarded by procLock).
+    private var lastSpawnAtMs = 0L
+    private var fastDeathCount = 0
+    private var gaveUp = false
+
+    // Power held 10s → the native layer exits by design (Key Mapper's lockout escape).
+    // Honor it: no auto-restart until the next explicit start() from the service.
+    private val emergencyStop = AtomicBoolean(false)
 
     /**
      * Classified triggers (long press, double press, chords). Gyro and hold are
@@ -56,14 +95,35 @@ object KeyHijackController {
      * down/up path below; the detector adds the press classification Cybersyn never had.
      */
     private var detector: KeyTriggerDetector? = null
+    private var consumeCodes: Set<Int> = emptySet()
 
-    /** Replace the classified trigger set. Safe to call while running. */
+    /**
+     * Replace the classified trigger set. Safe to call while running.
+     *
+     * Triggers with `consumeEvent=true` get their codes pushed to the helper's CONSUME
+     * set — the swallow happens in the native callback (Linux codes), not here. A
+     * consuming trigger swallows EVERY press of its keys (a first press cannot know it
+     * won't become part of a match), so normal function of that key is gone while the
+     * trigger is registered; register consuming triggers deliberately.
+     */
     fun setTriggers(triggers: List<KeyTrigger>, onTrigger: (KeyTrigger) -> Unit) {
         detector = if (triggers.isEmpty()) {
             null
         } else {
             KeyTriggerDetector(triggers, onTrigger)
         }
+        consumeCodes = triggers
+            .filter { it.consumes }
+            .flatMap { trigger -> trigger.keys.filter { it.consumeEvent }.map { it.code } }
+            .mapNotNull { androidCode ->
+                ANDROID_TO_LINUX[androidCode].also {
+                    if (it == null) {
+                        AppLogger.error(TAG, "No Linux code mapping for consuming trigger key $androidCode; NOT consumed")
+                    }
+                }
+            }
+            .toSet()
+        pushConsume()
     }
 
     // Set by caller (AutomationService). Both push the routing mode down to the helper,
@@ -93,11 +153,27 @@ object KeyHijackController {
         send("MODE $mode")
     }
 
+    private fun pushConsume() {
+        val codes = consumeCodes
+        send(if (codes.isEmpty()) "CONSUME" else "CONSUME ${codes.joinToString(",")}")
+    }
+
+    /** Explicit start from the service. Clears emergency/give-up state. */
     fun start(context: Context) {
+        emergencyStop.set(false)
+        synchronized(procLock) { gaveUp = false; fastDeathCount = 0 }
+        startInternal(context)
+    }
+
+    private fun startInternal(context: Context) {
         if (appContext == null) appContext = context.applicationContext
         synchronized(procLock) {
             if (running.get()) {
                 AppLogger.warn(TAG, "already running")
+                return
+            }
+            if (gaveUp) {
+                AppLogger.warn(TAG, "helper gave up after $MAX_FAST_DEATHS fast deaths; not restarting")
                 return
             }
             running.set(true)
@@ -116,23 +192,23 @@ object KeyHijackController {
                 "CLASSPATH=$apkPath /system/bin/app_process / com.termux.cybersyn.core.evdev.EvdevRootHelper $nativeLibDir"
             )
 
-            val proc = ProcessBuilder(*cmd)
-                .redirectErrorStream(true)
-                .start()
-
-            val shouldKeep = synchronized(procLock) {
-                if (running.get()) {
-                    helperProcess = proc
-                    helperWriter = OutputStreamWriter(proc.outputStream)
-                    true
-                } else {
-                    false
-                }
-            }
-            if (!shouldKeep) {
-                proc.destroyForcibly()
+            // A failed spawn (su denied, ENOENT mid-update) must not leave running=true
+            // with no process behind it — that wedges every future start() on the
+            // already-running guard, permanently.
+            val proc = try {
+                ProcessBuilder(*cmd)
+                    .redirectErrorStream(true)
+                    .start()
+            } catch (e: Exception) {
+                AppLogger.error(TAG, "Failed to spawn root helper", e)
+                running.set(false)
+                scheduleRestart(context, diedFast = true)
                 return
             }
+
+            lastSpawnAtMs = System.currentTimeMillis()
+            helperProcess = proc
+            helperWriter = OutputStreamWriter(proc.outputStream)
 
             AppLogger.info(TAG, "root helper started")
 
@@ -144,7 +220,7 @@ object KeyHijackController {
             tickJob = scope.launch {
                 while (running.get()) {
                     detector?.tick()
-                    kotlinx.coroutines.delay(TICK_INTERVAL_MS)
+                    delay(TICK_INTERVAL_MS)
                 }
             }
 
@@ -160,7 +236,6 @@ object KeyHijackController {
                 } finally {
                     val shouldRestart = synchronized(procLock) {
                         if (running.get() && helperProcess === proc) {
-                            AppLogger.warn(TAG, "root helper died unexpectedly; restarting")
                             cleanup()
                             // Must clear `running` before restarting: start() bails out
                             // on the already-running guard otherwise, so the helper
@@ -172,17 +247,60 @@ object KeyHijackController {
                         }
                     }
                     if (shouldRestart) {
-                        start(context)
-                        pushMode()
+                        if (emergencyStop.get()) {
+                            AppLogger.error(
+                                TAG,
+                                "root helper exited via 10s-power-hold EMERGENCY; NOT restarting (lockout escape)",
+                            )
+                        } else {
+                            val uptime = System.currentTimeMillis() - lastSpawnAtMs
+                            AppLogger.warn(TAG, "root helper died unexpectedly after ${uptime}ms; restarting")
+                            scheduleRestart(context, diedFast = uptime < FAST_DEATH_MS)
+                        }
                     }
                 }
             }
         }
     }
 
+    /**
+     * Restart with backoff. A helper that keeps dying on arrival (missing .so after an
+     * update, su policy change) must not become a tight su+pkill+app_process loop.
+     */
+    private fun scheduleRestart(context: Context, diedFast: Boolean) {
+        val delayMs = synchronized(procLock) {
+            if (!diedFast) {
+                fastDeathCount = 0
+                0L
+            } else {
+                fastDeathCount++
+                if (fastDeathCount > MAX_FAST_DEATHS) {
+                    gaveUp = true
+                    -1L
+                } else {
+                    minOf(MAX_BACKOFF_MS, 1000L shl (fastDeathCount - 1))
+                }
+            }
+        }
+        if (delayMs < 0) {
+            AppLogger.error(TAG, "root helper died $MAX_FAST_DEATHS times in a row; giving up until next service start")
+            return
+        }
+        scope.launch {
+            if (delayMs > 0) delay(delayMs)
+            startInternal(context)
+        }
+    }
+
     fun stop() {
         synchronized(procLock) {
             running.set(false)
+            // Orderly shutdown first: QUIT lets the helper run destroyEvdevManager()
+            // and release the grab itself, instead of relying on stdin EOF + the next
+            // generation's sweep.
+            try {
+                helperWriter?.apply { write("QUIT\n"); flush() }
+            } catch (_: Exception) {}
             cleanup()
         }
     }
@@ -198,19 +316,22 @@ object KeyHijackController {
         helperProcess?.destroyForcibly()
         helperProcess = null
         keyState.clear()
+        activePress.clear()
         deviceId = 0
     }
 
     /**
      * Kill any EvdevRootHelper left over from a previous generation. Matches on the class
      * name in the cmdline, which is stable across the changing /data/app hash, and covers
-     * both the `sh -c` wrapper and the app_process child.
+     * both the `sh -c` wrapper and the app_process child. The bracket trick keeps the
+     * pattern from matching the sweep's own su/sh wrapper, whose cmdline contains the
+     * pattern text itself.
      */
     private fun killStrayHelpers() {
         runCatching {
             ProcessBuilder(
                 "su", "-c",
-                "pkill -9 -f com.termux.cybersyn.core.evdev.EvdevRootHelper",
+                "pkill -9 -f 'EvdevRootHelpe[r]'",
             ).start().waitFor()
         }.onFailure { AppLogger.warn(TAG, "Failed to sweep stray evdev helpers", it) }
     }
@@ -242,23 +363,37 @@ object KeyHijackController {
                 "READY" -> {
                     val pid = parts[1].toIntOrNull() ?: return
                     AppLogger.info(TAG, "root helper ready (pid=$pid)")
-                    setGrabTargets(0x19, 0x1, 0x1, intArrayOf(KEY_VOLUME_DOWN, KEY_VOLUME_UP, KEY_POWER))
+                    // The GRAB codes become the uinput clone's *extra* capabilities
+                    // (extra_event_codes): gpio_keys only advertises vol±/power, so the
+                    // media keys MUST be registered here or the kernel silently drops
+                    // every EMIT_KC for them (browser prev/next was dead without this).
+                    setGrabTargets(
+                        0x19, 0x1, 0x1,
+                        intArrayOf(KEY_VOLUME_DOWN, KEY_VOLUME_UP, KEY_POWER, KEY_MEDIA_NEXT, KEY_MEDIA_PREVIOUS),
+                    )
+                    // (Re)establish routing state — a restarted helper starts blank.
+                    pushMode()
+                    pushConsume()
                 }
                 "GRAB_OK" -> {
                     deviceId = parts[2].toIntOrNull() ?: 0
                     AppLogger.info(TAG, "grab ok: ${parts[1]} id=$deviceId")
                 }
+                "EMERGENCY" -> {
+                    emergencyStop.set(true)
+                    AppLogger.error(TAG, "EMERGENCY from helper (power held 10s); native layer exits itself")
+                }
                 "EV_UP" -> {
-                    val id = parts[1].toInt()
                     val code = parts[2].toInt()
                     keyState[code] = false
                     detector?.onKeyEvent(code, 0)
-                    // Key up routing: only needed for gyro stop events
-                    if (imeShown) {
-                        when (code) {
-                            KEY_VOLUME_DOWN -> stopGyro()
-                            KEY_VOLUME_UP -> stopHold()
-                        }
+                    // Route the release by what the DOWN started, never by current mode:
+                    // a keyboard that hides mid-hold must still end the clutch it began,
+                    // or android/clutch sticks ON until the next press.
+                    when (activePress.remove(code)) {
+                        PressKind.GYRO -> stopGyro()
+                        PressKind.HOLD -> stopHold()
+                        else -> {}
                     }
                 }
                 "EV_DOWN" -> {
@@ -276,18 +411,25 @@ object KeyHijackController {
                     // Same for the power+vol_down screenshot: the helper hands the
                     // volume keys back while power is held, so Android's own chord
                     // fires. Re-implementing it would double-fire.
-                    if (keyState[KEY_POWER] == true) return
+                    if (keyState[KEY_POWER] == true) {
+                        activePress[code] = PressKind.PASSIVE
+                        return
+                    }
 
                     if (imeShown && code in listOf(KEY_VOLUME_DOWN, KEY_VOLUME_UP)) {
                         // Gyro mode
                         when (code) {
-                            KEY_VOLUME_DOWN -> startGyro()
-                            KEY_VOLUME_UP -> startHold()
+                            KEY_VOLUME_DOWN -> { activePress[code] = PressKind.GYRO; startGyro() }
+                            KEY_VOLUME_UP -> { activePress[code] = PressKind.HOLD; startHold() }
                         }
                     } else if (!imeShown && browserForeground && code in listOf(KEY_VOLUME_DOWN, KEY_VOLUME_UP)) {
-                        // Browser nav mode. MEDIA_PREV=88, MEDIA_NEXT=87.
-                        emitKeycode(id, if (code == KEY_VOLUME_DOWN) 88 else 87, 1)
-                        emitKeycode(id, if (code == KEY_VOLUME_DOWN) 88 else 87, 0)
+                        // Browser nav mode.
+                        activePress[code] = PressKind.BROWSER_NAV
+                        val media = if (code == KEY_VOLUME_DOWN) KEY_MEDIA_PREVIOUS else KEY_MEDIA_NEXT
+                        emitKeycode(id, media, 1)
+                        emitKeycode(id, media, 0)
+                    } else {
+                        activePress[code] = PressKind.PASSIVE
                     }
                 }
                 "EV_RAW" -> {} // Raw events streamed; EV_DOWN/EV_UP are derived

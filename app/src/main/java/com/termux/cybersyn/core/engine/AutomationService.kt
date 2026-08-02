@@ -6,7 +6,6 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
-import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
@@ -21,7 +20,9 @@ import com.termux.cybersyn.automation.network.ConnectivityMonitor
 import com.termux.cybersyn.automation.network.WiFiNetworkMonitor
 import com.termux.cybersyn.automation.sensor.ShakeDetector
 import com.termux.cybersyn.automation.scheduler.TimeEventScheduler
+import com.termux.cybersyn.core.contexts.ExternalTriggerContextEvents
 import com.termux.cybersyn.core.evdev.KeyHijackController
+import com.termux.cybersyn.core.evdev.KeyTriggerConfig
 import com.termux.cybersyn.core.logging.AppLogger
 import com.termux.cybersyn.core.contexts.BluetoothContextEvents
 import com.termux.cybersyn.core.contexts.ContextSourceRegistry
@@ -231,13 +232,25 @@ class AutomationService : Service() {
         }
         val bootCompletedTrigger = intent?.action == ACTION_BOOT_COMPLETED_TRIGGER
         val timeTickTrigger = intent?.action == ACTION_TIME_TICK_TRIGGER
+        val reloadRequest = intent?.action == ACTION_RELOAD_PROFILES
         timeEventScheduler.scheduleNextMinute()
         engineHeartbeatStore.recordAlive()
         scope.launch {
-            if (timeTickTrigger) {
+            // A time tick must NOT rebuild the engine. Reloading tears down every matcher
+            // and re-collects every context flow, which respawns the root logcat reader
+            // and the MQTT subscriber -- 1440x/day, each one a spawn/kill race that leaks
+            // root children (a leaked reader was found live on 2026-08-02), plus a 1-2s
+            // window where LOGCAT and EVENT profiles observe nothing.
+            //
+            // 6a32638 introduced the unconditional reload "for import sync", inverting
+            // the doze fix from c263f0f (`!timeTickTrigger || !engineLoaded`). Import
+            // sync now has its own action, and observeProfileRegistry() reconciles on any
+            // DB change anyway, so the tick has no reason to reload.
+            if (reloadRequest || !engineLoaded) {
                 reloadProfiles()
-            } else if (!engineLoaded) {
-                reloadProfiles()
+                // Key triggers are config, same as profiles — pick up edits to
+                // key_triggers.json on the same explicit reload.
+                if (reloadRequest) registerKeyTriggers()
             }
             if (bootCompletedTrigger) {
                 BootContextEvents.publishBootCompleted()
@@ -279,23 +292,64 @@ class AutomationService : Service() {
      */
     private fun startKeyHijack() {
         KeyHijackController.appContext = applicationContext
-        KeyHijackController.imeShown = queryImeShown()
+        registerKeyTriggers()
         KeyHijackController.start(applicationContext)
         scope.launch(Dispatchers.IO) {
+            // Seed before the subscription so a start with the keyboard already up isn't
+            // stuck in the wrong mode. SpectreBoard publishes ime_shown retained, so the
+            // subscribe below normally delivers the true state within milliseconds; the
+            // dumpsys query is the belt-and-braces path for a broker that is unreachable
+            // at start (which is exactly when the retained message can't arrive).
+            KeyHijackController.imeShown = queryImeShown()
             MqttBridge.subscribe(applicationContext, "spectreboard/ime_shown").collect { msg ->
                 KeyHijackController.imeShown = msg.payload.trim().equals("ON", ignoreCase = true)
             }
         }
     }
 
-    /** Current IME visibility, straight from the system. */
+    /**
+     * Publish classified hardware-key triggers as `external_trigger` events.
+     *
+     * This is the whole seam between the vendored Key Mapper input layer and Cybersyn's
+     * engine: the evdev side classifies presses (short/long/double, chords) and names a
+     * trigger id; everything downstream is an ordinary EVENT profile, matched on
+     * `event=external_trigger` + `trigger=<id>`, exactly like the Quick Tap stub. No
+     * task dispatch logic lives in the input layer.
+     */
+    private fun registerKeyTriggers() {
+        val triggers = KeyTriggerConfig.load()
+        KeyHijackController.setTriggers(triggers) { trigger ->
+            AppLogger.info(TAG, "Key trigger '${trigger.id}' matched")
+            ExternalTriggerContextEvents.publishTrigger(
+                triggerName = trigger.id,
+                sourcePackage = packageName,
+                source = SOURCE_HARDWARE_KEY,
+            )
+        }
+        if (triggers.isNotEmpty()) {
+            AppLogger.info(TAG, "Registered ${triggers.size} key trigger(s): ${triggers.joinToString { it.id }}")
+        }
+    }
+
+    /**
+     * Current IME visibility, from the system's own input-method state.
+     *
+     * NOT `InputMethodManager.isAcceptingText`: that reflects *this process's* input
+     * connection, and a background Service never has a served view, so it returns false
+     * unconditionally — a seed that always reads "keyboard hidden" is worse than none,
+     * because it looks like it works. `dumpsys input_method` is the system-wide truth.
+     * Blocking (runs on Dispatchers.IO from the caller).
+     */
     private fun queryImeShown(): Boolean = runCatching {
-        val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager
-        imm?.let {
-            @Suppress("DEPRECATION")
-            it.isAcceptingText
-        } ?: false
-    }.getOrDefault(false)
+        val proc = ProcessBuilder("su", "-c", "dumpsys input_method")
+            .redirectErrorStream(true)
+            .start()
+        val out = proc.inputStream.bufferedReader().use { it.readText() }
+        proc.waitFor()
+        // mInputShown is the field PhoneWindowManager/IMMS keep for "IME window visible".
+        Regex("""mInputShown=(true|false)""").find(out)?.groupValues?.get(1) == "true"
+    }.onFailure { AppLogger.warn(TAG, "IME state query failed; assuming hidden", it) }
+        .getOrDefault(false)
 
     override fun onDestroy() {
         KeyHijackController.stop()
@@ -317,7 +371,10 @@ class AutomationService : Service() {
 
     private fun killStrayLogcatReaders() {
         runCatching {
-            ProcessBuilder("su", "-c", "pkill -f 'logcat -v threadtime'").start().waitFor()
+            // Bracket trick: the pattern text appears in this sweep's own su/sh wrapper
+            // cmdline, and pkill spares only itself, not its shell. 'threadtim[e]' matches
+            // the readers but not the wrapper carrying the literal pattern.
+            ProcessBuilder("su", "-c", "pkill -f 'logcat -v threadtim[e]'").start().waitFor()
         }.onFailure { AppLogger.warn(TAG, "Failed to sweep stray logcat readers", it) }
     }
 
@@ -614,8 +671,19 @@ class AutomationService : Service() {
         }
     }
 
+    /**
+     * A cooldown skip is the cooldown doing its job, so it is logged but NOT written to
+     * run_logs. Writing it produced a failure row on every suppressed pulse: LogShipTimer
+     * (1-minute context, 300s cooldown) buried the table under 4 rows per real run --
+     * 265 skips against 50 runs in a single day -- which is what made genuine failures
+     * unfindable. Skips that ARE anomalies (corrupt task data, queue full, SINGLE-mode
+     * collision) still get their row.
+     */
     private fun logCooldownSkip(profile: Profile, task: Task, remainingMs: Long) {
-        logProfileSkippedRun(profile, task, "Cooldown active for ${formatRemainingCooldown(remainingMs)}.")
+        AppLogger.debug(
+            TAG,
+            "Profile ${profile.name} suppressed by cooldown (${formatRemainingCooldown(remainingMs)} left)",
+        )
     }
 
     private fun logProfileSkippedRun(profile: Profile, task: Task, reason: String) {
@@ -745,7 +813,18 @@ class AutomationService : Service() {
         private const val TAG = "AutomationService"
         const val ACTION_BOOT_COMPLETED_TRIGGER = "com.termux.cybersyn.action.BOOT_COMPLETED_TRIGGER"
         const val ACTION_TIME_TICK_TRIGGER = "com.termux.cybersyn.action.TIME_TICK_TRIGGER"
+
+        /**
+         * Force a full matcher rebuild. Used by CLI bundle import, which writes profiles
+         * and needs them live immediately. Deliberately separate from the per-minute time
+         * tick: a rebuild is expensive and racy (see onStartCommand), so it happens on a
+         * real config change, not on a clock edge.
+         */
+        const val ACTION_RELOAD_PROFILES = "com.termux.cybersyn.action.RELOAD_PROFILES"
         const val EXTRA_STARTED_FROM_VISIBLE_UI = "com.termux.cybersyn.extra.STARTED_FROM_VISIBLE_UI"
+
+        /** `source` reported on external_trigger events raised by a grabbed hardware key. */
+        const val SOURCE_HARDWARE_KEY = "hardware_key"
         private const val CHANNEL = "opentasker.engine"
         private const val NOTIF_ID = 1001
         private const val MAX_QUEUED_TASKS = 50

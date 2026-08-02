@@ -69,7 +69,7 @@ class AutomationCliReceiver : BroadcastReceiver() {
         ContextCompat.startForegroundService(
             context.applicationContext,
             Intent(context, AutomationService::class.java)
-                .setAction(AutomationService.ACTION_TIME_TICK_TRIGGER),
+                .setAction(AutomationService.ACTION_RELOAD_PROFILES),
         )
         if (intent.getBooleanExtra(AutomationTargetContract.EXTRA_ACKNOWLEDGE_RISK, false)) {
             val enable = intent.getBooleanExtra(AutomationTargetContract.EXTRA_ENABLED, false)

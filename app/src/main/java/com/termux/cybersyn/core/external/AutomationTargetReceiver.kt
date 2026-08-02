@@ -19,7 +19,22 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
 object AutomationTargetContract {
+    /**
+     * Signature-level permission this app declares. Still what in-app senders hold and
+     * use (see SceneOverlayService), and still declared in the manifest.
+     */
     const val PERMISSION = "com.termux.cybersyn.permission.AUTOMATION"
+
+    /**
+     * Permission actually ENFORCED on [AutomationTargetReceiver] since d656619.
+     *
+     * Deliberately DUMP rather than [PERMISSION]: a plain `adb shell am broadcast` runs
+     * as the shell user, which holds DUMP but cannot be granted a signature permission
+     * belonging to this app, so the stricter form made the whole automation surface
+     * undrivable from a terminal. DUMP is still privileged (shell/system only), so this
+     * is not an opening to ordinary apps.
+     */
+    const val RECEIVER_PERMISSION = "android.permission.DUMP"
 
     const val ACTION_RUN_TASK = "com.termux.cybersyn.action.RUN_TASK"
     const val ACTION_SET_PROFILE_ENABLED = "com.termux.cybersyn.action.SET_PROFILE_ENABLED"

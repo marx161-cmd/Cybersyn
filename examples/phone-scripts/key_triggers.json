@@ -1,0 +1,47 @@
+{
+  "_comment": [
+    "Hardware-key triggers for Cybersyn's evdev layer (vendored from Key Mapper).",
+    "Deploy to ~/.termux/tasker/key_triggers.json on the phone.",
+    "",
+    "Each entry fires an `external_trigger` event whose `trigger` is the entry's id --",
+    "the same event path the Quick Tap stub uses -- so an ordinary EVENT profile with",
+    "config {event: external_trigger, trigger: <id>} runs whatever task you want. No",
+    "task dispatch logic lives in the key layer.",
+    "",
+    "Fields:",
+    "  id       required, the trigger name matched by the profile",
+    "  key      single key: VOLUME_UP | VOLUME_DOWN | POWER",
+    "  keys     multiple keys, with mode PARALLEL (held together) or SEQUENCE (in order)",
+    "  click    SHORT (default) | LONG | DOUBLE",
+    "  mode     SINGLE (default) | PARALLEL | SEQUENCE",
+    "  consume  true swallows the key so Android never sees it. Default false.",
+    "",
+    "consume=true swallows EVERY press of that key while the trigger is registered --",
+    "a first press cannot know whether it will become a double press -- so the key's",
+    "normal function is gone. Prefer false unless you really mean to take the key over.",
+    "POWER is never consumable: long-press power stays native by design.",
+    "",
+    "Changes are picked up on the next explicit reload:",
+    "  am broadcast -a com.termux.cybersyn.action.RELOAD_PROFILES -p com.termux.cybersyn",
+    "(the -p is mandatory -- an implicit broadcast never reaches a manifest receiver)",
+    "or simply on the next start of the automation service.",
+    "",
+    "Gyro/clutch and browser nav are NOT configured here: they are hold-to-act (they fire",
+    "on press and again on release), which a click-type model cannot express, so they",
+    "stay on the raw key path in KeyHijackController."
+  ],
+  "triggers": [
+    {
+      "id": "vol_down_double",
+      "key": "VOLUME_DOWN",
+      "click": "DOUBLE",
+      "consume": false
+    },
+    {
+      "id": "vol_up_long",
+      "key": "VOLUME_UP",
+      "click": "LONG",
+      "consume": false
+    }
+  ]
+}

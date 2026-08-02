@@ -9,7 +9,6 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.provider.OpenableColumns
-import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import com.termux.cybersyn.core.mqtt.MqttBridge
@@ -23,6 +22,7 @@ import java.net.Inet4Address
 import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.net.ServerSocket
+import com.termux.cybersyn.core.logging.AppLogger
 
 class ShareReceiverActivity : ComponentActivity() {
 
@@ -43,14 +43,14 @@ class ShareReceiverActivity : ComponentActivity() {
                         try {
                             contentResolver.openInputStream(streamUri).use { input ->
                                 if (input == null) {
-                                    Log.w(TAG, "openInputStream returned null for $streamUri")
+                                    AppLogger.warn(TAG, "openInputStream returned null for $streamUri")
                                     notifyShareFailed(name)
                                 } else {
                                     serveStream(name, input, size)
                                 }
                             }
                         } catch (e: Exception) {
-                            Log.w(TAG, "ACTION_SEND failed for $streamUri", e)
+                            AppLogger.warn(TAG, "ACTION_SEND failed for $streamUri", e)
                         }
                     }.also { it.name = "cybersyn-share-sender" }.start()
                     return
@@ -63,7 +63,7 @@ class ShareReceiverActivity : ComponentActivity() {
                 // that hand out an unreadable directory fd instead of actually zipping it.
                 val text = intent.getStringExtra(Intent.EXTRA_TEXT)?.trim()
                 val localFile = text?.let(::resolveLocalPath)
-                Log.i(TAG, "ACTION_SEND text share: text=$text resolvedLocalFile=$localFile")
+                AppLogger.info(TAG, "ACTION_SEND text share: text=$text resolvedLocalFile=$localFile")
                 if (localFile != null) {
                     Thread {
                         serveLocalPath(localFile)
@@ -102,7 +102,7 @@ class ShareReceiverActivity : ComponentActivity() {
 
             val proc = TermuxExec.exec(listOf("bin/tar", "-cf", tarFile.absolutePath, "-C", stagingDir.absolutePath, "."))
             if (proc.waitFor() != 0) {
-                Log.w(TAG, "tar failed for $uris")
+                AppLogger.warn(TAG, "tar failed for $uris")
                 notifyShareFailed("shared_${uris.size}_files")
                 return
             }
@@ -110,7 +110,7 @@ class ShareReceiverActivity : ComponentActivity() {
             val archiveName = "shared_${uris.size}_files.tar"
             tarFile.inputStream().use { serveStream(archiveName, it, tarFile.length()) }
         } catch (e: Exception) {
-            Log.w(TAG, "serveMultiple failed for $uris", e)
+            AppLogger.warn(TAG, "serveMultiple failed for $uris", e)
         } finally {
             stagingDir.deleteRecursively()
             tarFile.delete()
@@ -151,7 +151,7 @@ class ShareReceiverActivity : ComponentActivity() {
             try {
                 file.inputStream().use { serveStream(file.name, it, file.length()) }
             } catch (e: Exception) {
-                Log.w(TAG, "serveLocalPath failed for $file", e)
+                AppLogger.warn(TAG, "serveLocalPath failed for $file", e)
             }
             return
         }
@@ -160,13 +160,13 @@ class ShareReceiverActivity : ComponentActivity() {
         try {
             val proc = TermuxExec.exec(listOf("bin/tar", "-cf", tarFile.absolutePath, "-C", file.absolutePath, "."))
             if (proc.waitFor() != 0) {
-                Log.w(TAG, "tar failed for $file")
+                AppLogger.warn(TAG, "tar failed for $file")
                 notifyShareFailed(file.name)
                 return
             }
             tarFile.inputStream().use { serveStream("${file.name}.tar", it, tarFile.length()) }
         } catch (e: Exception) {
-            Log.w(TAG, "serveLocalPath (dir) failed for $file", e)
+            AppLogger.warn(TAG, "serveLocalPath (dir) failed for $file", e)
         } finally {
             tarFile.delete()
         }
@@ -185,7 +185,7 @@ class ShareReceiverActivity : ComponentActivity() {
         val firstByte = try {
             input.read()
         } catch (e: IOException) {
-            Log.w(TAG, "cannot read \"$name\" — sender gave no real bytes (probably tried to share a folder directly)", e)
+            AppLogger.warn(TAG, "cannot read \"$name\" — sender gave no real bytes (probably tried to share a folder directly)", e)
             notifier.finish(false, "couldn't read \"$name\"")
             notifyShareFailed(name)
             return
@@ -203,7 +203,7 @@ class ShareReceiverActivity : ComponentActivity() {
         val port = server.localPort
 
         if (bindIp == LOOPBACK) {
-            Log.w(TAG, "No Tailscale or WiFi address; bound loopback, comrade cannot reach this offer")
+            AppLogger.warn(TAG, "No Tailscale or WiFi address; bound loopback, comrade cannot reach this offer")
         }
         // Advertise only what we actually listen on. Offering the LAN address while bound to
         // Tailscale made comrade's LAN-first attempt fail on every single transfer.
@@ -236,7 +236,7 @@ class ShareReceiverActivity : ComponentActivity() {
             client.close()
             notifier.finish(true, "sent to comrade")
         } catch (e: Exception) {
-            Log.w(TAG, "serveStream failed for $name", e)
+            AppLogger.warn(TAG, "serveStream failed for $name", e)
             notifier.finish(false, "transfer failed")
         } finally {
             try { server.close() } catch (_: Exception) {}
@@ -295,11 +295,11 @@ class ShareReceiverActivity : ComponentActivity() {
                 socket.localAddress?.hostAddress
             }
         } catch (e: Exception) {
-            Log.w(TAG, "Tailscale address probe failed", e)
+            AppLogger.warn(TAG, "Tailscale address probe failed", e)
             null
         } ?: return null
         return addr.takeIf { isTailscaleCgnat(it) }
-            ?: run { Log.w(TAG, "Address probe returned non-tailnet address $addr; ignoring"); null }
+            ?: run { AppLogger.warn(TAG, "Address probe returned non-tailnet address $addr; ignoring"); null }
     }
 
     /** True for 100.64.0.0/10, the CGNAT block Tailscale assigns from. */

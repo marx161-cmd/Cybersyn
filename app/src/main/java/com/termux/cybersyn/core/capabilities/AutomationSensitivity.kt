@@ -127,6 +127,8 @@ object AutomationSensitivityRegistry {
         "lock",
         "screen.off",
         "wake",
+        // Injects a key event system-wide via root, so it can drive any app on screen.
+        "key.send",
     )
 
     private val destructiveActionIds = setOf(
