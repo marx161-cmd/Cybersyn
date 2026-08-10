@@ -624,6 +624,9 @@ fn main() {
             std::process::exit(1);
         }
     };
+    // Socket is root-owned (755) when npud runs as root — non-root clients
+    // (UID 1000) need write permission to connect(2). 666 = rw-rw-rw-.
+    let _ = std::fs::set_permissions(&cfg.socket, std::os::unix::fs::PermissionsExt::from_mode(0o666));
 
     eprintln!(
         "npud: listening on {} | conf {} | models {}",
