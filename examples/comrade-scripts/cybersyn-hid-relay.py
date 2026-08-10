@@ -10,11 +10,16 @@ ON) we capture the phone's current orientation AND the cursor's actual current
 position (queried from X - point the phone at the current cursor before engaging,
 same idea as a real laser pointer). While held, cursor position is recomputed fresh
 each sample as calibration-position + (current-orientation - calibration-orientation)
-* gain, and written via a second, ABSOLUTE-positioning uinput device. There is no
-accumulation across samples, so there is nothing to drift - every hold recalibrates
-from scratch. Release stops writing to the absolute device; the cursor just stays
-wherever it last was, and the relative device (click/scroll/touch-trackpad) takes
-over from there for fine positioning.
+* gain, and the delta from the previous sample's target is written via REL_X/REL_Y
+on the main uinput device. There is no accumulation across samples, so there is
+nothing to drift - every hold recalibrates from scratch. Release stops writing; the
+cursor just stays wherever it last was, and normal relative movement (click/scroll/
+touch-trackpad) takes over from there for fine positioning.
+
+This avoids the entire ABS/joystick/tablet/touchscreen/coordinate-mapping problem
+class — no absolute device, no axis range bounds baked at process start, no
+coordinate transformation matrix. The REL approach naturally spans any multi-monitor
+desktop configuration.
 
 Topics consumed:
   android/sensor          gyro quaternion → pointer motion (legacy p30control)
@@ -25,6 +30,9 @@ Topics consumed:
   cybersyn/hid/mouse      "dx,dy" from TrackpadActivity touch deltas
   cybersyn/hid/click      "left"|"right"|"middle"|"hold"|"release"|"double"
   cybersyn/hid/scroll     scroll amount (negative = up)
+  cybersyn/hid/text       UTF-8 string (typed/glided word) → xdotool type
+  cybersyn/hid/key        xdotool key spec ("Return", "ctrl+c", "Up") → xdotool key
+  cybersyn/hid/i3         an i3 command ("fullscreen toggle", "workspace 1") → i3-msg
 """
 
 import argparse
@@ -50,6 +58,9 @@ parser.add_argument("--forward-topic", default="android/forward")
 parser.add_argument("--mouse-topic", default="cybersyn/hid/mouse")
 parser.add_argument("--hid-click-topic", default="cybersyn/hid/click")
 parser.add_argument("--scroll-topic", default="cybersyn/hid/scroll")
+parser.add_argument("--text-topic", default="cybersyn/hid/text")
+parser.add_argument("--key-topic", default="cybersyn/hid/key")
+parser.add_argument("--i3-topic", default="cybersyn/hid/i3")
 parser.add_argument("--idle-release", type=float, default=2.0)
 parser.add_argument("--invert-y", action="store_true", default=False)
 parser.add_argument("--vertical-axis", choices=("pitch", "roll", "auto"), default="pitch")
@@ -71,12 +82,32 @@ device = uinput.Device([
 
 
 def get_screen_size():
-    """Combined virtual-desktop size, e.g. "Screen 0: ... current 4280 x 2416"."""
-    out = subprocess.run(["xrandr", "--query"], capture_output=True, text=True, timeout=5).stdout
-    m = re.search(r"current\s+(\d+)\s*x\s*(\d+)", out)
-    if not m:
-        raise RuntimeError("could not parse combined screen size from xrandr --query")
-    return int(m.group(1)), int(m.group(2))
+    """Combined virtual-desktop size, retrying until xrandr succeeds.
+    Returns (0, 0) if it can't parse after all retries — callers must handle that."""
+    max_retries = 12
+    for attempt in range(max_retries):
+        try:
+            out = subprocess.run(
+                ["xrandr", "--query"],
+                capture_output=True, text=True, timeout=5,
+            ).stdout
+        except Exception:
+            time.sleep(2)
+            continue
+        m = re.search(r"current\s+(\d+)\s*x\s*(\d+)", out)
+        if m:
+            w, h = int(m.group(1)), int(m.group(2))
+            if w > 0 and h > 0:
+                return w, h
+        time.sleep(2)
+    return 0, 0
+
+
+SCREEN_W, SCREEN_H = get_screen_size()
+if SCREEN_W == 0:
+    print(f">>> WARNING: could not parse combined screen size; gyro bounds will be unlimited <<<")
+else:
+    print(f">>> Combined desktop: {SCREEN_W}x{SCREEN_H} <<<")
 
 
 def get_cursor_position():
@@ -88,14 +119,6 @@ def get_cursor_position():
     return x, y
 
 
-SCREEN_W, SCREEN_H = get_screen_size()
-print(f">>> Combined desktop: {SCREEN_W}x{SCREEN_H} <<<")
-
-point_device = uinput.Device([
-    uinput.ABS_X + (0, SCREEN_W - 1, 0, 0),
-    uinput.ABS_Y + (0, SCREEN_H - 1, 0, 0),
-], name="cybersyn-laser-pointer")
-
 clutch_active = False
 mouse_held = False
 last_event_ts = 0.0
@@ -106,6 +129,9 @@ calib_vertical = None
 calib_cursor_x = 0
 calib_cursor_y = 0
 awaiting_calibration = False
+last_target_x = 0
+last_target_y = 0
+targets_valid = False  # True once we have at least 2 samples to compute a delta
 
 BUTTON_MAP = {
     "left": uinput.BTN_LEFT,
@@ -173,14 +199,16 @@ def set_click_state(enabled):
 
 def set_clutch_state(enabled):
     global clutch_active, calib_yaw, calib_vertical, calib_cursor_x, calib_cursor_y
-    global awaiting_calibration
+    global awaiting_calibration, last_target_x, last_target_y, targets_valid
     clutch_active = enabled
     if enabled:
-        # Point the phone at the current cursor before engaging - that's the zero
-        # reference. Actual orientation gets captured off the next sensor sample
-        # (arrives independently over MQTT, can't assume timing with this message).
         try:
             calib_cursor_x, calib_cursor_y = get_cursor_position()
+            # Seed the delta tracker so the first computed target after calibration
+            # emits a delta from the initial cursor position.
+            last_target_x = calib_cursor_x
+            last_target_y = calib_cursor_y
+            targets_valid = False
         except Exception:
             import traceback
             traceback.print_exc()
@@ -252,6 +280,53 @@ def handle_hid_scroll(payload_str):
 
 
 # ----------------------------------------------------------------
+# Remote keyboard / i3 lanes (SpectreBoard AMD-mode input forwarding)
+# ----------------------------------------------------------------
+# xdotool key tokens are letters/digits plus + _ - (e.g. "Return", "ctrl+c", "Up").
+_KEY_TOKEN_RE = re.compile(r"^[A-Za-z0-9_+-]+$")
+
+
+def _run_desktop(cmd):
+    """Run an xdotool/i3-msg command in the service's X env; log non-zero exits.
+    Synchronous like get_cursor_position() above — these complete in well under a
+    frame, and keeping them ordered on the MQTT thread preserves keystroke order."""
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
+        if r.returncode != 0:
+            print(f">>> {cmd[0]} rc={r.returncode}: {r.stderr.strip()} <<<")
+    except Exception as e:
+        print(f">>> {cmd[0]} failed: {e} <<<")
+
+
+def handle_hid_text(payload_str):
+    """cybersyn/hid/text: a typed or glided word → type into the focused window."""
+    if not payload_str:
+        return
+    # Log length only, never content (privacy + noise).
+    print(f">>> TEXT ({len(payload_str)} chars) <<<")
+    _run_desktop(["xdotool", "type", "--clearmodifiers", "--", payload_str])
+
+
+def handle_hid_key(payload_str):
+    """cybersyn/hid/key: xdotool key spec(s), e.g. "Return", "ctrl+c", "Up"."""
+    tokens = payload_str.split()
+    if not tokens or not all(_KEY_TOKEN_RE.match(t) for t in tokens):
+        print(f">>> KEY rejected (bad token): {payload_str!r} <<<")
+        return
+    print(f">>> KEY {' '.join(tokens)} <<<")
+    _run_desktop(["xdotool", "key", "--clearmodifiers", *tokens])
+
+
+def handle_hid_i3(payload_str):
+    """cybersyn/hid/i3: an i3 command → i3-msg (exec, workspace, fullscreen, kill…)."""
+    cmd = payload_str.strip()
+    if not cmd or cmd.startswith("-"):  # i3 commands never start with '-'
+        return
+    print(f">>> I3: {cmd} <<<")
+    _run_desktop(["i3-msg", cmd])
+
+
+# ----------------------------------------------------------------
 # MQTT callbacks
 # ----------------------------------------------------------------
 
@@ -266,12 +341,16 @@ def on_connect(client, userdata, flags, reason_code, properties):
     client.subscribe(args.mouse_topic)
     client.subscribe(args.hid_click_topic)
     client.subscribe(args.scroll_topic)
+    client.subscribe(args.text_topic)
+    client.subscribe(args.key_topic)
+    client.subscribe(args.i3_topic)
 
 
 def on_message(client, userdata, msg):
     global clutch_active, mouse_held
     global last_event_ts, last_clutch_toggle_ts
     global calib_yaw, calib_vertical, awaiting_calibration
+    global last_target_x, last_target_y, targets_valid
 
     last_event_ts = time.time()
     topic = msg.topic
@@ -287,6 +366,19 @@ def on_message(client, userdata, msg):
 
     if topic == args.scroll_topic:
         handle_hid_scroll(msg.payload.decode(errors="ignore"))
+        return
+
+    # ---- Remote keyboard / i3 lanes ----
+    if topic == args.text_topic:
+        handle_hid_text(msg.payload.decode(errors="ignore"))
+        return
+
+    if topic == args.key_topic:
+        handle_hid_key(msg.payload.decode(errors="ignore"))
+        return
+
+    if topic == args.i3_topic:
+        handle_hid_i3(msg.payload.decode(errors="ignore"))
         return
 
     # ---- Legacy p30control topics ----
@@ -372,17 +464,28 @@ def on_message(client, userdata, msg):
             yaw_offset = unwrap_diff(curr_yaw, calib_yaw)
             vertical_offset = unwrap_diff(curr_vertical, calib_vertical)
 
-            # Same left/right convention as before: positive yaw -> cursor moves left.
             target_x = calib_cursor_x - (yaw_offset * args.point_gain_x)
             if args.invert_y:
                 target_y = calib_cursor_y - (vertical_offset * args.point_gain_y)
             else:
                 target_y = calib_cursor_y + (vertical_offset * args.point_gain_y)
 
-            out_x = int(clamp(target_x, 0, SCREEN_W - 1))
-            out_y = int(clamp(target_y, 0, SCREEN_H - 1))
-            point_device.emit(uinput.ABS_X, out_x, syn=False)
-            point_device.emit(uinput.ABS_Y, out_y)
+            if not targets_valid:
+                # First sample after calibration — set the baseline, emit no delta yet.
+                last_target_x = target_x
+                last_target_y = target_y
+                targets_valid = True
+                return
+
+            dx = int(clamp(target_x - last_target_x, -300, 300))
+            dy = int(clamp(target_y - last_target_y, -300, 300))
+            last_target_x = target_x
+            last_target_y = target_y
+
+            if dx != 0:
+                device.emit(uinput.REL_X, dx, syn=False)
+            if dy != 0:
+                device.emit(uinput.REL_Y, dy)
 
         except Exception:
             import traceback
