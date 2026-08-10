@@ -132,7 +132,7 @@ object KeyHijackController {
     var appContext: Context? = null
     var deviceId: Int = 0
 
-    var imeShown: Boolean = false
+    var amdMode: Boolean = false
         set(value) {
             field = value
             pushMode()
@@ -146,7 +146,7 @@ object KeyHijackController {
 
     private fun pushMode() {
         val mode = when {
-            imeShown -> "gyro"
+            amdMode -> "gyro"
             browserForeground -> "browser"
             else -> "normal"
         }
@@ -416,13 +416,13 @@ object KeyHijackController {
                         return
                     }
 
-                    if (imeShown && code in listOf(KEY_VOLUME_DOWN, KEY_VOLUME_UP)) {
+                    if (amdMode && code in listOf(KEY_VOLUME_DOWN, KEY_VOLUME_UP)) {
                         // Gyro mode
                         when (code) {
                             KEY_VOLUME_DOWN -> { activePress[code] = PressKind.GYRO; startGyro() }
                             KEY_VOLUME_UP -> { activePress[code] = PressKind.HOLD; startHold() }
                         }
-                    } else if (!imeShown && browserForeground && code in listOf(KEY_VOLUME_DOWN, KEY_VOLUME_UP)) {
+                    } else if (!amdMode && browserForeground && code in listOf(KEY_VOLUME_DOWN, KEY_VOLUME_UP)) {
                         // Browser nav mode.
                         activePress[code] = PressKind.BROWSER_NAV
                         val media = if (code == KEY_VOLUME_DOWN) KEY_MEDIA_PREVIOUS else KEY_MEDIA_NEXT

@@ -35,7 +35,6 @@ import com.termux.cybersyn.core.contexts.PluginConditionSubscriptions
 import com.termux.cybersyn.core.contexts.TimeContextEvents
 import com.termux.cybersyn.core.contexts.TimeTickContextEvents
 import com.termux.cybersyn.core.model.AutomationMode
-import com.termux.cybersyn.core.mqtt.MqttBridge
 import com.termux.cybersyn.core.mqtt.MqttIngest
 import com.termux.cybersyn.core.model.Profile
 import com.termux.cybersyn.core.model.Task
@@ -160,6 +159,11 @@ class AutomationService : Service() {
     @Volatile private var lastRunLogPruneAt = 0L
     @Volatile private var audioForegroundServiceEligibility = AudioForegroundServiceEligibility.BACKGROUND_STARTED
     @Volatile private var engineLoaded = false
+
+    // AMD-mode gate for the volume-key hijack: SpectreBoard's toolbar toggle mirrors its state
+    // to this shared-UID file, which replaces the old spectreboard/ime_shown MQTT topic.
+    private val hidModeFile = java.io.File("/data/data/com.termux/files/usr/tmp/cybersyn-hidmode")
+    private var hidModeObserver: android.os.FileObserver? = null
 
     /** Completes when the stray-logcat-reader sweep has finished. See onCreate. */
     private val strayLogcatSweep = CompletableDeferred<Unit>()
@@ -335,18 +339,29 @@ class AutomationService : Service() {
         KeyHijackController.appContext = applicationContext
         registerKeyTriggers()
         KeyHijackController.start(applicationContext)
-        scope.launch(Dispatchers.IO) {
-            // Seed before the subscription so a start with the keyboard already up isn't
-            // stuck in the wrong mode. SpectreBoard publishes ime_shown retained, so the
-            // subscribe below normally delivers the true state within milliseconds; the
-            // dumpsys query is the belt-and-braces path for a broker that is unreachable
-            // at start (which is exactly when the retained message can't arrive).
-            KeyHijackController.imeShown = queryImeShown()
-            MqttBridge.subscribe(applicationContext, "spectreboard/ime_shown").collect { msg ->
-                KeyHijackController.imeShown = msg.payload.trim().equals("ON", ignoreCase = true)
+        // Gate the volume-key hijack on the AMD-mode toggle. SpectreBoard mirrors the toggle to
+        // hidModeFile (this replaces the old spectreboard/ime_shown MQTT topic + Last Will).
+        // Seed from the file now, then watch it so a toggle re-gates the vol keys immediately.
+        KeyHijackController.amdMode = readHidMode()
+        hidModeObserver = object : android.os.FileObserver(
+            hidModeFile.absolutePath,
+            android.os.FileObserver.CLOSE_WRITE or android.os.FileObserver.MODIFY,
+        ) {
+            override fun onEvent(event: Int, path: String?) {
+                KeyHijackController.amdMode = readHidMode()
             }
-        }
+        }.also { it.startWatching() }
     }
+
+    /** Read the AMD-mode gate file; create it (default off) if absent so the observer has a target. */
+    private fun readHidMode(): Boolean = runCatching {
+        if (!hidModeFile.exists()) {
+            hidModeFile.writeText("android")
+            false
+        } else {
+            hidModeFile.readText().trim() == "amd"
+        }
+    }.getOrDefault(false)
 
     /**
      * Publish classified hardware-key triggers as `external_trigger` events.
@@ -372,29 +387,10 @@ class AutomationService : Service() {
         }
     }
 
-    /**
-     * Current IME visibility, from the system's own input-method state.
-     *
-     * NOT `InputMethodManager.isAcceptingText`: that reflects *this process's* input
-     * connection, and a background Service never has a served view, so it returns false
-     * unconditionally — a seed that always reads "keyboard hidden" is worse than none,
-     * because it looks like it works. `dumpsys input_method` is the system-wide truth.
-     * Blocking (runs on Dispatchers.IO from the caller).
-     */
-    private fun queryImeShown(): Boolean = runCatching {
-        val proc = ProcessBuilder("su", "-c", "dumpsys input_method")
-            .redirectErrorStream(true)
-            .start()
-        val out = proc.inputStream.bufferedReader().use { it.readText() }
-        proc.waitFor()
-        // mInputShown is the field PhoneWindowManager/IMMS keep for "IME window visible".
-        Regex("""mInputShown=(true|false)""").find(out)?.groupValues?.get(1) == "true"
-    }.onFailure { AppLogger.warn(TAG, "IME state query failed; assuming hidden", it) }
-        .getOrDefault(false)
-
     override fun onDestroy() {
         KeyHijackController.stop()
         MqttIngest.stop()
+        hidModeObserver?.stopWatching()
         val matcherJobSnapshot = matcherJobs.values.toList()
         val taskJobSnapshot = profileTaskJobs.values.toList()
         matcherJobSnapshot.forEach { it.cancel() }
