@@ -187,10 +187,12 @@ collect_now() {
   LOGTAIL=$(echo "$LOGTAIL" | sed "s/'/''/g" | tr '\n' '\036')
 
   # ---- MQTT ------------------------------------------------------------------
+  # Publish through Cybersyn's single persistent connection via the cybersyn-send
+  # ingest FIFO (was: its own mosquitto_pub, which isn't installed — this path was a
+  # no-op). MQTT_OK now means "handed to Cybersyn's ingest", not "broker round-trip".
   MQTT_OK=0
-  MQTT_PUB="${PREFIX:-/data/data/com.termux/files/usr}/bin/mosquitto_pub"
-  timeout 3 "$MQTT_PUB" -h "$MQTT_BROKER" -t "cybersyn/blazer/alive" \
-    -m "{\"ts\":$TS_EPOCH}" -q 0 2>/dev/null && MQTT_OK=1 || MQTT_OK=0
+  MQTT_PUB="${PREFIX:-/data/data/com.termux/files/usr}/bin/cybersyn-send"
+  timeout 3 "$MQTT_PUB" "cybersyn/blazer/alive" "{\"ts\":$TS_EPOCH}" 2>/dev/null && MQTT_OK=1 || MQTT_OK=0
 }
 
 # ---- Write to DB -------------------------------------------------------------
@@ -245,9 +247,9 @@ capture_tick() {
 
   # MQTT summary
   if [ "$MQTT_OK" = "1" ]; then
-    timeout 3 "$MQTT_PUB" -h "$MQTT_BROKER" -t "$MQTT_TOPIC" \
-      -m "{\"ts\":$TS_EPOCH,\"batt_pct\":$B_LVL,\"batt_tmp\":$B_TMP,\"soc_t\":$TZ_SOC,\"gpu_t\":$TZ_GPU,\"mem_avail_mb\":$((MEM_AVAIL/1024)),\"load_x100\":$LA1,\"avc\":$AVC_COUNT,\"npu_rss_mb\":$((NPU_RSS/1024)),\"gpu_mem_mb\":$((GPU_MEM_TOTAL/1024)),\"screen\":\"$screen_e\",\"cc\":\"$cc_e\"}" \
-      -q 0 2>/dev/null &
+    timeout 3 "$MQTT_PUB" "$MQTT_TOPIC" \
+      "{\"ts\":$TS_EPOCH,\"batt_pct\":$B_LVL,\"batt_tmp\":$B_TMP,\"soc_t\":$TZ_SOC,\"gpu_t\":$TZ_GPU,\"mem_avail_mb\":$((MEM_AVAIL/1024)),\"load_x100\":$LA1,\"avc\":$AVC_COUNT,\"npu_rss_mb\":$((NPU_RSS/1024)),\"gpu_mem_mb\":$((GPU_MEM_TOTAL/1024)),\"screen\":\"$screen_e\",\"cc\":\"$cc_e\"}" \
+      2>/dev/null &
   fi
 }
 
