@@ -1,0 +1,41 @@
+#!/data/data/com.termux/files/usr/bin/bash
+# cybersyn-send <topic> <payload>
+#
+# The ONE sanctioned way for any termux-family app/script (all UID 1000) to publish to
+# comrade over MQTT: drop a "topic<TAB>payload" line into Cybersyn's ingest FIFO, which
+# MqttIngest forwards into Cybersyn's single persistent MQTT connection (MqttBridge).
+#
+# Do NOT call libcybersyn-mqtt.so or any mosquitto/paho client directly — that opens a
+# second connection to the broker, which is exactly what this consolidation removes.
+#
+# Install location: $PREFIX/bin/cybersyn-send  (deploy alongside Cybersyn).
+set -euo pipefail
+
+FIFO="/data/data/com.termux/files/usr/tmp/cybersyn-pub.fifo"
+
+if [[ $# -ne 2 ]]; then
+  echo "usage: cybersyn-send <topic> <payload>" >&2
+  exit 2
+fi
+topic="$1"
+payload="$2"
+
+# A newline in either field would split into a second (caller-chosen) message on the bus.
+case "$topic$payload" in
+  *$'\n'*)
+    echo "cybersyn-send: newline not allowed in topic/payload" >&2
+    exit 2
+    ;;
+esac
+
+if [[ ! -p "$FIFO" ]]; then
+  echo "cybersyn-send: ingest FIFO absent ($FIFO) — is Cybersyn running?" >&2
+  exit 1
+fi
+
+# Open O_RDWR (<>) so open() never blocks, even in the brief window Cybersyn's reader is
+# respawning. We only ever write on fd 3, never read it, so we cannot steal bytes from
+# Cybersyn's reader. Lines are short (<4096B) so the write is atomic across concurrent callers.
+exec 3<>"$FIFO"
+printf '%s\t%s\n' "$topic" "$payload" >&3
+exec 3>&-

@@ -7,8 +7,7 @@ TASKER_DIR="${TERMUX_HOME}/.termux/tasker"
 HIDRUNNER="${TASKER_DIR}/hidrunner.sh"
 HIDKEY="${TASKER_DIR}/hidkey.sh"
 
-BROKER=100.108.8.60
-PORT=1883
+CYBERSYN_SEND="/data/data/com.termux/files/usr/bin/cybersyn-send"
 
 need_exec() {
   local file="$1"
@@ -39,24 +38,14 @@ dispatch_hid() {
   "$HIDKEY" "$token"
 }
 
-# Publish "topic\tpayload" via Cybersyn's own bundled MQTT helper (the same binary
-# MqttBridge.kt execs in-process) - no separate mosquitto_pub dependency. The native
-# lib path is resolved fresh each call since it moves under a new hashed directory on
-# every Cybersyn reinstall.
+# Publish "topic<TAB>payload" through Cybersyn's ONE persistent MQTT connection via the
+# cybersyn-send ingest wrapper. Previously this spawned its own `libcybersyn-mqtt.so pub`,
+# opening a second connection per call; funnelling through cybersyn-send keeps the whole
+# phone on the single connection Cybersyn already holds (MqttIngest -> MqttBridge).
 mqtt_publish() {
   local topic="$1" payload="$2"
-  local libdir mqtt_bin
-  libdir="$(dumpsys package com.termux.cybersyn 2>/dev/null | grep -m1 legacyNativeLibraryDir | sed 's/^[^=]*=//')"
-  if [[ -z "$libdir" ]]; then
-    echo "Could not resolve Cybersyn's native lib dir" >&2
-    return 1
-  fi
-  mqtt_bin="${libdir}/arm64/libcybersyn-mqtt.so"
-  if [[ ! -x "$mqtt_bin" ]]; then
-    echo "Missing executable: $mqtt_bin" >&2
-    return 1
-  fi
-  printf '%s\t%s\n' "$topic" "$payload" | "$mqtt_bin" pub --broker "$BROKER" --port "$PORT" --id "dispatch-$$"
+  need_exec "$CYBERSYN_SEND"
+  "$CYBERSYN_SEND" "$topic" "$payload"
 }
 
 action="${1:-}"

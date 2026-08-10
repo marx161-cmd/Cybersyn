@@ -36,6 +36,7 @@ import com.termux.cybersyn.core.contexts.TimeContextEvents
 import com.termux.cybersyn.core.contexts.TimeTickContextEvents
 import com.termux.cybersyn.core.model.AutomationMode
 import com.termux.cybersyn.core.mqtt.MqttBridge
+import com.termux.cybersyn.core.mqtt.MqttIngest
 import com.termux.cybersyn.core.model.Profile
 import com.termux.cybersyn.core.model.Task
 import com.termux.cybersyn.core.platform.AudioForegroundServiceEligibility
@@ -200,6 +201,9 @@ class AutomationService : Service() {
         }
         startForegroundCompat()
         startSystemContextSources()
+        // Local doorway into the one persistent MQTT connection: other UID-1000 apps/scripts
+        // publish via the cybersyn-send FIFO instead of opening their own MQTT clients.
+        MqttIngest.start(applicationContext)
         startKeyHijack()
         timeEventScheduler.scheduleNextMinute()
         engineHeartbeatStore.recordAlive()
@@ -390,6 +394,7 @@ class AutomationService : Service() {
 
     override fun onDestroy() {
         KeyHijackController.stop()
+        MqttIngest.stop()
         val matcherJobSnapshot = matcherJobs.values.toList()
         val taskJobSnapshot = profileTaskJobs.values.toList()
         matcherJobSnapshot.forEach { it.cancel() }
