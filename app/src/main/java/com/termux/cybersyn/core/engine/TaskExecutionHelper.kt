@@ -28,6 +28,7 @@ suspend fun executeAndLogTask(
     source: String,
     metadata: List<String> = emptyList(),
     initialVariables: Map<String, String> = emptyMap(),
+    eventVariables: Map<String, String> = emptyMap(),
     visibleActivity: Boolean = false,
     audioForegroundService: AudioForegroundServiceEligibility = AudioForegroundServiceEligibility.NONE,
     logTag: String = TAG,
@@ -68,6 +69,7 @@ suspend fun executeAndLogTask(
     val ctx = ActionContext(
         app = appContext,
         variables = variables,
+        eventVariables = eventVariables,
         audioEligibility = audioEligibility,
     ) { msg -> AppLogger.info(logTag, msg) }
     val runner = TaskRunner(ctx, resolveTask = dbSubTaskResolver(db))

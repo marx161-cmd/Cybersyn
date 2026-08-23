@@ -79,6 +79,12 @@ class ProfileMatcher(
                         matched = effectiveMatched,
                         pulseContext = isPulseContext,
                         pulseSequence = if (isPulseContext) previous.pulseSequence + 1 else 0,
+                        // Carried through so the fired task can read the triggering
+                        // event's own data (e.g. an MQTT payload) as a variable --
+                        // previously this was discarded right after matching, which
+                        // silently broke the documented "{{ event.payload }}" syntax
+                        // for every event-triggered task in the app.
+                        eventMetadata = if (isPulseContext && effectiveMatched) preparedEvent.metadata else emptyMap(),
                     )
                 }
             } else {
@@ -97,7 +103,7 @@ class ProfileMatcher(
                 profileStateChangesFromSnapshots(snapshots, hasPulseContexts) { change ->
                     val startTime = System.currentTimeMillis()
                     when (change) {
-                        ProfileStateChange.Activated -> {
+                        is ProfileStateChange.Activated -> {
                             val reason = if (hasPulseContexts) "Profile activated by event pulse" else "Profile activated"
                             AppLogger.info(tag, reason)
                         }
@@ -118,6 +124,14 @@ class ProfileMatcher(
         val pulseSequence = contextMatches
             .filter { it.pulseContext }
             .sumOf { it.pulseSequence }
+        // Whichever pulse context actually carried data on this snapshot -- for the
+        // common case of a single event context this is unambiguous; for a profile
+        // combining multiple pulse contexts, the first non-empty one wins (good
+        // enough for "which event fired me", not meant to merge multiple payloads).
+        val eventMetadata = contextMatches
+            .firstOrNull { it.pulseContext && it.eventMetadata.isNotEmpty() }
+            ?.eventMetadata
+            ?: emptyMap()
         val duration = System.currentTimeMillis() - startTime
 
         if (duration > performanceThresholdMs) {
@@ -127,6 +141,7 @@ class ProfileMatcher(
         return ProfileMatchSnapshot(
             allMatched = allMatched,
             pulseSequence = pulseSequence,
+            eventMetadata = eventMetadata,
         )
     }
 
@@ -144,6 +159,7 @@ internal data class ContextMatchUpdate(
     val matched: Boolean,
     val pulseContext: Boolean,
     val pulseSequence: Long,
+    val eventMetadata: Map<String, String> = emptyMap(),
 ) {
     companion object {
         fun initial(pulseContext: Boolean): ContextMatchUpdate =
@@ -154,6 +170,7 @@ internal data class ContextMatchUpdate(
 internal data class ProfileMatchSnapshot(
     val allMatched: Boolean,
     val pulseSequence: Long,
+    val eventMetadata: Map<String, String> = emptyMap(),
 )
 
 private data class PulseAccumulator(
@@ -170,7 +187,7 @@ internal fun profileStateChangesFromSnapshots(
         snapshots.scan(PulseAccumulator(lastPulseSequence = 0, change = null)) { previous, snapshot ->
             val pulseChanged = snapshot.pulseSequence != previous.lastPulseSequence
             val change = if (pulseChanged && snapshot.pulseSequence > 0 && snapshot.allMatched) {
-                ProfileStateChange.Activated
+                ProfileStateChange.Activated(snapshot.eventMetadata)
             } else {
                 null
             }
@@ -184,7 +201,9 @@ internal fun profileStateChangesFromSnapshots(
             .scan(Pair(false, false)) { (_, prev), now -> Pair(prev, now) }
             .mapNotNull { (prev, now) ->
                 val change = when {
-                    !prev && now -> ProfileStateChange.Activated
+                    // Level contexts (not pulse contexts) have no discrete triggering
+                    // event of their own to carry -- default empty metadata.
+                    !prev && now -> ProfileStateChange.Activated()
                     prev && !now -> ProfileStateChange.Deactivated
                     else -> null
                 }
@@ -212,7 +231,7 @@ internal fun evaluateWithOrGroups(
 }
 
 sealed class ProfileStateChange {
-    data object Activated : ProfileStateChange()
+    data class Activated(val eventMetadata: Map<String, String> = emptyMap()) : ProfileStateChange()
     data object Deactivated : ProfileStateChange()
 }
 

@@ -454,7 +454,7 @@ class AutomationService : Service() {
                     matcher.stateChanges().collect { change ->
                         try {
                             when (change) {
-                                is ProfileStateChange.Activated -> onProfileActivated(domain)
+                                is ProfileStateChange.Activated -> onProfileActivated(domain, change.eventMetadata)
                                 is ProfileStateChange.Deactivated -> onProfileDeactivated(domain)
                             }
                         } catch (e: CancellationException) {
@@ -519,7 +519,10 @@ class AutomationService : Service() {
         PluginConditionSubscriptions.replaceAll(subs)
     }
 
-    private suspend fun onProfileActivated(profile: com.termux.cybersyn.core.model.Profile) {
+    private suspend fun onProfileActivated(
+        profile: com.termux.cybersyn.core.model.Profile,
+        eventMetadata: Map<String, String> = emptyMap(),
+    ) {
         if (profile.enterTaskId <= 0) return
 
         val task = db.taskDao().getById(profile.enterTaskId)
@@ -533,7 +536,7 @@ class AutomationService : Service() {
             logProfileSkippedRun(profile, decoded.value, "Enter task data is corrupt (${decoded.issue.fieldName}); recover it before it can run.")
             return
         }
-        dispatchTask(profile, decoded.value, isExit = false)
+        dispatchTask(profile, decoded.value, isExit = false, eventMetadata = eventMetadata)
     }
 
     private suspend fun onProfileDeactivated(profile: com.termux.cybersyn.core.model.Profile) {
@@ -562,6 +565,7 @@ class AutomationService : Service() {
         profile: Profile,
         task: Task,
         isExit: Boolean,
+        eventMetadata: Map<String, String> = emptyMap(),
     ) {
         val slot = taskSlotKey(profile.id, isExit)
         when (profile.automationMode) {
@@ -578,7 +582,7 @@ class AutomationService : Service() {
                         return
                     }
                 }
-                profileTaskJobs[slot] = launchTrackedTask(profile, slot, task)
+                profileTaskJobs[slot] = launchTrackedTask(profile, slot, task, eventMetadata)
             }
 
             AutomationMode.RESTART -> {
@@ -590,7 +594,7 @@ class AutomationService : Service() {
                     }
                 }
                 profileTaskJobs[slot]?.cancel()
-                profileTaskJobs[slot] = launchTrackedTask(profile, slot, task)
+                profileTaskJobs[slot] = launchTrackedTask(profile, slot, task, eventMetadata)
             }
 
             AutomationMode.QUEUED -> {
@@ -623,7 +627,7 @@ class AutomationService : Service() {
                         logProfileSkippedRun(profile, task, "Task queue is full ($MAX_QUEUED_TASKS pending).")
                     }
                     QueueOutcome.QUEUED -> AppLogger.info(TAG, "Profile ${profile.id} queued retrigger")
-                    QueueOutcome.START -> profileTaskJobs[slot] = launchQueuedTasks(profile, slot, task)
+                    QueueOutcome.START -> profileTaskJobs[slot] = launchQueuedTasks(profile, slot, task, eventMetadata)
                 }
             }
 
@@ -635,7 +639,7 @@ class AutomationService : Service() {
                         return
                     }
                 }
-                scope.launch { runTask(task, profile) }
+                scope.launch { runTask(task, profile, eventMetadata) }
             }
         }
     }
@@ -645,11 +649,11 @@ class AutomationService : Service() {
 
     private enum class QueueOutcome { START, QUEUED, FULL }
 
-    private fun launchTrackedTask(profile: Profile, slot: Long, task: Task): Job =
+    private fun launchTrackedTask(profile: Profile, slot: Long, task: Task, eventMetadata: Map<String, String> = emptyMap()): Job =
         scope.launch(start = CoroutineStart.DEFAULT) {
             val thisJob = currentCoroutineContext()[Job]
             try {
-                runTask(task, profile)
+                runTask(task, profile, eventMetadata)
             } finally {
                 synchronized(profileTaskJobs) {
                     if (profileTaskJobs[slot] == thisJob) {
@@ -659,13 +663,14 @@ class AutomationService : Service() {
             }
         }
 
-    private fun launchQueuedTasks(profile: Profile, slot: Long, firstTask: Task): Job =
+    private fun launchQueuedTasks(profile: Profile, slot: Long, firstTask: Task, eventMetadata: Map<String, String> = emptyMap()): Job =
         scope.launch(start = CoroutineStart.DEFAULT) {
             val thisJob = currentCoroutineContext()[Job]
             var nextTask: Task? = firstTask
             try {
                 while (isActive && nextTask != null) {
-                    runTask(requireNotNull(nextTask), profile)
+                    val currentTask = requireNotNull(nextTask)
+                    runTask(currentTask, profile, if (currentTask === firstTask) eventMetadata else emptyMap())
                     nextTask = synchronized(queuedProfileTasks) {
                         val polled = queuedProfileTasks[slot]?.poll()
                         if (polled == null) {
@@ -699,6 +704,7 @@ class AutomationService : Service() {
     private suspend fun runTask(
         task: Task,
         profile: Profile,
+        eventMetadata: Map<String, String> = emptyMap(),
     ) {
         val result = executeAndLogTask(
             appContext = this,
@@ -706,6 +712,7 @@ class AutomationService : Service() {
             task = task,
             source = "Profile: ${profile.name}",
             metadata = profileRunMetadata(profile),
+            eventVariables = eventMetadata,
             audioForegroundService = audioForegroundServiceEligibility,
         )
         if (result.logInserted) {
