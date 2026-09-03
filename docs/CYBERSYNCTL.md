@@ -17,7 +17,23 @@ tools/cybersynctl apply examples/quicktap-sidebar.yaml
 tools/cybersynctl profile enable QuickTapSidebarTrigger
 tools/cybersynctl profile disable QuickTapSidebarTrigger
 tools/cybersynctl run "Some Non-UI Task"
+tools/cybersynctl explain [out.json]
 ```
+
+`explain` is the one-shot manifest call — run this first, before authoring anything.
+It returns the real, live vocabulary (not this doc): every trigger `type` string
+registered in `ContextSourceRegistry`, every `automationMode` enum value, every
+action id with its args (`fields`: key/type/required) and whether it's actually
+usable on this device right now (`capability`/`can_add`/`reason`), plus current
+tasks/profiles, the last 30 run-log entries (so recent failures are visible without
+a separate query), and a live memory/CPU/process/battery/thermal snapshot. With no
+path argument it prints the JSON to stdout; with a path it writes there instead.
+Internally it broadcasts to `ExplainReceiver` and reads back the JSON it mirrors to
+`/data/local/tmp/cybersyn_explain.json` — no scp needed, unlike `export`.
+
+The per-type `config` shape for triggers isn't structured anywhere in source (a
+context source only declares its `type` string), so that part still comes from the
+YAML Shape example below, not from `explain`.
 
 `apply` converts simple YAML to Cybersyn bundle JSON on the host, then imports
 it through ADB. It uses replace-by-name semantics for tasks/profiles in the

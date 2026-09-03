@@ -24,6 +24,9 @@ SSH_TARGET = os.environ.get("CYBERSYN_SSH_TARGET", "u0_a464@100.69.13.12")
 SSH_PORT = os.environ.get("CYBERSYN_SSH_PORT", "8022")
 PKG = "com.termux.cybersyn"
 CLI_COMPONENT = f"{PKG}/.core.external.AutomationCliReceiver"
+EXPLAIN_COMPONENT = f"{PKG}/.core.external.ExplainReceiver"
+EXPLAIN_ACTION = f"{PKG}.action.EXPLAIN"
+EXPLAIN_SHELL_MIRROR = "/data/local/tmp/cybersyn_explain.json"
 TERMUX_HOME = "/data/data/com.termux/files/home"
 REMOTE_EXPORT = f"{TERMUX_HOME}/.cache/cybersynctl/export.json"
 
@@ -42,8 +45,8 @@ def ensure_adb() -> None:
         raise SystemExit(proc.stderr.strip() or proc.stdout.strip() or f"adb connect {ADB_SERIAL} failed")
 
 
-def broadcast(action: str, extras: list[str]) -> subprocess.CompletedProcess[str]:
-    remote_args = ["am", "broadcast", "-a", action, "-n", CLI_COMPONENT, *extras]
+def broadcast(action: str, extras: list[str], *, component: str = CLI_COMPONENT) -> subprocess.CompletedProcess[str]:
+    remote_args = ["am", "broadcast", "-a", action, "-n", component, *extras]
     return adb(["shell", " ".join(shlex.quote(arg) for arg in remote_args)], capture=True)
 
 
@@ -201,6 +204,26 @@ def run_task(name: str) -> None:
         raise SystemExit(1)
 
 
+def explain(path: Path | None = None) -> None:
+    """One-shot live manifest: real triggers/actions (with args), automation modes,
+    current tasks/profiles, recent run-log errors, and a memory/CPU/process device-state
+    snapshot -- everything an LLM needs to author a rule without reading docs or source
+    first. No scp round trip: ExplainReceiver already mirrors its JSON to a path the
+    shell user can read directly."""
+    ensure_adb()
+    result = broadcast(EXPLAIN_ACTION, ["--es", "scope", "all"], component=EXPLAIN_COMPONENT)
+    if "result=-1" not in result.stdout:
+        raise SystemExit(result.stdout + result.stderr)
+    cat = adb(["shell", "cat", EXPLAIN_SHELL_MIRROR], capture=True)
+    if cat.returncode != 0:
+        raise SystemExit(cat.stderr.strip() or cat.stdout.strip() or "failed to read explain mirror")
+    raw = cat.stdout
+    if path is not None:
+        path.write_text(raw)
+    else:
+        print(raw, end="" if raw.endswith("\n") else "\n")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Control Cybersyn over ADB/Tailscale")
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -217,6 +240,8 @@ def main() -> None:
     prof.add_argument("name")
     runp = sub.add_parser("run")
     runp.add_argument("name")
+    explain_p = sub.add_parser("explain")
+    explain_p.add_argument("path", nargs="?", type=Path)
     args = parser.parse_args()
 
     if args.cmd == "list-tasks":
@@ -233,6 +258,8 @@ def main() -> None:
         set_profile(args.name, args.state == "enable")
     elif args.cmd == "run":
         run_task(args.name)
+    elif args.cmd == "explain":
+        explain(args.path)
 
 
 if __name__ == "__main__":

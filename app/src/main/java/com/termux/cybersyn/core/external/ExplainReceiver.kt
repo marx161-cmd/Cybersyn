@@ -8,11 +8,15 @@ import android.os.Build
 import android.os.Bundle
 import com.termux.cybersyn.app.BuildConfig
 import com.termux.cybersyn.app.CybersynApp_NoHilt
+import com.termux.cybersyn.core.RUNTIME_ONLY_ACTION_IDS
 import com.termux.cybersyn.core.actions.ActionMetadataRegistry
 import com.termux.cybersyn.core.capabilities.ActionCapabilityRegistry
+import com.termux.cybersyn.core.contexts.ContextSourceRegistry
+import com.termux.cybersyn.core.diagnostics.DeviceStateSnapshot
 import com.termux.cybersyn.core.diagnostics.DiagnosticExport
 import com.termux.cybersyn.core.diagnostics.EngineHealthReader
 import com.termux.cybersyn.core.logging.AppLogger
+import com.termux.cybersyn.core.model.AutomationMode
 import com.termux.cybersyn.core.power.ShizukuPowerBackend
 import com.termux.cybersyn.core.scripting.TermuxScriptBackend
 import java.io.File
@@ -133,6 +137,7 @@ class ExplainReceiver : BroadcastReceiver() {
         val engineHealth = collect(errors, "engine_health") { EngineHealthReader.read(context, now) }
         val termuxStatus = collect(errors, "termux") { TermuxScriptBackend.inspect(context) }
         val shizukuStatus = collect(errors, "shizuku") { ShizukuPowerBackend.inspect(context) }
+        val deviceState = collect(errors, "device_state") { DeviceStateSnapshot.capture() } ?: emptyMap()
 
         val runtime = JSONObject()
             .put("generated_at", dateFormat.format(Date(now)))
@@ -142,6 +147,14 @@ class ExplainReceiver : BroadcastReceiver() {
                 .put("profiles", profiles.size)
                 .put("enabled_profiles", profiles.count { it.enabled && !it.requiresRiskAcknowledgement })
                 .put("run_logs", db.runLogDao().count()))
+            // Ground truth from the real registries, not a hand-maintained doc that can drift.
+            // Per-type `config` key shapes for triggers aren't structured anywhere in source
+            // (ContextSource only declares `type`), so those stay in docs/CYBERSYNCTL.md's example.
+            .put("triggers", JSONArray(ContextSourceRegistry.all().map { it.type }.sorted()))
+            .put("automation_modes", JSONArray(AutomationMode.entries.map { it.name }))
+            .put("device_state", JSONObject().apply {
+                deviceState.forEach { (section, output) -> put(section, output) }
+            })
             .put("engine", JSONObject()
                 .put("service_running", engineHealth?.serviceRunning)
                 .put("last_heartbeat_at", engineHealth?.lastHeartbeatAtMillis?.takeIf { it > 0 }?.let { dateFormat.format(Date(it)) })
@@ -195,7 +208,7 @@ class ExplainReceiver : BroadcastReceiver() {
         // Resource lookups here throw for any action registered without metadata strings,
         // which would take the whole report down with it.
         val actionCapabilities = runCatching {
-            JSONArray(ActionMetadataRegistry.all().sortedBy { it.id }.mapNotNull { metadata ->
+            val withMetadata = ActionMetadataRegistry.all().sortedBy { it.id }.mapNotNull { metadata ->
                 runCatching {
                     val capability = ActionCapabilityRegistry.get(metadata.id)
                     JSONObject()
@@ -205,8 +218,24 @@ class ExplainReceiver : BroadcastReceiver() {
                         .put("capability", capability.level.name)
                         .put("can_add", capability.canAdd)
                         .put("reason", capability.reason)
+                        .put("fields", JSONArray(metadata.fields.map { field ->
+                            JSONObject()
+                                .put("key", field.key)
+                                .put("type", field.fieldType.name)
+                                .put("required", field.required)
+                        }))
                 }.getOrElse { e -> errors.add("action[${metadata.id}]: ${e.message}"); null }
-            })
+            }
+            // Real, dispatchable actions deliberately absent from the UI catalog (mpv/media/
+            // clipboard/file-transfer relay actions) -- see RUNTIME_ONLY_ACTION_IDS's own doc
+            // comment. Listed here so they're not silently missing from this manifest too.
+            val runtimeOnly = RUNTIME_ONLY_ACTION_IDS.sorted().map { id ->
+                JSONObject()
+                    .put("id", id)
+                    .put("runtime_only", true)
+                    .put("note", "No UI form metadata; call with raw action args. See RUNTIME_ONLY_ACTION_IDS doc comment.")
+            }
+            JSONArray(withMetadata + runtimeOnly)
         }.getOrElse { e -> errors.add("actions: ${e.message}"); JSONArray() }
 
         val buildState = JSONObject()

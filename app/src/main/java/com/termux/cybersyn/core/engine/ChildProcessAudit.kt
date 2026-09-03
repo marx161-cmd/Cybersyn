@@ -21,9 +21,11 @@ import java.io.InputStreamReader
  * is a JVM heap leak, so nothing that watches object graphs (LeakCanary, StrictMode) can see it;
  * the only way to catch it is asking the OS directly what's actually still running.
  *
- * Enumerates via `su -c 'ls /proc'` and per-pid stat/cmdline reads, because blazer's /proc is
- * mounted `hidepid=invisible,gid=3009` and this app (supplementary groups include AID_LOG 1007
- * but NOT AID_READPROC 3009) can only see same-UID children through a direct Java File() walk.
+ * Enumerates via a single bounded root shell `su -c 'timeout 30 ps -A -o PID,PPID,ARGS'`,
+ * because blazer's /proc is mounted `hidepid=invisible,gid=3009` and this app (supplementary
+ * groups include AID_LOG 1007 but NOT AID_READPROC 3009) can only see same-UID children
+ * through a direct Java File() walk. The `timeout` bounds the walk so a stuck kernel /proc
+ * read can never leave a helper spinning at 100% CPU (see 2026-08-29 runaway-`tr` incident).
  * Falls back to the direct walk if su is unavailable, which catches same-UID children only.
  *
  * Groups by full cmdline and flags any signature with more than one concurrent instance --
@@ -105,9 +107,10 @@ object ChildProcessAudit {
     private data class ChildProc(val pid: Int, val cmdline: String)
 
     /**
-     * Primary path: shell out `su -c 'ls /proc'` to enumerate ALL pids regardless of the
-     * hidepid mount, then read each /proc/<pid>/stat and /proc/<pid>/cmdline under the same
-     * root shell. Falls back to a direct Java File() walk (same-UID only) if su is unavailable.
+     * Primary path: one bounded root shell `su -c 'timeout 30 ps -A -o PID,PPID,ARGS'` to
+     * enumerate every pid (with parent + command line) regardless of the hidepid mount, then
+     * filter to ownPid children in-process. Falls back to a direct Java File() walk (same-UID
+     * only) if su is unavailable.
      */
     private fun liveChildren(ownPid: Int): List<ChildProc> {
         val fromSu = runCatching { liveChildrenViaSu(ownPid) }.getOrNull()
@@ -118,63 +121,33 @@ object ChildProcessAudit {
     }
 
     private fun liveChildrenViaSu(ownPid: Int): List<ChildProc> {
-        val pids = mutableListOf<Int>()
-        val lsProc = ProcessBuilder("su", "-c", "ls /proc")
-            .redirectErrorStream(true)
-            .start()
-        BufferedReader(InputStreamReader(lsProc.inputStream)).use { reader ->
-            for (line in reader.lines()) {
-                line.trim().toIntOrNull()?.let { pids.add(it) }
-            }
-        }
-        lsProc.waitFor()
-
-        if (pids.isEmpty()) return emptyList()
-
-        val pidsArg = pids.joinToString(" ") { it.toString() }
-        // Let the shell compute ppid from /proc/<pid>/stat field 4 (after ")" close-paren),
-        // then cat the cmdline. One su invocation for all pids.
-        val script = buildString {
-            appendLine("for p in $pidsArg; do")
-            appendLine("  test -r /proc/\$p/stat || continue")
-            // sed strips everything up to ") " (the close-paren + space that ends the comm field),
-            // then cut picks field 2 (ppid) -- safe even when comm contains spaces/parens.
-            appendLine("  ppid=\$(sed 's/[^)]*) //' /proc/\$p/stat 2>/dev/null | cut -d' ' -f2)")
-            appendLine("  echo PID:\$p:\$ppid")
-            appendLine("  tr '\\0' ' ' < /proc/\$p/cmdline 2>/dev/null")
-            appendLine("  echo")
-            appendLine("done")
-        }
-        val batch = ProcessBuilder("su", "-c", script)
+        val psProc = ProcessBuilder("su", "-c", "timeout 30 ps -A -o PID,PPID,ARGS")
             .redirectErrorStream(true)
             .start()
 
         val result = mutableListOf<ChildProc>()
-        var currentPid = -1
-        var currentPpid = -1
-        var expectingCmdline = false
-
-        BufferedReader(InputStreamReader(batch.inputStream)).use { reader ->
+        BufferedReader(InputStreamReader(psProc.inputStream)).use { reader ->
             for (line in reader.lines()) {
-                if (line.startsWith("PID:") && ':' in line.substring(4)) {
-                    val parts = line.removePrefix("PID:").split(":")
-                    if (parts.size < 2) continue
-                    currentPid = parts[0].trim().toIntOrNull() ?: -1
-                    currentPpid = parts[1].trim().toIntOrNull() ?: -1
-                    expectingCmdline = (currentPpid == ownPid)
-                } else if (expectingCmdline) {
-                    val trimmed = line.trim()
-                    if (trimmed.isNotEmpty() && currentPid >= 0) {
-                        result.add(ChildProc(currentPid, trimmed))
-                    }
-                    expectingCmdline = false
-                    currentPid = -1
-                    currentPpid = -1
-                }
+                val trimmed = line.trim()
+                if (trimmed.isEmpty()) continue
+                // Columns are "PID PPID ARGS" (right-aligned, whitespace-separated). The header
+                // row ("PID ...") fails the pid parse below and is skipped automatically.
+                val firstSpace = trimmed.indexOf(' ')
+                if (firstSpace < 0) continue
+                val pid = trimmed.substring(0, firstSpace).toIntOrNull() ?: continue
+
+                val rest = trimmed.substring(firstSpace).trimStart()
+                val secondSpace = rest.indexOf(' ')
+                if (secondSpace < 0) continue
+                val ppid = rest.substring(0, secondSpace).toIntOrNull() ?: continue
+                if (ppid != ownPid) continue
+
+                val cmdline = rest.substring(secondSpace).trim()
+                if (cmdline.isEmpty()) continue
+                result.add(ChildProc(pid, cmdline))
             }
         }
-        batch.waitFor()
-
+        psProc.waitFor()
         return result
     }
 

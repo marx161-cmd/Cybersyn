@@ -87,6 +87,19 @@ mosquitto_pub -h 100.108.8.60 -t cybersyn/comrade/action -m 'notify:hi from phon
 See `cybersyn-relay.service` (a `--user` unit, so desktop actions inherit the
 session bus / DISPLAY). On comintern, set `CYBERSYN_BROKER=100.108.8.60`.
 
+### Watchdog
+
+The unit runs `Type=notify` with `WatchdogSec=60`. The relay's MQTT event loop
+uses `recv_timeout(20s)` instead of `iter()`, so it wakes at least every 20s
+even when no traffic is flowing, and sends `WATCHDOG=1` on every wake (plus
+`READY=1` at startup). This fixes the Aug-13 wedge: `iter()` parked the
+single-threaded tokio `current_thread` runtime in a futex wait when the broker
+FIN'd the connection, so keepalives stopped, mosquitto dropped the client, and
+the process stayed alive-but-dead forever (socket stuck in CLOSE-WAIT). With
+`recv_timeout` the loop periodically re-polls the socket (noticing the close
+within one cycle and reconnecting) *and* a genuinely stuck loop stops feeding
+the watchdog, so systemd SIGABRTs and `Restart=always` restarts it.
+
 ## History
 
 - The old phone→host control surface (`p30control.service`, gyro→uinput on

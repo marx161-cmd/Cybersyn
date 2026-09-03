@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use clap::Parser;
-use rumqttc::{Client, Event, MqttOptions, Packet, QoS};
+use rumqttc::{Client, Event, MqttOptions, Packet, QoS, RecvTimeoutError};
 
 const CLIPBOARD_TOPIC_PIXEL: &str = "cybersyn/clipboard/pixel";
 const FILE_OFFER_TOPIC: &str = "cybersyn/file/offer";
@@ -658,6 +658,15 @@ fn dispatch_mpris(arg: &str) -> String {
     }
 }
 
+/// Report liveness to systemd. Safe to call even when not launched under a
+/// systemd unit with WatchdogSec= (NOTIFY_SOCKET is simply unset then, and
+/// sd-notify silently no-ops). This must be called from the MQTT event loop
+/// thread — the part of the process that actually wedges — so that a stuck
+/// loop stops feeding the watchdog and systemd kills/restarts the service.
+fn notify_watchdog() {
+    let _ = sd_notify::notify(false, &[sd_notify::NotifyState::Watchdog]);
+}
+
 fn main() {
     let args = Args::parse();
     let node = args.node.unwrap_or_else(short_hostname);
@@ -707,9 +716,20 @@ fn main() {
     std::fs::create_dir_all(expand_home(DOWNLOADS_DIR)).ok();
     std::fs::create_dir_all(expand_home("~/.cache/cybersyn/albumart")).ok();
 
-    for notification in connection.iter() {
-        match notification {
-            Ok(Event::Incoming(Packet::Publish(p))) => {
+    // Tell systemd we're up (no-op outside a Type=notify unit). WatchdogSec on
+    // the unit then expects WATCHDOG=1 within its interval; a wedged event loop
+    // below stops feeding it and systemd restarts us.
+    let _ = sd_notify::notify(false, &[sd_notify::NotifyState::Ready]);
+
+    loop {
+        // recv_timeout, not iter(): a 20s idle timeout makes the loop wake even
+        // when no MQTT traffic is flowing, so (a) keepalives always get serviced
+        // and (b) a broker FIN/close that tokio failed to wake us for gets
+        // noticed within one cycle instead of wedging the process forever (the
+        // Aug-13 CLOSE-WAIT incident). Feeding the watchdog on every iteration
+        // ties liveness to this exact loop.
+        match connection.recv_timeout(Duration::from_secs(20)) {
+            Ok(Ok(Event::Incoming(Packet::Publish(p)))) => {
                 let payload_str =
                     String::from_utf8_lossy(&p.payload).to_string();
 
@@ -718,6 +738,7 @@ fn main() {
                         clipboard::set_content(&content, &clipboard_state);
                         println!("clipboard: received from pixel: {} chars", content.len());
                     }
+                    notify_watchdog();
                     continue;
                 }
 
@@ -739,8 +760,9 @@ fn main() {
                 ) {
                     eprintln!("failed to publish result: {e}");
                 }
+                notify_watchdog();
             }
-            Ok(Event::Incoming(Packet::ConnAck(_))) => {
+            Ok(Ok(Event::Incoming(Packet::ConnAck(_)))) => {
                 if let Err(e) = client
                     .subscribe(&action_topic, QoS::AtLeastOnce)
                     .and_then(|_| {
@@ -755,11 +777,22 @@ fn main() {
                 println!(
                     "connected, subscribed to {action_topic} + {CLIPBOARD_TOPIC_PIXEL}"
                 );
+                notify_watchdog();
             }
-            Ok(_) => {}
-            Err(e) => {
+            Ok(Ok(_)) => {
+                notify_watchdog();
+            }
+            Ok(Err(e)) => {
                 eprintln!("mqtt connection error: {e}; retrying");
+                notify_watchdog();
                 std::thread::sleep(Duration::from_secs(2));
+            }
+            Err(RecvTimeoutError::Timeout) => {
+                notify_watchdog();
+            }
+            Err(RecvTimeoutError::Disconnected) => {
+                eprintln!("mqtt event loop ended; exiting so systemd restarts us");
+                std::process::exit(1);
             }
         }
     }
