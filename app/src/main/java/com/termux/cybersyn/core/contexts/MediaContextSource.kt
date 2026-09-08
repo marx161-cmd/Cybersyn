@@ -30,6 +30,18 @@ class MediaContextSource : SubscriptionReadyContextSource {
 
     private var lastAlbumArtHash: String? = null
     private var albumArtBitmap: Bitmap? = null
+    private var lastSnapshot: MediaSnapshot? = null
+    private var lastWasIdle: Boolean? = null
+
+    private data class MediaSnapshot(
+        val title: String?,
+        val artist: String?,
+        val album: String?,
+        val length: Long,
+        val isPlaying: Boolean,
+        val actions: Long,
+        val albumArt: Bitmap?,
+    )
 
     override fun events(app: Context, onSubscribed: () -> Unit): Flow<ContextEvent> = channelFlow {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
@@ -134,13 +146,18 @@ class MediaContextSource : SubscriptionReadyContextSource {
     private fun updateMediaSession(app: Context, session: MediaSession, status: JSONObject) {
         val active = findActivePlayer(status)
         if (active == null) {
-            // No player — set idle state
+            // No player — set idle state, but only once (repeated identical
+            // status messages shouldn't re-touch the session every time).
+            if (lastWasIdle == true) return
+            lastWasIdle = true
+            lastSnapshot = null
             val state = PlaybackState.Builder()
                 .setState(PlaybackState.STATE_NONE, 0, 0f)
                 .build()
             session.setPlaybackState(state)
             return
         }
+        lastWasIdle = false
 
         val title = active.optString("title", null)
         val artist = active.optString("artist", null)
@@ -170,6 +187,15 @@ class MediaContextSource : SubscriptionReadyContextSource {
         if (canGoNext) actions = actions or PlaybackState.ACTION_SKIP_TO_NEXT
         if (canGoPrevious) actions = actions or PlaybackState.ACTION_SKIP_TO_PREVIOUS
         if (canSeek) actions = actions or PlaybackState.ACTION_SEEK_TO
+
+        // The relay republishes player status on a fixed cadence regardless of
+        // whether anything changed. PlaybackState already carries position +
+        // speed + a timestamp, so the OS extrapolates the progress bar on its
+        // own — skip the session/notification rebuild (and the SystemUI media
+        // card re-render it triggers) unless something real actually changed.
+        val snapshot = MediaSnapshot(title, artist, album, length, isPlaying, actions, albumArtBitmap)
+        if (snapshot == lastSnapshot) return
+        lastSnapshot = snapshot
 
         val state = PlaybackState.Builder()
             .setState(playState, position, if (isPlaying) 1.0f else 0f)
