@@ -25,6 +25,7 @@ class ForegroundAccessibilityService : AccessibilityService() {
         if (pkg in OVERLAY_PACKAGES || !event.isActivityWindow()) return
 
         if (pkg == lastPackage) return
+        KeyHijackController.artemisForeground = pkg in ARTEMIS_PACKAGES
         val wasBrowser = isBrowser(lastPackage)
         val isBrowser = isBrowser(pkg)
         lastPackage = pkg
@@ -46,6 +47,7 @@ class ForegroundAccessibilityService : AccessibilityService() {
 
     override fun onDestroy() {
         if (isBrowser(lastPackage)) setBrowserMode(false)
+        KeyHijackController.artemisForeground = false
         lastPackage = null
         super.onDestroy()
     }
@@ -83,6 +85,10 @@ class ForegroundAccessibilityService : AccessibilityService() {
         private val BROWSER_PACKAGES = setOf(
             "org.cromite.cromite",
             "org.mozilla.firefox",
+        )
+
+        /** The Moonlight/Artemis stream of comrade: vol-down = gyro (was browser nav until 2026-09-28). */
+        private val ARTEMIS_PACKAGES = setOf(
             "com.termux.diana.root.noir",
         )
 

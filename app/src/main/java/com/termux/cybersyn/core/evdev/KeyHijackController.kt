@@ -144,9 +144,20 @@ object KeyHijackController {
             pushMode()
         }
 
+    // Artemis (the Moonlight stream of comrade's desktop) in front: vol-down = gyro, so the
+    // phone steers the shader backdrop it is showing (user 2026-09-28: "always when artemis
+    // is on screen"). Same routing as the AMD-mode toggle.
+    var artemisForeground: Boolean = false
+        set(value) {
+            field = value
+            pushMode()
+        }
+
+    private val gyroMode: Boolean get() = amdMode || artemisForeground
+
     private fun pushMode() {
         val mode = when {
-            amdMode -> "gyro"
+            gyroMode -> "gyro"
             browserForeground -> "browser"
             else -> "normal"
         }
@@ -416,13 +427,13 @@ object KeyHijackController {
                         return
                     }
 
-                    if (amdMode && code in listOf(KEY_VOLUME_DOWN, KEY_VOLUME_UP)) {
+                    if (gyroMode && code in listOf(KEY_VOLUME_DOWN, KEY_VOLUME_UP)) {
                         // Gyro mode
                         when (code) {
                             KEY_VOLUME_DOWN -> { activePress[code] = PressKind.GYRO; startGyro() }
                             KEY_VOLUME_UP -> { activePress[code] = PressKind.HOLD; startHold() }
                         }
-                    } else if (!amdMode && browserForeground && code in listOf(KEY_VOLUME_DOWN, KEY_VOLUME_UP)) {
+                    } else if (!gyroMode && browserForeground && code in listOf(KEY_VOLUME_DOWN, KEY_VOLUME_UP)) {
                         // Browser nav mode.
                         activePress[code] = PressKind.BROWSER_NAV
                         val media = if (code == KEY_VOLUME_DOWN) KEY_MEDIA_PREVIOUS else KEY_MEDIA_NEXT
@@ -445,16 +456,21 @@ object KeyHijackController {
         send("EMIT_KC $deviceId $code $value")
     }
 
+    // The orientation stream the relay turns into pointing. It used to come only from the
+    // trackpad stub while that screen was open; the hold now streams it itself, so the gyro
+    // works over any app (Artemis). Sensor on only while the key is held.
     private fun startGyro() {
         val ctx = appContext ?: return
         Thread {
-            MqttBridge.publish(ctx, "android/clutch", "ON")
+            MqttBridge.publish(ctx, "android/clutch", "ON")   // before the first sample: the relay calibrates on it
+            GyroStreamer.start(ctx)
         }.also { it.name = "gyro-pub" }.start()
     }
 
     private fun stopGyro() {
         val ctx = appContext ?: return
         Thread {
+            GyroStreamer.stop()
             MqttBridge.publish(ctx, "android/clutch", "OFF")
         }.also { it.name = "gyro-pub" }.start()
     }
