@@ -97,6 +97,22 @@ object KeyHijackController {
     private var detector: KeyTriggerDetector? = null
     private var consumeCodes: Set<Int> = emptySet()
 
+    /** Android key codes gpio_keys needs the uinput clone to gain (see setGrabTargets). */
+    private val gpioExtraCodes =
+        intArrayOf(KEY_VOLUME_DOWN, KEY_VOLUME_UP, KEY_POWER, KEY_MEDIA_NEXT, KEY_MEDIA_PREVIOUS)
+
+    /**
+     * Additional evdev devices grabbed and consumed whole (the relayed BT keyboard). The
+     * Rust watcher grabs one when it appears and drops it on disconnect — no trigger or
+     * Bluetooth broadcast is involved.
+     */
+    private val extraGrabTargets = listOf(RemoteKeyboardRelay.grabTarget)
+
+    // Device ids currently grabbed as the relayed keyboard, and a scratch batch for
+    // GRAB_OK..GRAB_DONE. Both are only touched from the helper reader coroutine.
+    private val keyboardDeviceIds = mutableSetOf<Int>()
+    private val pendingGrabbed = mutableListOf<Pair<String, Int>>()
+
     /**
      * Replace the classified trigger set. Safe to call while running.
      *
@@ -328,6 +344,8 @@ object KeyHijackController {
         helperProcess = null
         keyState.clear()
         activePress.clear()
+        keyboardDeviceIds.clear()
+        pendingGrabbed.clear()
         deviceId = 0
     }
 
@@ -347,10 +365,19 @@ object KeyHijackController {
         }.onFailure { AppLogger.warn(TAG, "Failed to sweep stray evdev helpers", it) }
     }
 
-    /** Set which keys to grab. Must be called after READY is received. */
-    fun setGrabTargets(bus: Int, vendor: Int, product: Int, codes: IntArray) {
-        val codesStr = codes.joinToString(",")
-        send("GRAB $bus $vendor $product $codesStr")
+    /**
+     * (Re)register the full grab-target list: gpio_keys (vol±/power/media) plus the relayed
+     * BT keyboard. Must be called after READY. The helper appends until GRAB_APPLY, so this
+     * is the single authoritative source of what gets grabbed.
+     */
+    private fun applyGrabTargets() {
+        send("GRAB_RESET")
+        send("GRAB 25 1 1 ${gpioExtraCodes.joinToString(",")} gpio_keys")
+        for (target in extraGrabTargets) {
+            val codes = if (target.extraKeyCodes.isEmpty()) "-" else target.extraKeyCodes.joinToString(",")
+            send("GRAB ${target.bus} ${target.vendor} ${target.product} $codes ${target.name}")
+        }
+        send("GRAB_APPLY")
     }
 
     private fun send(cmd: String) {
@@ -374,28 +401,40 @@ object KeyHijackController {
                 "READY" -> {
                     val pid = parts[1].toIntOrNull() ?: return
                     AppLogger.info(TAG, "root helper ready (pid=$pid)")
-                    // The GRAB codes become the uinput clone's *extra* capabilities
+                    // The gpio codes become the uinput clone's *extra* capabilities
                     // (extra_event_codes): gpio_keys only advertises vol±/power, so the
                     // media keys MUST be registered here or the kernel silently drops
                     // every EMIT_KC for them (browser prev/next was dead without this).
-                    setGrabTargets(
-                        0x19, 0x1, 0x1,
-                        intArrayOf(KEY_VOLUME_DOWN, KEY_VOLUME_UP, KEY_POWER, KEY_MEDIA_NEXT, KEY_MEDIA_PREVIOUS),
-                    )
+                    applyGrabTargets()
                     // (Re)establish routing state — a restarted helper starts blank.
                     pushMode()
                     pushConsume()
                 }
                 "GRAB_OK" -> {
-                    deviceId = parts[2].toIntOrNull() ?: 0
-                    AppLogger.info(TAG, "grab ok: ${parts[1]} id=$deviceId")
+                    // GRAB_OK <name may contain spaces> <id>: id is the last token.
+                    val id = parts.last().toIntOrNull() ?: return
+                    val name = parts.subList(1, parts.size - 1).joinToString(" ")
+                    pendingGrabbed.add(name to id)
+                    AppLogger.info(TAG, "grab ok: $name id=$id")
+                }
+                "GRAB_DONE" -> {
+                    // Fresh snapshot of grabbed devices; recompute the relayed-keyboard ids
+                    // and tell the helper to consume those devices whole.
+                    keyboardDeviceIds.clear()
+                    for ((name, id) in pendingGrabbed) {
+                        if (RemoteKeyboardRelay.isRemoteKeyboard(name)) keyboardDeviceIds.add(id) else deviceId = id
+                    }
+                    pendingGrabbed.clear()
+                    send("CONSUME_DEVICE ${keyboardDeviceIds.joinToString(",")}")
                 }
                 "EMERGENCY" -> {
                     emergencyStop.set(true)
                     AppLogger.error(TAG, "EMERGENCY from helper (power held 10s); native layer exits itself")
                 }
                 "EV_UP" -> {
+                    val id = parts[1].toInt()
                     val code = parts[2].toInt()
+                    if (id in keyboardDeviceIds) return
                     keyState[code] = false
                     detector?.onKeyEvent(code, 0)
                     // Route the release by what the DOWN started, never by current mode:
@@ -410,6 +449,10 @@ object KeyHijackController {
                 "EV_DOWN" -> {
                     val id = parts[1].toInt()
                     val code = parts[2].toInt()
+                    // Relayed keyboard: consumed on the helper side and forwarded raw on
+                    // EV_RAW. Keep it out of the volume/power routing and the trigger
+                    // detector entirely so a keyboard volume key can't clutch the gyro.
+                    if (id in keyboardDeviceIds) return
                     keyState[code] = true
                     detector?.onKeyEvent(code, 1)
 
@@ -443,8 +486,22 @@ object KeyHijackController {
                         activePress[code] = PressKind.PASSIVE
                     }
                 }
-                "EV_RAW" -> {} // Raw events streamed; EV_DOWN/EV_UP are derived
+                "EV_RAW" -> {
+                    // EV_RAW <deviceId> <type> <code> <value> <androidCode>. Only the
+                    // relayed keyboard is forwarded; gpio_keys is handled via EV_DOWN/UP.
+                    val id = parts[1].toIntOrNull() ?: return
+                    if (id !in keyboardDeviceIds) return
+                    val ctx = appContext ?: return
+                    RemoteKeyboardRelay.forward(
+                        ctx,
+                        parts[2].toIntOrNull() ?: return,
+                        parts[3].toIntOrNull() ?: return,
+                        parts[4].toIntOrNull() ?: return,
+                    )
+                }
                 "EV_REPEAT" -> {
+                    val id = parts[1].toIntOrNull() ?: return
+                    if (id in keyboardDeviceIds) return
                     val code = parts[2].toIntOrNull() ?: return
                     detector?.onKeyEvent(code, 2)
                 }

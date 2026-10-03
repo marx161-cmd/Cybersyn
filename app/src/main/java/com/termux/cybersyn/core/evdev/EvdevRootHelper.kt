@@ -17,14 +17,18 @@ import java.util.concurrent.atomic.AtomicReference
  *           EV_DOWN <deviceId> <androidCode>                              (key down, simplified)
  *           EV_UP   <deviceId> <androidCode>                              (key up, simplified)
  *           EV_REPEAT <deviceId> <androidCode>                            (autorepeat)
- *           GRAB_OK  <deviceName> <deviceId>                              (grab succeeded)
+ *           GRAB_OK  <deviceName> <deviceId>                              (one per grabbed device)
+ *           GRAB_DONE                                                    (terminates a GRAB_OK batch)
  *           READY    <pid>                                                (fully initialized)
  *           EMERGENCY                                                     (power held 10s; native exits after)
  *   stdin:  EMIT    <deviceId> <type> <code> <value>                      (write evdev event)
  *           EMIT_KC <deviceId> <androidCode> <value>                      (write android keycode)
- *           GRAB    <bus> <vendor> <product> <code>,...                   (set grab targets)
+ *           GRAB_RESET                                                   (clear the pending target list)
+ *           GRAB    <bus> <vendor> <product> <code>,...|- <name>(append one grab target)
+ *           GRAB_APPLY                                                   (commit the pending targets)
  *           MODE    normal|gyro|browser                                   (routing mode)
  *           CONSUME <linuxCode>,...                                       (always-consume set; empty clears)
+ *           CONSUME_DEVICE <deviceId>,...                                 (consume ALL keys of these devices; empty clears)
  *           QUIT                                                          (shutdown)
  */
 object EvdevRootHelper {
@@ -67,6 +71,14 @@ object EvdevRootHelper {
         // callback thread; replaced wholesale, never mutated.
         val consumeAlways = AtomicReference<Set<Int>>(emptySet())
 
+        // Whole-device consume set (the relayed BT keyboard): every EV_KEY from these
+        // device ids is swallowed, so the keyboard never types on the phone.
+        val consumeDeviceIds = AtomicReference<Set<Int>>(emptySet())
+
+        // Pending grab targets, built up by GRAB_RESET/GRAB and committed by GRAB_APPLY.
+        // Only ever touched on the stdin thread.
+        val pendingTargets = mutableListOf<GrabTargetKeyCode>()
+
         // The consume decision is LATCHED at key-down and reused for the repeat and
         // release of the same press. Deciding per-event by current mode leaves a key
         // stuck when the mode flips mid-hold: down passed through + up consumed means
@@ -107,6 +119,10 @@ object EvdevRootHelper {
             // this -- that is a double press.
             if (type != EV_KEY) {
                 false
+            } else if (deviceId in consumeDeviceIds.get()) {
+                // Whole-device consume: the relayed BT keyboard. Swallow it here so the
+                // phone never acts on it; the controller forwards the raw code to MQTT.
+                true
             } else if (code == KEY_POWER) {
                 // Power is never remapped: let it through so long-press (assistant /
                 // power menu, per power_button_long_press) resolves natively.
@@ -140,6 +156,7 @@ object EvdevRootHelper {
                 for (h in handles) {
                     println("GRAB_OK ${h.name} ${h.id}")
                 }
+                println("GRAB_DONE")
                 System.out.flush()
             }
         }
@@ -152,16 +169,26 @@ object EvdevRootHelper {
 
             try {
                 when (parts[0]) {
+                    "GRAB_RESET" -> pendingTargets.clear()
                     "GRAB" -> {
-                        // GRAB <bus> <vendor> <product> <code1>,<code2>,...
-                        if (parts.size < 5) continue
+                        // GRAB <bus> <vendor> <product> <code1>,...|- <name with spaces>
+                        // "-" means the device needs no extra key codes (a full keyboard).
+                        if (parts.size < 6) continue
                         val bus = parts[1].toInt()
                         val vendor = parts[2].toInt()
                         val product = parts[3].toInt()
-                        val codes = parts[4].split(",").mapNotNull { it.toIntOrNull() }.toIntArray()
-                        bridge.setGrabTargetsNative(
-                            arrayOf(GrabTargetKeyCode("gpio_keys", bus, vendor, product, codes))
+                        val codes = if (parts[4] == "-") {
+                            IntArray(0)
+                        } else {
+                            parts[4].split(",").mapNotNull { it.toIntOrNull() }.toIntArray()
+                        }
+                        val name = parts.drop(5).joinToString(" ")
+                        pendingTargets.add(
+                            GrabTargetKeyCode(name, bus, vendor, product, codes)
                         )
+                    }
+                    "GRAB_APPLY" -> {
+                        bridge.setGrabTargetsNative(pendingTargets.toTypedArray())
                     }
                     "EMIT" -> {
                         // EMIT <deviceId> <type> <code> <value>
@@ -196,6 +223,13 @@ object EvdevRootHelper {
                         val codes = if (parts.size < 2) emptySet() else
                             parts[1].split(",").mapNotNull { it.toIntOrNull() }.toSet()
                         consumeAlways.set(codes)
+                    }
+                    "CONSUME_DEVICE" -> {
+                        // CONSUME_DEVICE <deviceId>,... — swallow every key from these
+                        // devices. "CONSUME_DEVICE" alone (or unparsable) clears it.
+                        val ids = if (parts.size < 2) emptySet() else
+                            parts[1].split(",").mapNotNull { it.toIntOrNull() }.toSet()
+                        consumeDeviceIds.set(ids)
                     }
                     "QUIT" -> running.set(false)
                 }

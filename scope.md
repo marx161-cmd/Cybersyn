@@ -327,5 +327,108 @@ over adb instead of `explain` answering it directly). Fixed in
 `DeviceStateSnapshot.kt`: the shell command is now `ps -A -o PID,PPID,RSS,ARGS |
 sort -k3 -nr` (still inside the same bounded `su -c "timeout N ..."` wrapper),
 verified live post-redeploy — top of the list now reads real RSS-heavy apps
-(`ru.tech.imageresizershrinker` 1.2GB, `dev.brgr.outspoke` 875MB, `system_server`
-866MB, ...), kernel threads sorted off the bottom of the 40-line cap for free.
+  (`ru.tech.imageresizershrinker` 1.2GB, `dev.brgr.outspoke` 875MB, `system_server`
+  866MB, ...), kernel threads sorted off the bottom of the 40-line cap for free.
+
+## 2026-10-03 — RAPOO Bluetooth keyboard → comrade keystroke relay (evdev → uinput)
+
+**Goal, decided with the user this session:** the user keeps a RAPOO Bluetooth
+keyboard in a different room; the BT link to the Pixel is weak, but the Pixel is
+always-on and already has a Tailscale/MQTT path to `comrade`. They want the
+keyboard to type/navigate on the AMD box (`comrade`) **whenever the Pixel is
+connected to that keyboard**, not on the Pixel.
+
+**Decisions confirmed with the user (all recommended options):**
+1. **Automatic while connected** — grab + relay whenever the RAPOO is present,
+   ungrab on disconnect. Not gated on the existing `hidmode` AMD toggle.
+2. **Exclusively relay** — the RAPOO's keys are consumed on the Pixel and never
+   type on the phone (phone touchscreen/other input untouched).
+3. **Raw evdev → uinput keyboard on comrade** — replays the raw Linux keycode.
+   Layout-correct and works with i3/X directly; no per-key xdotool mapping table,
+   modifiers/chords work for free. (`cybersyn/hid/key`'s xdotool-token lane is
+   left as-is for SpectreBoard's AMD-mode soft keyboard.)
+
+**Concrete device identity (live-verified 2026-10-03 via `/proc/bus/input/devices`):**
+- name `RAPOO Keyboard-1 Keyboard`, Bus `0x0005` (Bluetooth), Vendor `0x245a`,
+  Product `0x8276`, `/dev/input/event4`, uniq `d1:06:98:ed:1c:8a`.
+- We match on the evdev `(name, bus, vendor, product)` tuple only. **No Android
+  Bluetooth event/broadcast is needed** — the Rust `EvdevDevicesWatcher` already
+  watches `/dev/input` for `Create`/`Remove` and hot-grabs a registered target
+  when it appears, so connect/disconnect (and boot with the keyboard already
+  paired) are all handled by the same path with zero new trigger code.
+
+**Why reuse, not build:** `EvdevRootHelper` (root `app_process`, in-APK) already
+grabs evdev devices, already emits `EV_RAW <deviceId> <type> <code> <value>
+<androidCode>` with the raw Linux code, and `MqttBridge.publish` already gives a
+single persistent MQTT connection (the `cybersyn-pub.fifo` / `cybersyn-send`
+doorway). The Rust side (`libevdev_manager.so`) already accepts an **array** of
+`GrabTargetKeyCode` and supports multiple simultaneous grabs. So this is:
+one extra grab target + a consume-all flag for that device + a new MQTT topic +
+a keyboard uinput device in the relay. **No Rust/native rebuild, no new ROM
+permission, no new app, no BT receiver.**
+
+**Design (implemented):**
+1. **Phone — `KeyHijackController.kt`:** register a *second* grab target
+   (the RAPOO) alongside `gpio_keys` via a new multi-target stdin protocol
+   (`GRAB_RESET` + N× `GRAB <bus> <vendor> <product> <codes> <name…>` +
+   `GRAB_APPLY`). Track grabbed device ids from `GRAB_OK` batches (now
+   batch-terminated by `GRAB_DONE`) and tell the helper to hard-consume every
+   `EV_KEY` from the keyboard ids (`CONSUME_DEVICE <ids>`). For those ids, forward
+   `code,value` (down=`1`, up=`0`; drop autorepeat `2` so comrade's X owns
+   repeat timing) to MQTT topic `cybersyn/hid/keyraw`, and skip the vol/power/gyro
+   routing entirely so a keyboard volume key can't trigger a gyro clutch.
+2. **Phone — `EvdevRootHelper.kt`:** new commands `GRAB_RESET`, name-aware
+   multi-target `GRAB`, `GRAB_APPLY`, `CONSUME_DEVICE`; new stdout line
+   `GRAB_DONE`. Callback consumes all `EV_KEY` from the configured device ids
+   (checked before the power/vol logic). Small pure helper
+   `RemoteKeyboardRelay.kt` holds the target identity + payload formatting for
+   unit testing.
+3. **comrade — `cybersyn-hid-relay.py`:** new `--keyraw-topic` (default
+   `cybersyn/hid/keyraw`), a second `uinput.Device` declaring all `(EV_KEY, code)`
+   capabilities (`python-uinput` accepts raw `(type, code)` tuples, verified),
+   and a handler that emits `(uinput.EV_KEY, code)` with the forwarded value.
+   Restart the user service to go live.
+
+**Risks / accepted:** while the keyboard is connected it cannot be used on the
+Pixel at all (that is the requested behavior); there is no local-escape key for
+the BT keyboard (the 10s-power-hold escape only exists on `gpio_keys`). If this
+proves annoying, the follow-up is to gate on `hidmode` or add a chord toggle —
+not built now.
+
+**Not changed:** the existing `cybersyn/hid/key` xdotool lane, the Android
+Bluetooth context source, the crDroid ROM, and the MQTT trust boundary.
+
+## 2026-10-03 — Correction: match ANY RAPOO Keyboard interface, not one exact name
+
+Same session, immediately after the entry above. The user reported the keyboard
+"sometimes shows up with a different number" (the trailing HID instance index in
+`RAPOO Keyboard-N Keyboard`) and asked to grab **all RAPOO keyboards**; they also
+confirmed they only ever connect this one keyboard.
+
+This directly contradicts the exact-`(name,bus,vendor,product)` match and the
+"no Rust/native rebuild" line in the entry above, so per the append-only rule this
+corrects it rather than editing that entry:
+
+- **Matcher change (requires the one native rebuild the prior entry ruled out):**
+  `app/src/main/rust/evdev_manager/core/src/grab_target.rs` now supports name
+  wildcards (`"*Keyboard"` = suffix, `"RAPOO*"` = prefix; plain name still exact)
+  and an `ANY = 0xFFFF` sentinel for bus/vendor/product. Four unit tests added
+  (exact, suffix, prefix, ANY-sentinel) and passing.
+- `libevdev_manager.so` rebuilt for arm64 via `cargo ndk -t arm64-v8a build
+  --release -p main` and copied into `app/src/main/jniLibs/arm64-v8a/` (build is
+  ~5s incremental; NDK resolved from `$ANDROID_SDK_ROOT`).
+- Kotlin target is now `name="*Keyboard", bus=0x05, vendor=0x245a, product=ANY`
+  (`RemoteKeyboardRelay`). `isRemoteKeyboard()` mirrors it as a case-insensitive
+  `endsWith("Keyboard")`; `gpio_keys` is unaffected (plain exact name).
+- **Known limitation, accepted:** a native target grabs the *first* matching
+  device per target (`get_targets_to_grab` uses `.find`), so if a single RAPOO
+  ever exposed two interfaces both named `...Keyboard` simultaneously only one
+  would be grabbed. HID keyboards expose one `Keyboard` interface (media keys are
+  a separate `Consumer Control`), and the user only connects this keyboard, so
+  this is not worked around.
+- Everything else from the entry above stands: consume-all, `cybersyn/hid/keyraw`,
+  uinput replay, automatic on connect/at boot.
+
+**Not changed:** match still scoped to Bluetooth bus + RAPOO vendor, so an
+unrelated BT keyboard would not be grabbed; only the model/product number is
+unpinned.
