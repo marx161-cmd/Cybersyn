@@ -509,3 +509,27 @@ on Wi-Fi when home is the other lever and is independent of this change.
   resets to "android" at every reboot. The accessibility service is therefore
   enabled once (a stored setting) so Artemis detection actually works.
   The AMD toggle is left as is.
+
+## 2026-10-15 — AMD-mode toggle no longer drives the volume keys
+
+**Decided with the user:** now that Artemis-in-front detection is live
+(`ForegroundAccessibilityService` enabled, see entry above), the gyro-mode
+volume-key routing (vol-down held = gyro mouse, vol-up = ALL) depends **only**
+on `artemisForeground`. The AMD-mode toggle (`cybersyn-hidmode` file, SpectreBoard
+toolbar) no longer turns gyro mode on; it keeps its other job (SpectreBoard
+input routed to comrade). The user had the toggle only to get gyro on the keys
+without Artemis detection; it also reset at every reboot. `amdMode` stays
+in `KeyHijackController` (still set by AutomationService) but no longer feeds
+`gyroMode`.
+
+## 2026-10-15 — Correction: AMD-mode flag removed from the key hijack entirely
+
+Follow-up to the entry above. The user's intent (restated): the AMD toggle was
+only ever a stand-in for Artemis detection and the accessibility service is
+meant to be ON — "drop the flag and do accessibility instead". So rather than
+leave `amdMode` as a dead property, Cybersyn no longer reads or watches
+`/data/data/com.termux/files/usr/tmp/cybersyn-hidmode` at all
+(`KeyHijackController.amdMode`, the FileObserver and `readHidMode()` in
+`AutomationService` are deleted). Gyro-mode volume keys = Artemis in front,
+via `ForegroundAccessibilityService`, nothing else. SpectreBoard's own toggle
+and the file it writes are untouched (it still routes its input to comrade).

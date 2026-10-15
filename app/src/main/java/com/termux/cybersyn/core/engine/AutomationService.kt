@@ -160,11 +160,6 @@ class AutomationService : Service() {
     @Volatile private var audioForegroundServiceEligibility = AudioForegroundServiceEligibility.BACKGROUND_STARTED
     @Volatile private var engineLoaded = false
 
-    // AMD-mode gate for the volume-key hijack: SpectreBoard's toolbar toggle mirrors its state
-    // to this shared-UID file, which replaces the old spectreboard/ime_shown MQTT topic.
-    private val hidModeFile = java.io.File("/data/data/com.termux/files/usr/tmp/cybersyn-hidmode")
-    private var hidModeObserver: android.os.FileObserver? = null
-
     /** Completes when the stray-logcat-reader sweep has finished. See onCreate. */
     private val strayLogcatSweep = CompletableDeferred<Unit>()
 
@@ -339,29 +334,7 @@ class AutomationService : Service() {
         KeyHijackController.appContext = applicationContext
         registerKeyTriggers()
         KeyHijackController.start(applicationContext)
-        // Gate the volume-key hijack on the AMD-mode toggle. SpectreBoard mirrors the toggle to
-        // hidModeFile (this replaces the old spectreboard/ime_shown MQTT topic + Last Will).
-        // Seed from the file now, then watch it so a toggle re-gates the vol keys immediately.
-        KeyHijackController.amdMode = readHidMode()
-        hidModeObserver = object : android.os.FileObserver(
-            hidModeFile.absolutePath,
-            android.os.FileObserver.CLOSE_WRITE or android.os.FileObserver.MODIFY,
-        ) {
-            override fun onEvent(event: Int, path: String?) {
-                KeyHijackController.amdMode = readHidMode()
-            }
-        }.also { it.startWatching() }
     }
-
-    /** Read the AMD-mode gate file; create it (default off) if absent so the observer has a target. */
-    private fun readHidMode(): Boolean = runCatching {
-        if (!hidModeFile.exists()) {
-            hidModeFile.writeText("android")
-            false
-        } else {
-            hidModeFile.readText().trim() == "amd"
-        }
-    }.getOrDefault(false)
 
     /**
      * Publish classified hardware-key triggers as `external_trigger` events.
@@ -390,7 +363,6 @@ class AutomationService : Service() {
     override fun onDestroy() {
         KeyHijackController.stop()
         MqttIngest.stop()
-        hidModeObserver?.stopWatching()
         val matcherJobSnapshot = matcherJobs.values.toList()
         val taskJobSnapshot = profileTaskJobs.values.toList()
         matcherJobSnapshot.forEach { it.cancel() }

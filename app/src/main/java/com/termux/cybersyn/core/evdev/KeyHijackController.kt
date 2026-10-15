@@ -143,17 +143,11 @@ object KeyHijackController {
         pushConsume()
     }
 
-    // Set by caller (AutomationService). Both push the routing mode down to the helper,
+    // Set by caller (AutomationService / ForegroundAccessibilityService). Both push the routing mode down to the helper,
     // because the consume decision has to be made inside the native callback -- see the
     // comment in EvdevRootHelper.
     var appContext: Context? = null
     var deviceId: Int = 0
-
-    var amdMode: Boolean = false
-        set(value) {
-            field = value
-            pushMode()
-        }
 
     var browserForeground: Boolean = false
         set(value) {
@@ -163,14 +157,16 @@ object KeyHijackController {
 
     // Artemis (the Moonlight stream of comrade's desktop) in front: vol-down = gyro, so the
     // phone steers the shader backdrop it is showing (user 2026-09-28: "always when artemis
-    // is on screen"). Same routing as the AMD-mode toggle.
+    // is on screen").
     var artemisForeground: Boolean = false
         set(value) {
             field = value
             pushMode()
         }
 
-    private val gyroMode: Boolean get() = amdMode || artemisForeground
+    // Artemis in front only. The AMD-mode toggle used to OR in here; it no longer drives the
+    // volume keys (user 2026-10-15) -- it only routes SpectreBoard input to comrade.
+    private val gyroMode: Boolean get() = artemisForeground
 
     private fun pushMode() {
         val mode = when {
