@@ -533,3 +533,23 @@ leave `amdMode` as a dead property, Cybersyn no longer reads or watches
 `AutomationService` are deleted). Gyro-mode volume keys = Artemis in front,
 via `ForegroundAccessibilityService`, nothing else. SpectreBoard's own toggle
 and the file it writes are untouched (it still routes its input to comrade).
+
+## 2026-10-15 — Gyro mouse + ALL move OUT of Cybersyn and INTO Diana (the stream)
+
+**Decided with the user:** the gyro and the vol-up ALL action do not belong in
+Cybersyn's system-wide key hijack + accessibility detection. They belong in
+the stream app, which already has a high-quality low-latency mouse path and
+receives the volume keys directly while streaming. Reverses the two entries
+above (Artemis-detection-driven gyro mode):
+
+- Cybersyn: `KeyHijackController` loses gyro mode entirely (`artemisForeground`,
+  `gyroMode`, `PressKind.GYRO/GATHER`, `startGyro/stopGyro/gatherWorkspaces`, the
+  "gyro" mode push) and `GyroStreamer.kt` is deleted. `ForegroundAccessibilityService`
+  no longer touches `artemisForeground`. The accessibility service is turned
+  OFF again on the phone (removed from `enabled_accessibility_services`);
+  its class stays only for the dormant browser-nav path. The 08-24
+  `i3-gather-here` relay script stays (Diana calls it).
+- Diana (`~/builds/android/artemis-patch`, see its scope.md): vol-down held =
+  gyro MOUSE CURSOR (target chosen by the user: the desktop cursor, not the shader
+  camera) as relative mouse moves over the stream; vol-up = publish
+  `script:i3-gather-here`. See Diana scope.md for the math/ownership.
