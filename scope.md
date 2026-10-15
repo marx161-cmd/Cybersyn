@@ -432,3 +432,53 @@ corrects it rather than editing that entry:
 **Not changed:** match still scoped to Bluetooth bus + RAPOO vendor, so an
 unrelated BT keyboard would not be grabbed; only the model/product number is
 unpinned.
+
+## 2026-10-15 — One MQTT connection for all of Cybersyn (hub helper), to cut cellular-radio drain
+
+**Why (measured on blazer, 2026-10-15):** `dumpsys batterystats` since last
+charge: 2560 mAh drained, **mobile radio 1549 mAh (~60%)**, screen only 232. UID
+1000 (Termux family) alone is credited 1075 mAh of radio energy for only ~9 MB
+of traffic, i.e. the cost is radio wake-ups / high-TX-power time
+(`cellular_high_tx_power` on for 164 of 210 min during a screen-off window),
+not data volume. The phone was on LTE (wlan0 idle), and Cybersyn held **5
+separate TCP connections** to the broker (100.108.8.60:1883, over Tailscale)
+with a 30 s keepalive each: `sub` x4 (`cybersyn/clipboard/comrade`,
+`cybersyn/file/offer`, `cybersyn/+/event`, `cybersyn/comrade/media/status`) +
+`pub` x1. They were verified NOT to be duplicates (distinct topics, one parent
+PID) — the 2026-07-31 leak is fixed; this is the design itself.
+
+**Decided with the user ("definitely do that"):**
+
+- Replace the per-topic `sub` helper processes and the separate `pub` helper
+  with **one `hub` helper process = one MQTT connection** per (broker, port),
+  carrying every subscription and all publishes.
+- **Public API of `MqttBridge` does not change** (`publish(...)`,
+  `subscribe(...): Flow<Message>`), so no caller is touched.
+- Helper stdio protocol (line based, tab separated), new subcommand `hub`:
+  stdin `S\t<filter>` subscribe, `U\t<filter>` unsubscribe,
+  `P\t<topic>\t<payload>` publish; stdout `<topic>\t<payload>` per inbound
+  message (same as `sub`). The helper keeps the active filter set and
+  re-subscribes on every ConnAck (network drop recovers inside the process);
+  Kotlin re-sends its filter set whenever it respawns the helper.
+- Kotlin side routes inbound messages to listeners by MQTT filter matching
+  (`+`, `#`); filters are ref-counted so N collectors of one filter = one
+  broker subscription. Exactly one helper process per hub, spawned and
+  recorded under one lock (no TOCTOU window — the leak shape from 07-31 can't
+  reoccur by construction). Helper exits on stdin EOF (parent death).
+- Keepalive for the hub: **60 s** (was 30 s per connection => ~10 pings/min
+  across five connections, now 1/min). Not longer: after a Wi-Fi<->LTE switch
+  the dead TCP is only noticed at the next missed ping, so 60 s keeps
+  recovery under ~2 min.
+- Old `sub` / `pub` subcommands stay in the binary unchanged
+  (`volume_daemon.py` and ad-hoc scripts exec the .so directly).
+- **Known limitation, accepted:** two *overlapping* filters held at the same
+  time (e.g. `a/+` and `a/b`) could make the broker deliver one message twice.
+  None of today's filters overlap.
+- Tradeoff: publishes are dropped (not queued unboundedly) if the helper's
+  channel is full while offline — QoS 0 realtime streams (mouse, gyro) should
+  not replay stale input after a reconnect.
+
+**Not decided / follow-up, measure first:** whether the radio is still held
+in high-TX power after this lands. Compare `dumpsys batterystats`
+mobile_radio mAh over a comparable idle window before/after. Keeping the phone
+on Wi-Fi when home is the other lever and is independent of this change.

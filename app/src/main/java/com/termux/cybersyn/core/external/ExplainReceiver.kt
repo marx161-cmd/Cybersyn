@@ -348,13 +348,13 @@ class ExplainReceiver : BroadcastReceiver() {
                 "Force-stopping this app (including the force-stop blazer-sysapp-update's install step " +
                 "does automatically) kills sshd, npud, and anything else sharing that UID too. Never " +
                 "force-stop any com.termux.* package expecting it to be isolated.",
-            "MqttBridge.subscribe() spawns one OS process per distinct topic filter, each connecting to " +
-                "the broker with an MQTT client id. Every process must use a DISTINCT id (real incident: " +
-                "they all shared the helper's default id until 2026-07-27, so with 4+ concurrent " +
-                "subscriptions each new connection kicked the previous one off the broker in a constant " +
-                "churn — cybersyn/file/offer looked 'flaky' but was actually just disconnected most of " +
-                "the time). If you add a new call path that spawns the mqtt-helper 'sub' subprocess " +
-                "directly, it needs its own --id too, not just topic + broker.",
+            "MqttBridge runs ONE native helper process (`cybersyn-mqtt hub`) = ONE MQTT connection per " +
+                "broker:port for every subscription and publish (changed 2026-10-15; it used to spawn one " +
+                "process + connection per topic filter, which kept the cellular radio busy — radio was ~60% " +
+                "of battery drain). subscribe() registers a listener on the hub; messages are routed by MQTT " +
+                "filter matching, filters are ref-counted. The hub helper has a fixed client id " +
+                "(cybersyn-hub-<pid>), so never start a second helper against the same broker with that id. " +
+                "Don't exec libcybersyn-mqtt.so from new code — publish through MqttBridge/cybersyn-send.",
             "File transfer (file:serve/file:receive/albumart) binds explicit Tailscale + LAN addresses, " +
                 "never 0.0.0.0 — the MQTT control plane (cybersyn/comrade/action) is the real trust " +
                 "boundary (Tailscale-only), the bulk-transfer socket is just a dumb pipe that only opens " +

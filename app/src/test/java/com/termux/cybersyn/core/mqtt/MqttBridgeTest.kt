@@ -33,3 +33,28 @@ class MqttBridgeTest {
         assertNull(MqttBridge.parseLine(""))
     }
 }
+
+/** MQTT filter matching used to route hub messages to collectors. */
+class MqttTopicMatchTest {
+    private fun m(f: String, t: String) = MqttBridge.topicMatches(f, t)
+
+    @org.junit.Test fun exact() {
+        org.junit.Assert.assertTrue(m("cybersyn/file/offer", "cybersyn/file/offer"))
+        org.junit.Assert.assertFalse(m("cybersyn/file/offer", "cybersyn/file/offer2"))
+        org.junit.Assert.assertFalse(m("cybersyn/file/offer", "cybersyn/file"))
+        org.junit.Assert.assertFalse(m("cybersyn/file", "cybersyn/file/offer"))
+    }
+
+    @org.junit.Test fun plusIsExactlyOneLevel() {
+        org.junit.Assert.assertTrue(m("cybersyn/+/event", "cybersyn/comrade/event"))
+        org.junit.Assert.assertFalse(m("cybersyn/+/event", "cybersyn/a/b/event"))
+        org.junit.Assert.assertFalse(m("cybersyn/+/event", "cybersyn/event"))
+    }
+
+    @org.junit.Test fun hashIsRestOfTree() {
+        org.junit.Assert.assertTrue(m("cybersyn/#", "cybersyn/a/b/c"))
+        org.junit.Assert.assertTrue(m("cybersyn/#", "cybersyn"))
+        org.junit.Assert.assertTrue(m("#", "anything/at/all"))
+        org.junit.Assert.assertFalse(m("cybersyn/#", "other/a"))
+    }
+}

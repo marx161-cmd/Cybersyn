@@ -12,8 +12,15 @@
 //!   sub  -> prints "<topic>\t<payload>" per inbound message on stdout
 //!   pub  -> reads "<topic>\t<payload>" lines on stdin, publishes each on ONE
 //!           persistent connection (arbitrary topics — no mosquitto_pub -l limit)
+//!   hub  -> ONE connection for everything (what the app uses): stdin lines
+//!           "S\t<filter>" subscribe, "U\t<filter>" unsubscribe,
+//!           "P\t<topic>\t<payload>" publish; stdout "<topic>\t<payload>" per
+//!           inbound message. One TCP connection + one keepalive instead of one per
+//!           topic, which matters because every wake-up costs cellular radio energy.
 
+use std::collections::HashSet;
 use std::io::{BufRead, Write};
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
@@ -49,6 +56,18 @@ enum Cmd {
         #[arg(long, default_value = "cybersyn-helper-pub")]
         id: String,
     },
+    /// One connection carrying every subscription and publish, driven over stdio.
+    Hub {
+        #[arg(long)]
+        broker: String,
+        #[arg(long, default_value_t = 1883)]
+        port: u16,
+        #[arg(long, default_value = "cybersyn-hub")]
+        id: String,
+        /// MQTT keepalive seconds (each ping wakes the radio; dead-link detection is ~2x this).
+        #[arg(long, default_value_t = 60)]
+        keepalive: u64,
+    },
 }
 
 fn options(id: &str, broker: &str, port: u16) -> MqttOptions {
@@ -62,6 +81,7 @@ fn main() {
     match Cli::parse().cmd {
         Cmd::Sub { broker, port, topic, id } => run_sub(&id, &broker, port, &topic),
         Cmd::Pub { broker, port, id } => run_pub(&id, &broker, port),
+        Cmd::Hub { broker, port, id, keepalive } => run_hub(&id, &broker, port, keepalive),
     }
 }
 
@@ -117,6 +137,69 @@ fn run_pub(id: &str, broker: &str, port: u16) {
             Ok(Event::Outgoing(Outgoing::Disconnect)) => break,
             Err(_) => thread::sleep(Duration::from_secs(2)),
             _ => {}
+        }
+    }
+}
+
+fn run_hub(id: &str, broker: &str, port: u16, keepalive: u64) {
+    let mut opts = options(id, broker, port);
+    opts.set_keep_alive(Duration::from_secs(keepalive.max(5)));
+    let (client, mut connection) = Client::new(opts, 64);
+    let filters: Arc<Mutex<HashSet<String>>> = Arc::new(Mutex::new(HashSet::new()));
+
+    // Command reader. EOF means the app is gone: disconnect cleanly so this process exits
+    // instead of lingering as an orphan.
+    {
+        let client = client.clone();
+        let filters = Arc::clone(&filters);
+        thread::spawn(move || {
+            let stdin = std::io::stdin();
+            for line in stdin.lock().lines() {
+                let line = match line {
+                    Ok(l) => l,
+                    Err(_) => break,
+                };
+                let mut parts = line.splitn(3, '\t');
+                match (parts.next(), parts.next(), parts.next()) {
+                    (Some("S"), Some(f), _) if !f.is_empty() => {
+                        filters.lock().unwrap().insert(f.to_string());
+                        let _ = client.subscribe(f, QoS::AtMostOnce);
+                    }
+                    (Some("U"), Some(f), _) if !f.is_empty() => {
+                        filters.lock().unwrap().remove(f);
+                        let _ = client.unsubscribe(f);
+                    }
+                    // try_publish: if we are offline and the queue is full, drop — stale
+                    // realtime input (mouse/gyro) must not replay after a reconnect.
+                    (Some("P"), Some(t), p) if !t.is_empty() => {
+                        let _ = client.try_publish(t, QoS::AtMostOnce, false, p.unwrap_or("").as_bytes());
+                    }
+                    _ => {}
+                }
+            }
+            let _ = client.disconnect();
+        });
+    }
+
+    let stdout = std::io::stdout();
+    for event in connection.iter() {
+        match event {
+            // (Re)subscribe everything on every connect so a network drop recovers here.
+            // try_subscribe: this thread drains the request queue, so it must never block on it.
+            Ok(Event::Incoming(Packet::ConnAck(_))) => {
+                for f in filters.lock().unwrap().iter() {
+                    let _ = client.try_subscribe(f.as_str(), QoS::AtMostOnce);
+                }
+            }
+            Ok(Event::Incoming(Packet::Publish(p))) => {
+                let payload = String::from_utf8_lossy(&p.payload);
+                let mut handle = stdout.lock();
+                let _ = writeln!(handle, "{}\t{}", p.topic, payload);
+                let _ = handle.flush();
+            }
+            Ok(Event::Outgoing(Outgoing::Disconnect)) => break,
+            Ok(_) => {}
+            Err(_) => thread::sleep(Duration::from_secs(2)),
         }
     }
 }
