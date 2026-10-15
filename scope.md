@@ -482,3 +482,30 @@ PID) — the 2026-07-31 leak is fixed; this is the design itself.
 in high-TX power after this lands. Compare `dumpsys batterystats`
 mobile_radio mAh over a comparable idle window before/after. Keeping the phone
 on Wi-Fi when home is the other lever and is independent of this change.
+
+## 2026-10-15 — Gyro-mode vol-up: "ALL" (gather workspaces) instead of click-hold
+
+**Decided with the user, this session:**
+
+- In gyro mode (Artemis in front, or the AMD-mode toggle) the two hijacked
+  volume keys become exactly:
+  - **vol-down, held** = gyro mouse, only for as long as it is held (unchanged:
+    `android/clutch` ON on down, OFF on up, rotation vector streamed meanwhile).
+  - **vol-up, pressed** = the i3 status-bar **ALL** action: move every
+    workspace to the output the mouse pointer is on
+    (`~/bin/i3-gather-workspaces-current-output.sh`). One-shot on key-down;
+    nothing on key-up.
+- **Removed:** vol-up as left-mouse-button hold (`android/click` ON/OFF). The
+  user does not want any click-hold on the volume keys.
+- Mechanism: phone publishes `script:i3-gather-here` to
+  `cybersyn/comrade/action`; cybersyn-relay runs
+  `~/.config/cybersyn/scripts/i3-gather-here` (wrapper that sets
+  `DISPLAY=:0`/`XAUTHORITY` and execs the existing gather script — the relay
+  is a user service with no X session). No relay rebuild.
+- Gate: "during Artemis streams" needs Artemis-in-front detection, which is
+  `ForegroundAccessibilityService` setting `artemisForeground`. That service
+  was **not enabled** on the phone (found 2026-10-15); gyro mode had only been
+  reachable through the AMD toggle file, which lives in a volatile tmp dir and
+  resets to "android" at every reboot. The accessibility service is therefore
+  enabled once (a stored setting) so Artemis detection actually works.
+  The AMD toggle is left as is.

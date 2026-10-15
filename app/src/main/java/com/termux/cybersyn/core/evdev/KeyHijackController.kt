@@ -21,7 +21,8 @@ import java.util.concurrent.atomic.AtomicBoolean
  * LogcatContextSource. No separate daemon — one su -c process, stdin/stdout protocol.
  *
  * Routing:
- *   - IME shown + vol keys        → MQTT android/clutch (gyro) / android/click (hold)
+ *   - gyro mode: vol-down held → MQTT android/clutch (gyro mouse, only while held);
+ *                vol-up pressed → comrade i3 "ALL" (gather workspaces to the pointer's output)
  *   - browser foreground, no IME  → media prev/next
  *   - registered KeyTriggers      → classified short/long/double/chord matches
  *
@@ -66,7 +67,7 @@ object KeyHijackController {
     )
 
     /** What a key-down started, so its release routes the same way. */
-    private enum class PressKind { GYRO, HOLD, BROWSER_NAV, PASSIVE }
+    private enum class PressKind { GYRO, GATHER, BROWSER_NAV, PASSIVE }
 
     private val procLock = Any()
     private var helperProcess: Process? = null
@@ -442,7 +443,6 @@ object KeyHijackController {
                     // or android/clutch sticks ON until the next press.
                     when (activePress.remove(code)) {
                         PressKind.GYRO -> stopGyro()
-                        PressKind.HOLD -> stopHold()
                         else -> {}
                     }
                 }
@@ -474,7 +474,7 @@ object KeyHijackController {
                         // Gyro mode
                         when (code) {
                             KEY_VOLUME_DOWN -> { activePress[code] = PressKind.GYRO; startGyro() }
-                            KEY_VOLUME_UP -> { activePress[code] = PressKind.HOLD; startHold() }
+                            KEY_VOLUME_UP -> { activePress[code] = PressKind.GATHER; gatherWorkspaces() }
                         }
                     } else if (!gyroMode && browserForeground && code in listOf(KEY_VOLUME_DOWN, KEY_VOLUME_UP)) {
                         // Browser nav mode.
@@ -532,18 +532,13 @@ object KeyHijackController {
         }.also { it.name = "gyro-pub" }.start()
     }
 
-    private fun startHold() {
+    // Same as the "ALL" button in comrade's i3 status bar: every workspace to the output
+    // under the mouse pointer. cybersyn-relay runs the named script from its script dir.
+    private fun gatherWorkspaces() {
         val ctx = appContext ?: return
         Thread {
-            MqttBridge.publish(ctx, "android/click", "ON")
-        }.also { it.name = "gyro-pub" }.start()
-    }
-
-    private fun stopHold() {
-        val ctx = appContext ?: return
-        Thread {
-            MqttBridge.publish(ctx, "android/click", "OFF")
-        }.also { it.name = "gyro-pub" }.start()
+            MqttBridge.publish(ctx, "cybersyn/comrade/action", "script:i3-gather-here")
+        }.also { it.name = "gather-pub" }.start()
     }
 
 }
