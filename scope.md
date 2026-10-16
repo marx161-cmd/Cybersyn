@@ -553,3 +553,359 @@ above (Artemis-detection-driven gyro mode):
   gyro MOUSE CURSOR (target chosen by the user: the desktop cursor, not the shader
   camera) as relative mouse moves over the stream; vol-up = publish
   `script:i3-gather-here`. See Diana scope.md for the math/ownership.
+
+## 2026-10-15 — Phone-side remote layer: pads in Termux, a satellite UI, scavenged sensors + haptics (plan)
+
+**Decided with the user, this session.** This is the *Android* half of the
+phone→shader control work. The shader half (pad → `u_pad_*` → the shared `mouse_cam`
+accumulator) is already built and recorded in `~/builds/amd/shader-backdrop/scope.md`
+(two 2026-10-15 entries), `SHADER_REFERENCE.md` §2.8 and `pads/README.md`. DroidPad is
+still the sender today (the dumps in `shader-backdrop/pads/` are its exports), but the
+user is not committed to keeping it: "we wouldnt necessarily keep it as this specific
+app, im constantly figuring this out … ill likely be throwing over the approach a few
+times". The aim the whole entry serves: one **general** remote steering every shader
+that already takes the Super+cursor steering, and inputs that *steer* (push/pull,
+accelerate/slow, lean) instead of hard-overriding movement — "steer what they do not
+swim ourselves".
+
+- **Interaction path is the ingest FIFO, and only the FIFO.** User: "correct place to
+  interact still is fifo". `$PREFIX/tmp/cybersyn-pub.fifo`, `topic⇥payload`,
+  `$PREFIX/bin/cybersyn-send`. Publishing through it reuses Cybersyn's single hub
+  connection (`MqttBridge`, commit `b21c426` this same day), and the hub helper
+  hardcodes **QoS 0 / retain=false** on both subscribe and publish, so neither is a
+  knob. Nothing on the phone opens its own broker connection — `MqttBridge.kt` and
+  `ExplainReceiver` now state it outright ("Don't exec libcybersyn-mqtt.so from new
+  code — publish through MqttBridge/cybersyn-send").
+- **Pads live inside Termux.** User: "inside termux does make the most sense to me".
+  Live copy `~/.cybersyn/pads/`, matching the existing phone-side state convention
+  (`~/.cybersyn/*`, and the `$PREFIX/tmp/cybersyn-*` state files the Android side
+  already reads, e.g. `cybersyn-hidmode`). It is free because Termux on this phone is
+  a **system-UID install** (`id` → `uid=1000(system)`, sshd runs as `system`) and the
+  satellites are `android.uid.system` — same UID, so both sides read/write directly,
+  no shared-storage export and no `RUN_COMMAND` intent needed (though
+  `allow-external-apps = true` is already set if that door is ever wanted). SELinux is
+  `Permissive` (`enforce=0`, checked this day), so no domain obstacle either. comrade
+  already ssh's into that home, so a pad edit is a file write on both sides with **no
+  build at all**. `~/builds/amd/shader-backdrop/pads/` stays the git-tracked mirror
+  (Termux has no history); `pads/fetch.py` gains a push direction.
+- **The remote UI lives in a satellite, not in `:app`.** Satellites are already
+  separate APKs in this repo (`:quicktap-stub`, `:cybersyn-stub1`, `:cybersyn-stub2`),
+  every one `android.uid.system`; the user's reason: they "decouple building and
+  crashes from main". Concretely, a UI crash there cannot drop the hub connection or
+  strand automation/kiosk/key-hijack/widget state, and a build is one module instead
+  of the 335-Kotlin-file app. `:cybersyn-stub2` is an **unused placeholder**
+  (`PlaceholderStubActivity.java`), already installed and listed in
+  `crDroid/…/APPS_MANIFEST.md` — the ready slot for a make/select-remotes menu.
+  stub1's trackpad lane stays intact.
+- **Better joysticks + haptics: scavenge from our own Artemis.** `~/builds/android/artemis-patch`
+  (origin `ClassicOldSong/moonlight-android`, remote `marx161`, HEAD this day = "diana:
+  volume keys while streaming = gyro mouse"), GPL-3 — so lifting is unencumbered:
+  - on-screen elements in `app/src/main/java/com/limelight/binding/input/virtual_controller/`:
+    `AnalogStick` / **`AnalogStickFree`** (free = does not self-centre, i.e. the sticky
+    behaviour, as opposed to the self-centring wheel we fought with `PAD_STICK_TTL_S`) /
+    Left+Right variants / `LeftTrigger` / `RightTrigger` / `DigitalButton` /
+    `DigitalPad`, plus a layout-driven keyboard controller;
+  - element configs are **JSON in SharedPreferences** with an in-app editor
+    (`VirtualControllerConfigurationLoader`: `element.getConfiguration().toString()` →
+    `prefEditor.putString(prefKey, …)`, `element.loadConfiguration(JSONObject)`) — a
+    working pad-layout schema and editor to borrow or map to;
+  - haptics are modern, not a buzz: `VibrationEffect.createOneShot(ms, amplitude)`,
+    and `startComposition()` with `PRIMITIVE_CLICK/TICK/THUD` scaled per action
+    (`keyboard/KeyBoardController.java:439-459`); touch haptics on engage
+    (`sendControllerInputContext(10, 0x11)`); host rumble → per-vibrator effects
+    (`ControllerHandler.java:2034-2095`) — a reference for comrade→phone feedback.
+- **Broader sensors: SensorSpot, and the one that matters is dynamic.** Installed
+  `com.github.umercodez.sensorspot` (GPL-3, Kotlin/Compose/Hilt) is an MQTT sensor
+  publisher: `{"type":String,"values":[Float…],"timestamp":Long}` at a selectable rate,
+  from `getSensorList(TYPE_ALL)` **+ `getDynamicSensorList(TYPE_ALL)`** (default rate
+  200000 µs). The phone's live dynamic sensor right now: `android.sensor.head_tracker(37)`,
+  "Christian's Pixel B" over Bluetooth, continuous 10–100 Hz — the class
+  `getDefaultSensor()` cannot reach, which is why DroidPad never exposed it. The user's
+  uncommitted fork `~/homelab/tmp/sensorspot-src-20260313-1` (`applicationId
+  …sensorspot.ht`, versionName `1.16.0-ht`) already fixes exactly that: a synthetic
+  type-37 selector entry, `stringType|type` selection with a legacy-int fallback,
+  dynamic matching by `(type, stringType, name)`, dedupe of static+dynamic, refresh
+  event. Not installed yet and no broker prefs written. **Topic collision to avoid:**
+  its default topic `android/sensor` is the topic stub1 publishes its
+  `game_rotation_vector` to.
+- **Non-goals:** no new sockets or brokers (1883 via the hub only, QoS 0, retain off);
+  no second MQTT connection from a satellite; nothing `adb install`ed counted as
+  durable (`docs-consolidated/70-crdroid-rom.md` is the gated promotion flow);
+  DroidPad's variant pairing stays as documented (`off` switch swaps `<name>.mp` ⇄
+  `ctrl_<name>.mp`, and the general pad has no `off`, so it cannot swap); frenzy stays
+  unreachable unless the user switches it on; `slider` / `step_slider` stay
+  deliberately unwired ("i just put them there in case we want them for sth").
+
+**Open — needs a decision before building:**
+
+1. **Downlink.** A satellite can publish through the FIFO, but nothing sanctioned gets
+   *into* one: `MqttBridge` is an in-process object of `:app`, and inbound messages
+   route only to in-process listeners. Needed for comrade→phone haptics and for
+   "select remote X". Options: `:app` re-emits (broadcast/intent), a second downlink
+   FIFO that `:app` writes and the satellite reads, or a bound service. Touch-only
+   haptics need none of this, so this can lag the rest.
+2. **Where SensorSpot's reader lands.** Folding the reader into the satellite keeps one
+   connection and one UID (both the consolidation rule and the crash/build argument),
+   but means maintaining that fork inside Cybersyn; keeping the standalone `.ht` app
+   means it opens its own broker connection, which
+   `docs-consolidated/86-ipc-consolidation-plan.md` exists to prevent.
+3. **Pad schema.** Adopt Artemis's element-config JSON as the on-phone format, keep
+   `pads/*.json` (profile + widget payloads) canonical, or hold a mapping. The on-phone
+   copy has to be *writable by a UI*, which the app's export format was not designed
+   for.
+4. **Where steering lives.** Today `Look`/`Move` ride the renderer's shared `mouse_cam`,
+   so 22 `u_cam_look` / 10 `u_cam_move` / 30 `u_steer` shaders steer with no shader
+   edits. Whether that stays the only steering path once the satellite exists is a
+   decision, not a default.
+5. **Make/select UX.** What "a remote" is in the UI, whether the satellite writes
+   `~/.cybersyn/pads/*.json` directly, and what marks one active for the bridge.
+
+## 2026-10-15 — Correction to the remote-layer plan: no downlink, sensors inside the satellite, DroidPad's UI stays
+
+**Follow-up to the entry above, same day, with the user's answers to its open list.**
+Items 1–3 were answered; the two still-open ones are renumbered at the end.
+
+- **Item 1 (downlink): withdrawn — the satellite has no reason to receive.** User:
+  "why does thr satellite need to receive stuff?" It doesn't, for anything on this
+  page. Button-press haptics are local (the Artemis lift below); choosing a remote is
+  an *outbound* action (it publishes the choice and writes the live pad files); which
+  pad is active is a file the satellite itself owns; sensors are outbound. The entry
+  above justified a downlink with "comrade→phone haptics and select remote X" — that
+  was wrong and is retracted. The only thing that would ever want an inbound path is
+  feedback driven by comrade (e.g. haptics following the audio-reactive backdrop); if
+  that is ever wanted, the decision is a relay in `:app` (broadcast/intent, a second
+  downlink FIFO, or a bound service), because a satellite may not open its own hub
+  connection. Not needed now, so not a blocker.
+- **Item 2 (SensorSpot): decided — the reader goes inside the satellite.** User:
+  "definitely inside the satellite thats why i brought it up — i want one place thats
+  the remote". So one app *is* the remote: the pad surface, the sensor reader (static
+  + dynamic, `android.sensor.head_tracker(37)` included) and the haptics. That also
+  keeps the one-MQTT-connection rule for free — the satellite is `android.uid.system`
+  and publishes through `cybersyn-send` / the ingest FIFO like everything else.
+- **Item 3 (pad schema): decided — DroidPad's UI and format stay.** User: "we keep
+  the droidpad ui for sure i just wanted to lift the snappier joystick and the great
+  haptic feedback for button presses". So no Artemis layout JSON becomes the on-phone
+  format and no editor is rewritten: DroidPad keeps authoring pads, and `pads/*.json`
+  (plus the Termux live copy) stays the profile/widget contract. From Artemis we lift
+  only *feel*: the analog stick's input handling (`AnalogStick`/`AnalogStickFree` —
+  150 ms deadzone lift after touch-down, 350 ms double-click window, free =
+  non-self-centring) and the press haptics
+  (`VibrationEffect.startComposition()` with `PRIMITIVE_CLICK/TICK/THUD`,
+  `keyboard/KeyBoardController.java:439-459`).
+  - Read that as: the satellite is the surface you *use* — it renders the pad's
+    widgets with that feel and those haptics — while DroidPad remains the *authoring*
+    UI whose exports are the pad definitions. If instead DroidPad is meant to keep
+    being the thing that sends input, then there is nothing for the joystick feel to be
+    lifted *into*, and the satellite is only the menu + sensors; confirm if so.
+
+**Still open:** 4 — whether steering keeps riding the renderer's shared `mouse_cam`
+(today: 22 `u_cam_look` / 10 `u_cam_move` / 30 `u_steer` shaders, no shader edits) or
+moves into the satellite. 5 — *selecting* a remote (and any per-pad tweaks) in the
+satellite's UI, since **making** stayed with DroidPad.
+
+## 2026-10-15 — Plan closed: steering and remote selection both stay exactly as they are
+
+**The last two open items, answered the same way — don't touch either.** This entry
+closes the remote-layer plan; nothing else in the two entries above changes.
+
+- **Item 4 (steering): unchanged.** User: "why would we change steering we already
+  built 3 remotes working like this". The three are the profiles in
+  `~/builds/amd/shader-backdrop/pads/` (`brown_dwarf`, `general`, `mycontrolpad-2` —
+  the worms pad), and all of them steer through the renderer's shared `mouse_cam`
+  accumulator (`u_cam_look` / `u_cam_move` / `u_steer`). No steering code moves into the
+  satellite, and no shader edits.
+- **Item 5 (selection): unchanged.** User: "the selection works same as now through the
+  ui". No new selector, no new topic, no picker to design — whatever the UI does today
+  keeps doing it.
+- That also makes the previous entry's "authoring vs sending" footnote moot at this
+  level: either way, selection and steering are untouched. What is being *kept* is
+  DroidPad's UI and the `pads/*.json` profile/widget contract; what is being *lifted
+  from Artemis* is widget-level feel only (the stick's handling) plus press haptics.
+- **Status: no open items.** Pad definitions live in Termux with this repo's
+  `scope.md` mirror, the satellite is the one place that is the remote (pad surface +
+  sensor reader + haptics), publishing goes only through the ingest FIFO (QoS 0, no
+  retain, one hub connection), sensors come from the SensorSpot reader inside that
+  satellite, haptics and stick feel come from the Artemis lift, steering stays in the
+  renderer, and selection stays in the UI.
+
+## 2026-10-15 — Built: `cybersyn-stub2` is the remote (first increment, testable now)
+
+The placeholder slot is gone; the module is the remote surface, installed on the Pixel as a
+temporary system-app update. Everything below is verified live, not designed.
+
+**Naming and identity mirror the rest, exactly as asked.** Module `cybersyn-stub2`, package
+`com.termux.cybersyn.stub2`, `android:sharedUserId="android.uid.system"`, label
+`Cybersyn Stub 2`, activity `.RemoteActivity` replacing `.PlaceholderStubActivity`. The
+APPS_MANIFEST row (`CybersynStub2`, priv-app, signer `ce89479e2858b65aa2131836ab4c2d16aa09284f2b40fb002620ad1aec91b124`)
+is untouched and the built APK's signer matches it, which is what let
+`blazer-sysapp-update install com.termux.cybersyn.stub2 <apk>` verify and go straight in
+(`UPDATED_SYSTEM_APP`, old APK still underneath, `rollback` =
+`uninstall-system-updates`). **This is an adb-tested overlay, not a ROM promotion** —
+promoting means dropping the source into `Android_src` and rebuilding the ROM, a separate
+gated flow.
+
+**The wire is DroidPad's, unchanged — nothing on comrade changed.** The satellite writes
+`DroidPad/Events<TAB>{"id":…,"type":…,…}` into the ingest FIFO
+(`/data/data/com.termux/files/usr/tmp/cybersyn-pub.fifo`), the same topic and the same
+payload shapes the app itself publishes, so `droidpad-shader-bridge` → `pad.json` → the
+renderer's `u_pad_*` uniforms consume it without a line of change. The fd is opened
+`O_RDWR` (the `cybersyn-send` trick, so `open()` never blocks if Cybersyn is respawning)
+and reopened once on failure. No socket, no second hub connection, QoS 0 / no retain —
+`86-ipc-consolidation-plan.md` holds.
+
+**Pads are files, in Termux, as planned.** The live copy is
+`/data/data/com.termux/files/home/.cybersyn/pads/*.json` (the app's own export format,
+`controlPad` + `controlPadItems`, `properties` as a nested JSON string, colours as Compose
+`Color.toULong()` in the high 32 bits), read at launch and on demand. `pads/fetch.py`
+gained the push direction (`--push`, copy-only, default `--live-dir` absolute) so the
+git-tracked mirror stays the source of truth and the phone copy stops drifting silently.
+An extra `pad` string launches straight into one profile for the test loop:
+`am start -n com.termux.cybersyn.stub2/.RemoteActivity --es pad brown_dwarf.json`.
+
+**Widgets driven: JOYSTICK, BUTTON, DPAD, SWITCH. The rest are drawn inert on purpose.**
+`SLIDER` / `STEP_SLIDER` publish raw values nothing consumes (the renderer's own contract
+says so), `GAUGE` / `LED` are outputs, and `STEERING_WHEEL` (roll) is the next one to wire —
+each is drawn where the pad puts it with its type as a caption, so a gap is visible rather
+than silent. On the three real pads that is 9/13 (brown Dwarf), 8/12 (MyControlPad), 5/8
+(general) driven; the header shows the count.
+
+**The stick is DroidPad's contract with Artemis's handling.** Contract: x/y in −1..1 with
++y UP, and — because the app only ever sent a 0 on drag END — a release *always* publishes
+`0,0`, since the renderer's `PAD_STICK_TTL_S` treats a quiet stick as rest. Handling, lifted
+from `AnalogStick`: the touch position *is* the deflection (no hunting for the handle, the
+"snappier" bit), the deadzone releases after 150 ms of holding so precise movement is
+possible, and once active it stays active back through the deadzone. Publishes are capped
+at ~66 Hz with a small epsilon — `pad.json` only needs the latest value.
+
+**Press haptics are local and typed** (`VibrationEffect.startComposition()`:
+`PRIMITIVE_TICK`→`CLICK` for a button, a 10 ms one-shot when a stick engages, `THUD` pair
+for a heavy hit), degrading to a one-shot where primitives are unsupported — the
+`KeyBoardController.java:439-459` lift. **A loaded pad publishes nothing until touched**:
+switches start off and only explicit intent may latch one. Presses are never gated by any
+switch (steer what they do, don't swim ourselves).
+
+**Verified live (2026-10-15, Pixel over adb + the broker).** With a `probe` fixture whose
+ids the renderer does not know (so nothing on the shader side could move), a broker capture
+saw: switch `true` then `false`; button `PRESS`/`RELEASE`; dpad `UP` `PRESS`/`RELEASE`;
+stick taps at +40/+80/+120/+160 px → `0.227/0.467/0.706/0.946` (linear, implied radius
+~170 px ≈ the drawn circle at `density 2.5`), +200 px clamping to `0.998`; a centre tap
+publishing nothing on press and `0,0` on release; a touch starting away from the stick
+producing no stick events. `pad.json` on comrade folded every one of them in. The probe pad
+stays on the phone as a permanent wire probe — it is harmless everywhere else.
+
+**Not done yet (no decision needed to continue):** the steering wheel's roll, sliders if
+they ever get a consumer, and folding the SensorSpot reader inside the satellite (`~/.ht`
+fork, uncommitted) — one place that is the remote still means the sensors come in here.
+Selection stays local: the header's chooser plus a remembered last pad, which is the
+"selection works same as now through the ui" answer, and nothing new is published for it.
+
+**Tree state:** the module is written, built and installed, but nothing is committed —
+`scope.md` plus a modified `cybersyn-stub2` manifest and the new sources are uncommitted in
+`~/builds/crossplatform/Cybersyn`, and `pads/fetch.py` is uncommitted in
+`~/builds/amd/shader-backdrop`.
+
+## 2026-10-16 — Built: the sensors are in the satellite (second increment, verified live)
+
+The remote now reads the phone's own sensors. One place is still the remote — same module, same
+FIFO, no second app and no new socket — and, as decided, **the sensors are publishers for lanes
+that already exist rather than new wire**. Nothing on comrade changed for either lane.
+
+**The camera lane reuses the gyromouse exactly.** `SensorLane` registers `TYPE_GAME_ROTATION_VECTOR`
+(50 Hz requested, publishes every ~18 ms), reconstructs `w = sqrt(1 - x² - y² - z²)` and publishes
+`android/sensor` = `{"type":"android.sensor.game_rotation_vector","values":[x,y,z,w]}` plus
+`android/clutch` `ON`/`OFF` — the shape `SensorSpot` used and the shape `cybersyn-hid-relay.py`
+already parses. That relay writes `gyro_state.txt`, which `renderer.py`'s existing gyro block turns
+into the shared `mouse_cam` yaw/pitch and `u_steer`, so **every mouse-steering shader follows the
+phone with no shader edit**. `ON` is the calibration the relay already implements: arming starts
+from where the phone is, it does not yank the view. A dynamic head tracker
+(`android.sensor.head_tracker`, present only while a BT head-tracking device is connected) is
+offered as an alternative source when it exists; it does not on this phone today.
+
+**The tilt lane fills the one widget this remote could not drive.** The phone's roll is published as
+the pad's *own* `STEERING_WHEEL` id — `{"id","type":"STEERING_WHEEL","angle"}` in degrees, the same
+event a finger would send — and `renderer.py` already applies wheel angles as deltas to
+`mouse_cam["roll"]`, an axis no stick can reach. The angle uses the relay's own
+`get_angles()` roll formula, so the two ends agree about which way is which; releasing the lane
+publishes `0`, which is the unwind the app's own `selfCentering` animation does. Because the lane
+speaks for *the pad's* wheel, it needs the pad to carry one: **`general.json` is the only profile of
+the three that does**, and on a pad without a wheel the lane reports itself unavailable instead of
+quietly publishing some other id.
+
+**Arming is explicit, and dropping out is automatic.** Three ways in: the header's `sensors:` panel
+(two truthful rows — orientation → camera, tilt → wheel, plus the source row), reserved pad ids
+(`SWITCH` / `gyro` / `tilt`; a reserved switch arms a lane locally and publishes nothing to
+`DroidPad/Events`), and `am start … --es arm gyro,tilt` for the sysapp test loop (consumed once, so
+a relaunch never silently re-arms). Sensors are registered *only* while a lane is armed, and every
+lane is dropped on `onPause` — background, screen off, or another app taking the surface. A
+proximity interlock is armed with the lanes but deliberately paranoid: it only trusts the sensor
+after it has reported "far" once, so a proximity sensor that only ever says "near" can never mute
+the lanes.
+
+**Verified live (2026-10-16 ~00:22, Pixel over adb + the broker).** With the extended `probe` pad
+(a `probe_wheel` no shader knows, plus `gyro`/`tilt` switches — pushed to the phone as the permanent
+wire probe), `--es arm gyro,tilt` produced: `android/clutch` `ON` → relay journal
+`State: ACTIVE (shader gyro)`; `android/sensor` game-rotation samples at ~48 Hz (334 in 7 s, all
+four values); `gyro_state.txt` freshly written with `active=1`; `DroidPad/Events`
+`{"id":"probe_wheel","type":"STEERING_WHEEL","angle":16.19}` at ~the relay's roll for the same
+quaternion (checked by hand: `atan2(2(wx+yz), 1-2(x²+y²))` = 16.19° — the same number to the digit).
+Leaving the surface — the user swiped up out of the remote into Recents ~10 s later — produced the
+unwind `{"angle":0}` and `android/clutch OFF` → `State: SAFE (shader gyro)`, with
+`gyro_state.txt` written `active=0`. That was the pause interlock doing its job, unplanned.
+
+**Not yet exercised, no decision needed:** the reserved-id switches' taps and the wheel's own touch
+handling (its self-centring animation, and taking the wheel from the sensor while armed) are built
+but were not tapped before the surface was left — they want a finger on the pad. The proximity
+interlock is armed but has never fired (the sensor has not reported covered since). `TILT_ROLL_SIGN`
+in `SensorLane` is the one place to flip the tilt if a hand test says "right edge down" rolls the
+wrong way; the sign chosen is the one that matches the app's own clockwise-positive wheel.
+
+**Not done, deliberately:** ambient light as a mood input and barometer → `mouse_cam["u"]` need
+renderer-side consumers, so they stay unwired; `SLIDER`/`STEP_SLIDER` remain unwired by the
+renderer's own contract.
+
+**Tree state:** still nothing committed. New in `cybersyn-stub2`: `SensorLane.java`,
+`WheelWidget.java`, the reserved-id roles in `SwitchWidget`, the sensor binding + wheel factory in
+`PadView`, the header panel / `arm` extra / lifecycle disarm in `RemoteActivity`, a topic
+parameter on `PadPublisher.publish`, an invalidate hook on `Widget`, and the extended `probe.json`
+(+ `pads/README.md`'s new *Reserved ids* section in `~/builds/amd/shader-backdrop`). Installed as a
+temporary system-app update (`blazer-sysapp-update install com.termux.cybersyn.stub2`, ledgered);
+**adb-tested overlay, not a ROM promotion** — that stays the separate gated flow.
+
+## 2026-10-16 (later) — cybersyn-stub2 is a full pad SURFACE: arrange mode, one finger per widget, the variant control
+
+Shipped as **versionCode 3**, installed the same day as a temporary system-app update
+(`blazer-sysapp-update install com.termux.cybersyn.stub2`, `lastUpdateTime` 2026-10-16 02:07) —
+`UPDATED_SYSTEM_APP` overlay, **not** a ROM promotion. The remote is the satellite: it reads the
+pad export, draws its own surface, and publishes ONLY through the ingest FIFO.
+
+- **Surface (new files)**: `PadProfile` (the app's exported JSON → items), `PadLayout` (pad coords →
+  screen), `PadView` (touch), one class per widget — `StickWidget`, `SliderWidget`, `SwitchWidget`,
+  `ButtonWidget`, `DpadWidget`, `WheelWidget`, `InertWidget` — plus `Haptics`, `PadPublisher`,
+  `SensorLane`. The old `PlaceholderStubActivity` is deleted.
+- **Arrange mode**: a header button. Each drop is written as a per-surface override
+  (`PadProfile.overrides`) as it lands, so an arrangement survives a pad reload; a freshly loaded pad
+  always starts in driving mode.
+- **One finger per widget**: touches are captured by pointer id (`PadView.capture`), so two sticks
+  drive at once and a second finger never steals the first one's widget. Arrange mode still places
+  one widget at a time.
+- **Variant control (the `ctrl_` half)**: the header button OR a reserved `off` widget — a `SWITCH`
+  named `off`, or a two-stop `STEP_SLIDER` named `off` whose ends read AUTO/REMOTE under the thumb.
+  Both publish the same `{"id":"off","type":"SWITCH","state":bool}` that the renderer already swaps
+  `<name>.mp` ⇄ `ctrl_<name>.mp` on; header and pad control mirror each other
+  (`Widget.stateListener` / `PadView.setOnVariantChanged`). Verified live 2026-10-16: taps drove
+  `ctrl_lagoon_worms_v6.mp` ⇄ `lagoon_worms_v6.mp` with matching bridge log lines.
+- **Publish discipline** (unchanged, re-verified): nothing is published when a pad loads; a
+  `STEP_SLIDER` goes out as `"type":"SLIDER"` like any other; `GAUGE`/`LED` can never publish.
+  Everything else goes to `DroidPad/Events` through `$PREFIX/tmp/cybersyn-pub.fifo`, held open
+  `O_RDWR` so a hub respawn never blocks a publish (a replaced FIFO is retried once, then dropped —
+  `PadPublisher`).
+- **No persistent flag**: the remote takes no foreground service of its own; the sensor lanes disarm
+  on `onPause` (entry above), and the pad surface is expected to be the visible app while it drives.
+- **Quick tap** now opens this remote — see `60-pixel-blazer.md`, "Quick tap (double-tap back)".
+
+Deliberately NOT written down: a hub-side keep-alive/whitelist change was attributed to the same day
+but is not in the committed app tree, so it needs the device (or the user) to say where it lives
+before it goes in here.
+
+**Tree state:** still nothing committed in `cybersyn-stub2` — 13 new widget/profile classes plus
+`probe.json` untracked, `build.gradle.kts` / `AndroidManifest.xml` / `scope.md` modified.

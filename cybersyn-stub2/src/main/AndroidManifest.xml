@@ -2,6 +2,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     android:sharedUserId="android.uid.system">
 
+    <!-- Press feedback on the pad surface (normal permission, granted at install). -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+
     <application
         android:allowBackup="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -12,10 +15,18 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.CybersynStub">
         <activity
-            android:name=".PlaceholderStubActivity"
+            android:name=".RemoteActivity"
             android:exported="true"
             android:excludeFromRecents="false"
-            android:resizeableActivity="true">
+            android:resizeableActivity="true"
+            android:supportsPictureInPicture="false">
+            <!-- A pop-up size for anyone who opens this in a freeform window. The remote's own way
+                 in is the ROM's freeform manager (`com.libremobileos.freeform`), which sizes the
+                 window from its own config, not from here. -->
+            <layout
+                android:defaultHeight="800dp"
+                android:defaultWidth="420dp"
+                android:gravity="bottom|end" />
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
