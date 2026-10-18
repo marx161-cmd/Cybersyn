@@ -25,6 +25,9 @@ import com.termux.cybersyn.core.actions.ListFilesAction
 import com.termux.cybersyn.core.actions.LockDeviceAction
 import com.termux.cybersyn.core.actions.LogAction
 import com.termux.cybersyn.core.actions.MobileDataAction
+import com.termux.cybersyn.core.actions.WifiConnectBssidAction
+import com.termux.cybersyn.core.actions.WifiHomeSteerAction
+import com.termux.cybersyn.core.actions.WifiInfoAction
 import com.termux.cybersyn.core.actions.MqttPublishAction
 import com.termux.cybersyn.core.actions.MuteAction
 import com.termux.cybersyn.core.actions.MediaPlayAction
@@ -112,6 +115,10 @@ import com.termux.cybersyn.core.engine.ActionRegistry
  * Adding UI metadata for any of these later is fine; just drop it from this set.
  */
 val RUNTIME_ONLY_ACTION_IDS: Set<String> = setOf(
+    // Home Wi-Fi band steering (scope.md 2026-10-18), driven by CLI-applied tasks
+    "wifi.home_steer",
+    "wifi.info",
+    "wifi.connect",
     // mpv window/playback control, by package-targeted broadcast to com.termux.mpv
     "mpv.enter_freeform",
     "mpv.enter_pip",
@@ -170,6 +177,9 @@ private fun registerBuiltInActions() {
         VolumeAction(),
         AirplaneModeAction(),
         MobileDataAction(),
+        WifiHomeSteerAction(),
+        WifiInfoAction(),
+        WifiConnectBssidAction(),
         ScreenTimeoutAction(),
         DoNotDisturbAction(),
         RingerModeAction(),

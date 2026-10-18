@@ -203,6 +203,8 @@ class AutomationService : Service() {
         // Local doorway into the one persistent MQTT connection: other UID-1000 apps/scripts
         // publish via the cybersyn-send FIFO instead of opening their own MQTT clients.
         MqttIngest.start(applicationContext)
+        // Home Wi-Fi band steering resumes if it was switched on (wifi.home_steer state=on).
+        com.termux.cybersyn.core.network.HomeWifiSteerer.restore(applicationContext)
         startKeyHijack()
         timeEventScheduler.scheduleNextMinute()
         engineHeartbeatStore.recordAlive()
@@ -363,6 +365,7 @@ class AutomationService : Service() {
     override fun onDestroy() {
         KeyHijackController.stop()
         MqttIngest.stop()
+        com.termux.cybersyn.core.network.HomeWifiSteerer.shutdown()
         val matcherJobSnapshot = matcherJobs.values.toList()
         val taskJobSnapshot = profileTaskJobs.values.toList()
         matcherJobSnapshot.forEach { it.cancel() }

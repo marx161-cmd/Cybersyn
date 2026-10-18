@@ -54,3 +54,4 @@ buildlog.txt
 build_output.txt
 build_*.bat
 build.sh
+examples/*.local.yaml

@@ -1,0 +1,27 @@
+name: Home Wi-Fi band steering
+description: >
+  Keep the Pixel on the home router's 5 GHz radio (falls back to 2.4 GHz when 5 GHz is weak)
+  and switch mobile data off at home / back on after leaving. Native HomeWifiSteerer
+  (scope.md 2026-10-18); the on/off choice persists across app restarts.
+  Thresholds: up to 5 GHz at >= -72 dBm, down below -80 dBm for 20 s.
+tasks:
+  - name: "Home Wi-Fi steer: on"
+    actions:
+      - type: wifi.home_steer
+        args:
+          state: "on"
+          ssid: YOUR_HOME_SSID   # real value: copy to home-wifi-steer.local.yaml (gitignored)
+          up_dbm: "-72"
+          down_dbm: "-80"
+          mobile_data: "true"
+  - name: "Home Wi-Fi steer: off"
+    actions:
+      - type: wifi.home_steer
+        args:
+          state: "off"
+  - name: "Home Wi-Fi steer: status"
+    actions:
+      - type: wifi.home_steer
+        args:
+          state: status
+profiles: []

@@ -214,6 +214,24 @@ class MobileDataAction : Action {
     override suspend fun run(ctx: ActionContext, args: Map<String, String>): ActionResult {
         val state = args["state"] ?: "toggle"
         ctx.logger("Mobile data: $state")
+        // Cybersyn is UID 1000 (MODIFY_PHONE_STATE): the public telephony API needs no root.
+        // Root `svc data` stays as the fallback if the API refuses.
+        if (Build.VERSION.SDK_INT >= 31) {
+            val tm = ctx.app.getSystemService(android.telephony.TelephonyManager::class.java)
+            val native = tm?.let {
+                runCatching {
+                    val reason = android.telephony.TelephonyManager.DATA_ENABLED_REASON_USER
+                    val target = when (state.lowercase()) {
+                        "on" -> true
+                        "off" -> false
+                        "toggle" -> !it.isDataEnabledForReason(reason)
+                        else -> return ActionResult.Failure("invalid state: $state")
+                    }
+                    it.setDataEnabledForReason(reason, target)
+                }.isSuccess
+            } ?: false
+            if (native) return ActionResult.Success
+        }
         val command = when (state.lowercase()) {
             "on" -> "svc data enable"
             "off" -> "svc data disable"

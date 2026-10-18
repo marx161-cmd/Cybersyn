@@ -909,3 +909,91 @@ before it goes in here.
 
 **Tree state:** still nothing committed in `cybersyn-stub2` — 13 new widget/profile classes plus
 `probe.json` untracked, `build.gradle.kts` / `AndroidManifest.xml` / `scope.md` modified.
+
+## 2026-10-18 — PROPOSED (awaiting user OK): home Wi-Fi band steering + mobile-data auto switch
+
+**Why:** Sunshine/Artemis on the Pixel complained "slow connection". Measured 2026-10-18: the
+Pixel sat on 2.4 GHz (ch 11) of the home SSID although the
+5 GHz radio (5260 MHz / ch 52 DFS, ~-64 dBm) was visible; ping comrade→Pixel
+during a 28.5 Mbps stream = 40% loss, 2–4 s RTT; ~1/3 TX retries. Android never roams off a
+"good enough" network on its own. User keeps mobile data OFF at home by hand.
+
+**Behaviour as proposed (nothing built yet):**
+1. *Home detected* — connected to the home SSID (either band), stable 10 s →
+   mobile data OFF.
+2. *Home lost* — not connected to it for 60 s continuous → mobile data ON. The 60 s grace
+   covers the ~2 s drop a band switch itself causes, so steering never flaps mobile data.
+3. *Steer up* — at home, on 2.4 GHz, 5 GHz BSSID seen at ≥ -72 dBm → reconnect pinned to the
+   5 GHz BSSID (`cmd wifi connect-network … -b <bssid>`).
+4. *Fall back* — on 5 GHz and RSSI < -80 dBm for 20 s, or 5 GHz BSSID gone from scans →
+   drop the pin and join 2.4 GHz. Return to 5 GHz only after ≥ -72 dBm for 30 s (hysteresis);
+   at most one band switch per 2 min.
+5. *Mechanism* — one Termux shell script run as a Cybersyn task (same pattern as the existing
+   watchdog profiles), triggered on Wi-Fi state change plus a light poll ONLY while on home
+   Wi-Fi. Uses Android's cached scan results; no forced scans except to confirm a fallback.
+   Mindful of the open TIME_TICK wakelock cost (see memory project_cybersyn_time_tick_energy_impact).
+
+**Open, for the user:** (a) switch band while a Moonlight/Artemis stream is running, or wait
+until it ends? (b) thresholds -72 / -80 dBm OK? (c) any other home SSIDs?
+
+## 2026-10-18 (later) — band-steering mechanism changed: Cybersyn task reads stdout itself, no script
+
+User pointed out Cybersyn is part of the Termux family and can read command stdout directly.
+Point 5 above is replaced: **no separate Termux script.** The logic is a Cybersyn task built from
+existing actions — shell step (stdout captured into `<prefix>_stdout`, `core/actions/ScriptActions.kt`),
+text-match steps, `flow.if/else`, `mobile.toggle`, `var.persist` for hysteresis timers.
+Verified live 2026-10-18: `cmd wifi status` / `list-scan-results` return NOTHING when run as
+Cybersyn's own UID 1000 (system_app); they must go through `su -c` (root works, same as the
+existing `mobile.toggle` root path). Behaviour points 1–4 and the open questions are unchanged.
+
+## 2026-10-18 (decision) — band steering: OPTION 2 (native actions, no root), defaults accepted
+
+User chose **native Cybersyn actions using Android's Wi-Fi/telephony APIs as the UID-1000 system app**
+(no `su`, no `cmd wifi`). Rebuild + temporary system-app update on blazer (not a ROM promotion).
+User had no opinion on the switch policy ("never thought about it until my stream collapsed") →
+the proposed defaults stand: up to 5 GHz at ≥ -72 dBm (allowed mid-stream), fall back below
+-80 dBm for 20 s (or 5 GHz gone), 30 s good before returning, ≤ 1 band switch / 2 min,
+mobile data OFF after 10 s on home Wi-Fi, ON after 60 s without it.
+The home SSID is the **only** home network (single router, no mesh nodes).
+Mid-stream detail ("defer fallback until stream ends") dropped for v1: a 5 GHz link that is
+genuinely failing is worse for the stream than the 2 s switch, so fallback is not deferred.
+
+## 2026-10-18 (built + verified live) — HomeWifiSteerer, Cybersyn 0.2.80 (versionCode 83)
+
+**Shape as built (one deviation from the entries above, flagged to the user):** the timing policy
+(10 s / 20 s / 30 s / 60 s / 2 min windows) lives in a native controller
+`core/network/HomeWifiSteerer.kt`, not in task steps — profiles have no delays, and doing the
+windows in tasks would have needed the TIME_TICK poll. A task only switches it:
+`wifi.home_steer state=on|off|status` (`examples/home-wifi-steer.yaml` — real SSID only in the gitignored `examples/home-wifi-steer.local.yaml` — tasks
+"Home Wi-Fi steer: on/off/status"). The on/off choice + ssid/thresholds persist in
+SharedPreferences `home_wifi_steer` and `AutomationService.onCreate` restores it.
+5 s poll via coroutine delay (no wakelock); own `startScan()` at most once per 60 s, only while
+on 2.4 GHz at home. Radios are discovered from scans by SSID (no hard-coded BSSIDs).
+Band switch = pin the saved config's BSSID (`updateNetwork` + `enableNetwork`, then
+`disconnect`/`reconnect`). Fallback pins the 2.4 GHz BSSID rather than unpinning (clearing a pin
+via updateNetwork is not reliable: a null BSSID is "unchanged"); when disconnected and the
+pinned radio is not visible, the pin moves to a visible radio so the phone can join at all.
+Mobile data only turns back ON if the controller turned it OFF (`mobile_off_by_us`).
+Also: `wifi.info` (link → variables), `wifi.connect` (pin ssid→bssid), `mobile.toggle` now tries
+`TelephonyManager.setDataEnabledForReason(USER)` before the root `svc data` fallback;
+device-state keys `wifi_band` / `wifi_bssid` published on change. All UID 1000, no root.
+
+**Verified live 2026-10-18 on blazer:**
+- on → 2.4 GHz (-55 dBm) moved to 5 GHz (-67 dBm) within 10 s.
+- 5 GHz under a saturating SSH push: 150 MB in 3.0 s ≈ 397 Mbit/s, ping 0 % loss
+  (before, on 2.4 GHz during a 28.5 Mbps stream: 40 % loss, 2–4 s RTT).
+- Fallback forced with down_dbm=-40: 5→2.4 GHz ~25 s after crossing; restored -80 → back to
+  5 GHz at the 2-min switch limit (21:19:07).
+- Wi-Fi off 90 s (`svc wifi disable`): `mobile_data1` 0→1 at +62 s, Wi-Fi back → rejoined
+  5 GHz, `mobile_data1` 1→0 10 s later. (Note: the per-SIM key `mobile_data1` is the real one;
+  global `mobile_data` did not change.)
+- Side effect: each band switch re-randomises the MAC (network uses non-persistent
+  randomisation) → new DHCP IP (192.168.0.165 → .6). Tailscale follows it; LAN-IP-pinned
+  things would not.
+- Leftover: a CLI test task "Home Wi-Fi steer: on (test)" was overwritten to `state=status`
+  (no CLI delete exists); delete it in the app UI if wanted.
+Not yet tested: walking out of 5 GHz range for real, and a live Moonlight stream on 5 GHz.
+
+Privacy (2026-10-18): the home SSID and router BSSIDs are deliberately kept out of this public
+repo (user request) — they were redacted from these entries before the first push. Real values
+live only in the gitignored `examples/home-wifi-steer.local.yaml` and in the homelab docs.

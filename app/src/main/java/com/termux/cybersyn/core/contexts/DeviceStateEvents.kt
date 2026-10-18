@@ -17,6 +17,9 @@ object DeviceStateEvents {
         connected: Boolean,
     ): Boolean = statePatches.tryEmit(wifiPatch(ssid, connected))
 
+    /** Arbitrary device-state keys (e.g. wifi_band / wifi_bssid from HomeWifiSteerer). */
+    fun publishPatch(patch: Map<String, String>): Boolean = statePatches.tryEmit(patch)
+
     fun publishConnectivity(
         internet: Boolean,
         networkType: String,

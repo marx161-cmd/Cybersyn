@@ -16,8 +16,8 @@ val releaseKeystorePath = findProperty("TERMUX_KEYSTORE") as String?
 val releaseKeystorePassword = findProperty("TERMUX_STORE_PASSWORD") as String?
 val releaseKeyAlias = findProperty("TERMUX_KEY_ALIAS") as String?
 val releaseKeyPassword = findProperty("TERMUX_KEY_PASSWORD") as String?
-val appVersionCode = 82
-val appVersionName = "0.2.79"
+val appVersionCode = 83
+val appVersionName = "0.2.80"
 val allowedDistributions = setOf("standard", "fdroid", "play")
 val selectedDistribution = providers.gradleProperty("openTaskerDistribution")
     .orElse("standard")
