@@ -288,6 +288,13 @@ public final class PadView extends View {
         this.onVariantChanged = listener;
     }
 
+    private final Paint labelPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    {
+        labelPaint.setTextAlign(Paint.Align.CENTER);
+        labelPaint.setFakeBoldText(true);
+        labelPaint.setShadowLayer(3f, 0f, 1f, 0xCC000000);
+    }
+
     @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
@@ -302,6 +309,22 @@ public final class PadView extends View {
             }
             widget.draw(canvas);
             canvas.restore();
+        }
+        // LABELS (2026-10-19, user: "I can't see what's what, can you label them?"): an item whose properties carry a
+        // "label" gets it drawn upright inside its on-screen footprint, along the top (a turned slider's too); "labelColor" tints it.
+        float dens = getResources().getDisplayMetrics().density;
+        for (Widget widget : widgets) {
+            String label = widget.item.props.optString("label", "");
+            if (label.isEmpty()) continue;
+            RectF r = new RectF(widget.bounds());
+            if (widget.item.rotation != 0f) {
+                android.graphics.Matrix m = new android.graphics.Matrix();
+                m.setRotate(widget.item.rotation, r.centerX(), r.centerY());
+                m.mapRect(r);
+            }
+            labelPaint.setTextSize(11f * dens);
+            labelPaint.setColor(widget.item.propColor("labelColor", 0xCCFFFFFF));
+            canvas.drawText(label, r.centerX(), r.top + 13f * dens, labelPaint);   // inside, along its top (user: "inside the widget is space too")
         }
         if (arranging) {
             // Every widget becomes a grab target and the one under the finger is highlighted, so

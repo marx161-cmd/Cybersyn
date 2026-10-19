@@ -113,8 +113,20 @@ public final class PadProfile {
          */
         public int propColor(String key, int fallback) {
             if (!props.has(key)) return fallback;
-            long v = props.optLong(key, Long.MIN_VALUE);
-            if (v == Long.MIN_VALUE) return fallback;
+            // The ULong form is ABOVE Long.MAX_VALUE (0xFF.. in the top byte), so org.json holds it as a Double and
+            // optLong() SATURATED it to 0x7FFFFFFF_FFFFFFFF -> every pad colour drew as the same translucent grey
+            // (2026-10-19). Take the exact value and keep its low 64 bits (two's complement), then split as before.
+            Object o = props.opt(key);
+            long v;
+            if (o instanceof Number) {
+                v = new java.math.BigDecimal(((Number) o).doubleValue()).toBigInteger().longValue();
+            } else {
+                try {
+                    v = new java.math.BigInteger(String.valueOf(o).trim()).longValue();
+                } catch (NumberFormatException e) {
+                    return fallback;
+                }
+            }
             int high = (int) (v >>> 32);
             return high != 0 ? high : (int) v;
         }
