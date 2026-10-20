@@ -12,6 +12,7 @@ import android.media.session.PlaybackState
 import android.media.MediaMetadata
 import android.graphics.Bitmap
 import android.os.Build
+import com.termux.cybersyn.app.R
 import com.termux.cybersyn.core.mqtt.MqttBridge
 import com.termux.cybersyn.core.transfer.AlbumArtBus
 import kotlinx.coroutines.CoroutineScope
@@ -41,6 +42,8 @@ class MediaContextSource : SubscriptionReadyContextSource {
         val isPlaying: Boolean,
         val actions: Long,
         val albumArt: Bitmap?,
+        val thumbUp: Boolean?,
+        val thumbDown: Boolean?,
     )
 
     override fun events(app: Context, onSubscribed: () -> Unit): Flow<ContextEvent> = channelFlow {
@@ -133,6 +136,14 @@ class MediaContextSource : SubscriptionReadyContextSource {
             override fun onSeekTo(pos: Long) {
                 MqttBridge.publish(app, "cybersyn/comrade/action", "mpris.position:${pos / 1000}")
             }
+            // Thumbs: toggles live on comrade (~/bin/shader-music thumb-up|thumb-down). 👎 deliberately
+            // does not skip, so a mis-tap can be undone by tapping again.
+            override fun onCustomAction(action: String, extras: android.os.Bundle?) {
+                when (action) {
+                    ACTION_THUMB_UP -> MqttBridge.publish(app, "cybersyn/comrade/action", "script:shader-music thumb-up")
+                    ACTION_THUMB_DOWN -> MqttBridge.publish(app, "cybersyn/comrade/action", "script:shader-music thumb-down")
+                }
+            }
         })
 
         createNotificationChannel(app)
@@ -171,6 +182,9 @@ class MediaContextSource : SubscriptionReadyContextSource {
         val canGoNext = active.optBoolean("can_go_next", true)
         val canGoPrevious = active.optBoolean("can_go_previous", true)
         val canSeek = active.optBoolean("can_seek", length > 0)
+        // Only present for local file:// tracks (what shader-music can favourite/ignore).
+        val thumbUp = if (active.has("thumb_up")) active.optBoolean("thumb_up") else null
+        val thumbDown = if (active.has("thumb_down")) active.optBoolean("thumb_down") else null
 
         val metadata = MediaMetadata.Builder()
         if (title != null) metadata.putString(MediaMetadata.METADATA_KEY_TITLE, title)
@@ -193,15 +207,30 @@ class MediaContextSource : SubscriptionReadyContextSource {
         // speed + a timestamp, so the OS extrapolates the progress bar on its
         // own — skip the session/notification rebuild (and the SystemUI media
         // card re-render it triggers) unless something real actually changed.
-        val snapshot = MediaSnapshot(title, artist, album, length, isPlaying, actions, albumArtBitmap)
+        val snapshot = MediaSnapshot(title, artist, album, length, isPlaying, actions, albumArtBitmap, thumbUp, thumbDown)
         if (snapshot == lastSnapshot) return
         lastSnapshot = snapshot
 
-        val state = PlaybackState.Builder()
+        val stateBuilder = PlaybackState.Builder()
             .setState(playState, position, if (isPlaying) 1.0f else 0f)
             .setActions(actions)
-            .build()
-        session.setPlaybackState(state)
+        if (thumbDown != null) {
+            stateBuilder.addCustomAction(
+                PlaybackState.CustomAction.Builder(
+                    ACTION_THUMB_DOWN, "Ignore track",
+                    if (thumbDown) R.drawable.ic_thumb_down_on else R.drawable.ic_thumb_down_off,
+                ).build()
+            )
+        }
+        if (thumbUp != null) {
+            stateBuilder.addCustomAction(
+                PlaybackState.CustomAction.Builder(
+                    ACTION_THUMB_UP, "Favourite track",
+                    if (thumbUp) R.drawable.ic_thumb_up_on else R.drawable.ic_thumb_up_off,
+                ).build()
+            )
+        }
+        session.setPlaybackState(stateBuilder.build())
 
         // Update notification
         try {
@@ -295,6 +324,8 @@ class MediaContextSource : SubscriptionReadyContextSource {
     }
 
     companion object {
+        private const val ACTION_THUMB_UP = "cybersyn.thumb_up"
+        private const val ACTION_THUMB_DOWN = "cybersyn.thumb_down"
         private const val CHANNEL_ID = "cybersyn_media"
         private const val NOTIFICATION_ID = 9001
     }

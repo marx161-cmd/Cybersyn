@@ -35,6 +35,11 @@ pub struct PlayerStatus {
     pub can_go_next: bool,
     pub can_go_previous: bool,
     pub can_seek: bool,
+    /// Only for local file:// tracks: favourited / ignored (see ~/bin/shader-music thumb-*).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub thumb_up: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub thumb_down: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -132,6 +137,11 @@ fn build_status(art_cache_dir: &PathBuf) -> Result<MediaStatus, String> {
         let (album_art_hash, album_art_ready) =
             extract_album_art(name, &metadata, art_cache_dir);
 
+        let (thumb_up, thumb_down) = match thumb_state(metadata.get("xesam:url")) {
+            Some((u, d)) => (Some(u), Some(d)),
+            None => (None, None),
+        };
+
         players.push(PlayerStatus {
             name: name.to_string(),
             title: metadata.get("xesam:title").cloned(),
@@ -150,6 +160,8 @@ fn build_status(art_cache_dir: &PathBuf) -> Result<MediaStatus, String> {
             can_go_next,
             can_go_previous,
             can_seek,
+            thumb_up,
+            thumb_down,
         });
     }
 
@@ -168,6 +180,7 @@ fn get_metadata(player: &str) -> HashMap<String, String> {
         "xesam:album",
         "mpris:artUrl",
         "mpris:length",
+        "xesam:url",
     ];
 
     let format_str = fields
@@ -269,6 +282,39 @@ pub fn get_active_player() -> Option<String> {
         }
     }
     players.first().cloned()
+}
+
+/// (favourited, ignored) for a local file:// track, None for anything else.
+/// Mirrors the markers ~/bin/shader-music writes.
+fn thumb_state(url: Option<&String>) -> Option<(bool, bool)> {
+    let path = percent_decode(url?.strip_prefix("file://")?);
+    let base = std::path::Path::new(&path).file_name()?.to_string_lossy().to_string();
+    let share = expand_home("~/.local/share/shader-backdrop");
+    let fav = std::fs::read_to_string(share.join("favs.m3u"))
+        .map(|f| f.lines().any(|l| l == path))
+        .unwrap_or(false);
+    let ignored = share.join("not_music").join(format!("{base}.excluded")).exists();
+    Some((fav, ignored))
+}
+
+fn percent_decode(s: &str) -> String {
+    let b = s.as_bytes();
+    let mut out = Vec::with_capacity(b.len());
+    let mut i = 0;
+    while i < b.len() {
+        if b[i] == b'%' && i + 2 < b.len() {
+            // parse from bytes: slicing the &str could split a multi-byte char
+            let hex = |c: u8| (c as char).to_digit(16);
+            if let (Some(h), Some(l)) = (hex(b[i + 1]), hex(b[i + 2])) {
+                out.push((h * 16 + l) as u8);
+                i += 3;
+                continue;
+            }
+        }
+        out.push(b[i]);
+        i += 1;
+    }
+    String::from_utf8_lossy(&out).into_owned()
 }
 
 fn run_playerctl(args: &[&str]) -> Result<String, String> {

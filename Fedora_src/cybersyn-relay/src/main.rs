@@ -114,7 +114,12 @@ fn dispatch(
 
     // Handle dot-separated mpris commands (e.g., "mpris.players")
     if let Some(sub) = cmd.strip_prefix("mpris.") {
-        return dispatch_mpris(sub);
+        // The phone sends e.g. "mpris.position:60"; the first split above peeled
+        // ":60" off, so put it back or the subcommand loses its argument.
+        if arg.is_empty() {
+            return dispatch_mpris(sub);
+        }
+        return dispatch_mpris(&format!("{sub}:{arg}"));
     }
 
     match cmd {

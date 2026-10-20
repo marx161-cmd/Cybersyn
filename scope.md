@@ -997,3 +997,33 @@ Not yet tested: walking out of 5 GHz range for real, and a live Moonlight stream
 Privacy (2026-10-18): the home SSID and router BSSIDs are deliberately kept out of this public
 repo (user request) — they were redacted from these entries before the first push. Real values
 live only in the gitignored `examples/home-wifi-steer.local.yaml` and in the homelab docs.
+
+## 2026-10-20 — Media card: thumbs up/down + working scrub
+
+Decisions with the user (this session):
+- **Scrub fix (DONE, relay only):** the phone's `onSeekTo` publishes `mpris.position:<secs>`; the relay's
+  dot-prefix path (`mpris.<sub>`) split at the first ':' and dropped the argument, so every scrub ran
+  `playerctl position ""` and failed. Fixed in `Fedora_src/cybersyn-relay/src/main.rs` (re-join `sub:arg`).
+- **Thumbs buttons** = two `PlaybackState` custom actions on the mirrored "CybersynMedia" session
+  (shown by the SystemUI media card), only for players playing a local `file://` track.
+  - 👎 **does NOT skip** (user: so a fat-fingered tap can be undone). It toggles the track's
+    `.excluded` marker in `~/.local/share/shader-backdrop/not_music/` (same marker `shader-music exclude`
+    writes: never computed, never shuffled). Tapping again removes it.
+  - 👍 toggles the track's line in `~/.local/share/shader-backdrop/favs.m3u` (new favourites playlist);
+    `shader-music favs` shuffles just that list.
+  - Up and down are mutually exclusive (setting one clears the other).
+- Phone -> desktop path: `cybersyn/comrade/action` = `script:shader-music thumb-up|thumb-down`
+  (relay script dispatch; `shader-music` symlinked into `~/.config/cybersyn/scripts/`).
+- Relay publishes `thumb_up` / `thumb_down` booleans per file:// player in the media status so the
+  phone can show the current state (filled vs dim icon).
+- Deploy of the app is via `blazer-sysapp-update install` (temp tier; promote only at OTA time).
+
+### 2026-10-20 (later) — thumbs + scrub: BUILT and verified live
+- Relay `mpris.rs`: `xesam:url` now collected; `thumb_up`/`thumb_down` published for file:// players.
+  `cybersyn-relay` redeployed to `~/.local/bin` (backup `cybersyn-relay.bak-20261020`).
+- `~/bin/shader-music`: new `thumb-up`, `thumb-down` (toggles, mutually exclusive), `favs` (shuffle favourites).
+  Backup `~/bin/shader-music.bak-20261020`; symlinked into `~/.config/cybersyn/scripts/`.
+- App 0.2.80 (`MediaContextSource.kt` custom actions + `ic_thumb_{up,down}_{on,off}.xml`) installed via
+  `blazer-sysapp-update` (temp tier, NOT promoted). `dumpsys media_session` shows both custom actions;
+  `script:shader-music thumb-up` over MQTT toggled the favourite and flipped the phone's icon id on/off.
+- Not yet verified: a real finger tap on the card, and a real scrub drag (only the MQTT path was driven).
