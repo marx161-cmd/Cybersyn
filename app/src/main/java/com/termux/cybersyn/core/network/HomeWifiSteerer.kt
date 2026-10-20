@@ -2,6 +2,9 @@ package com.termux.cybersyn.core.network
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
+import android.net.wifi.WifiInfo
 import android.net.wifi.ScanResult
 import android.net.wifi.WifiConfiguration
 import android.net.wifi.WifiManager
@@ -49,6 +52,10 @@ object HomeWifiSteerer {
     private const val TICK_MS = 5_000L
     private const val SCAN_INTERVAL_MS = 60_000L
     private const val SCAN_MAX_AGE_MS = 120_000L
+    private const val BEACON_PRESENT_MS = 45_000L   // batches are 15 s and the low-power scan duty-cycles
+    private const val UNKNOWN = 0
+    private const val PRESENT = 1
+    private const val ABSENT = 2
 
     data class Config(
         val ssid: String,
@@ -58,8 +65,16 @@ object HomeWifiSteerer {
         val upHoldMs: Long = 30_000,
         val minSwitchIntervalMs: Long = 120_000,
         val homeOnMs: Long = 10_000,
-        val homeOffMs: Long = 60_000,
+        val homeOffMs: Long = 20_000,
         val mobileData: Boolean = true,
+        /** Connected to home Wi-Fi but no real internet (not VALIDATED) this long -> mobile data + 5G ON. */
+        val deadWifiMs: Long = 20_000,
+        /** After a fallback, home Wi-Fi must be validated this long before mobile data goes OFF again. */
+        val recoverHoldMs: Long = 30_000,
+        /** No Wi-Fi link at all AND no beacon this long -> you left: mobile on first, then Wi-Fi OFF. */
+        val leaveMs: Long = 120_000,
+        /** comrade's BLE home beacon service UUID (config only, never committed); null = no beacon logic. */
+        val beaconUuid: String? = null,
     )
 
     data class Status(
@@ -73,6 +88,7 @@ object HomeWifiSteerer {
         val pinnedBssid: String,
         val mobileOffByUs: Boolean,
         val lastAction: String,
+        val beacon: String = "",
     )
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -88,6 +104,11 @@ object HomeWifiSteerer {
     private var downBadSince = 0L
     private var homeSince = 0L
     private var lostSince = 0L
+    private var validSince = 0L
+    private var deadSince = 0L
+    private var wifiGoneSince = 0L
+    private var fallbackOn = false      // we turned mobile data on because home Wi-Fi was lost/dead
+    private var presence = UNKNOWN
     @Volatile private var lastAction = "none"
     @Volatile private var lastStatus: Status? = null
 
@@ -102,6 +123,7 @@ object HomeWifiSteerer {
             upDbm = p.getInt("up_dbm", -72),
             downDbm = p.getInt("down_dbm", -80),
             mobileData = p.getBoolean("mobile_data", true),
+            beaconUuid = p.getString("beacon_uuid", null),
         ), persist = false)
     }
 
@@ -115,6 +137,7 @@ object HomeWifiSteerer {
                 .putInt("up_dbm", cfg.upDbm)
                 .putInt("down_dbm", cfg.downDbm)
                 .putBoolean("mobile_data", cfg.mobileData)
+                .putString("beacon_uuid", cfg.beaconUuid)
                 .apply()
         }
         if (loop?.isActive == true) {
@@ -135,6 +158,8 @@ object HomeWifiSteerer {
         loop?.cancel()
         loop = null
         if (persist) prefs().edit().putBoolean("enabled", false).apply()
+        HomeBeacon.stop()
+        presence = UNKNOWN
         AppLogger.info(TAG, "stopped (persist=$persist)")
     }
 
@@ -142,6 +167,7 @@ object HomeWifiSteerer {
     fun shutdown() {
         loop?.cancel()
         loop = null
+        HomeBeacon.stop()
     }
 
     fun status(context: Context): Status {
@@ -169,6 +195,7 @@ object HomeWifiSteerer {
         val best24 = scans.filter { !is5Ghz(it.frequency) }.maxByOrNull { it.level }
 
         if (cfg.mobileData) steerMobile(connected, now, cfg)
+        steerPresence(wm, info, connected, now, cfg)
 
         if (connected) {
             val onFive = is5Ghz(info.frequency)
@@ -224,6 +251,7 @@ object HomeWifiSteerer {
             pinnedBssid = pinned,
             mobileOffByUs = prefs().getBoolean("mobile_off_by_us", false),
             lastAction = lastAction,
+            beacon = beaconText(now, cfg),
         )
         if (status.band != lastStatus?.band || status.bssid != lastStatus?.bssid) {
             DeviceStateEvents.publishPatch(mapOf(
@@ -240,22 +268,132 @@ object HomeWifiSteerer {
         if (connected) {
             lostSince = 0
             if (homeSince == 0L) homeSince = now
-            if (now - homeSince >= cfg.homeOnMs && !offByUs) {
-                if (setMobileData(false)) {
-                    p.edit().putBoolean("mobile_off_by_us", true).apply()
-                    note("mobile data OFF (home Wi-Fi ${cfg.homeOnMs / 1000}s)")
+            if (!wifiValidated()) {
+                // Associated but no real internet (router up, ISP down, captive portal...): bring mobile back.
+                validSince = 0
+                if (deadSince == 0L) deadSince = now
+                if (offByUs && now - deadSince >= cfg.deadWifiMs) {
+                    if (setMobile(true)) {
+                        p.edit().putBoolean("mobile_off_by_us", false).apply()
+                        fallbackOn = true
+                        note("mobile data + 5G ON (home Wi-Fi has no internet ${cfg.deadWifiMs / 1000}s)")
+                    }
+                }
+            } else {
+                deadSince = 0
+                if (validSince == 0L) validSince = now
+                // After a fallback wait longer, so a flaky router cannot flap mobile data on/off.
+                val hold = if (fallbackOn) cfg.recoverHoldMs else cfg.homeOnMs
+                if (now - validSince >= hold && !offByUs) {
+                    if (setMobile(false)) {
+                        p.edit().putBoolean("mobile_off_by_us", true).apply()
+                        fallbackOn = false
+                        note("mobile data + 5G OFF (home Wi-Fi validated ${hold / 1000}s)")
+                    }
                 }
             }
         } else {
             homeSince = 0
+            validSince = 0
+            deadSince = 0
             if (!offByUs) return
             if (lostSince == 0L) lostSince = now
             if (now - lostSince >= cfg.homeOffMs) {
-                if (setMobileData(true)) {
+                if (setMobile(true)) {
                     p.edit().putBoolean("mobile_off_by_us", false).apply()
-                    note("mobile data ON (no home Wi-Fi ${cfg.homeOffMs / 1000}s)")
+                    fallbackOn = true
+                    note("mobile data + 5G ON (no home Wi-Fi ${cfg.homeOffMs / 1000}s)")
                 }
             }
+        }
+    }
+
+    /**
+     * Beacon-driven presence (needs [Config.beaconUuid]). Arrive: beacon seen again after being absent ->
+     * Wi-Fi ON (the existing logic then joins 5 GHz and drops mobile data). Leave: no Wi-Fi link at all AND
+     * no beacon for [Config.leaveMs] -> mobile data + 5G ON, and only once cellular is really validated,
+     * Wi-Fi OFF. One signal alone never switches (router reboot / Bluetooth hiccup are safe).
+     */
+    private fun steerPresence(wm: WifiManager, info: WifiInfo?, connected: Boolean, now: Long, cfg: Config) {
+        HomeBeacon.ensure(app, cfg.beaconUuid, now)
+        if (cfg.beaconUuid.isNullOrBlank() || !HomeBeacon.isScanning) return
+
+        val age = HomeBeacon.ageMs(now)
+        val prev = presence
+        when {
+            age != null && age <= BEACON_PRESENT_MS -> presence = PRESENT
+            age != null && age > cfg.leaveMs -> presence = ABSENT
+            age == null && HomeBeacon.scanningFor(now, cfg.leaveMs) -> presence = ABSENT
+        }
+
+        if (prev == ABSENT && presence == PRESENT) {
+            if (!wm.isWifiEnabled) {
+                if (wm.setWifiEnabled(true)) note("Wi-Fi ON (home beacon seen)")
+                else AppLogger.warn(TAG, "setWifiEnabled(true) refused")
+            }
+        }
+
+        val anyLink = info != null && info.networkId != -1
+        if (connected || anyLink) wifiGoneSince = 0
+        else if (wifiGoneSince == 0L) wifiGoneSince = now
+
+        if (presence == ABSENT && wm.isWifiEnabled && !anyLink &&
+            wifiGoneSince != 0L && now - wifiGoneSince >= cfg.leaveMs
+        ) {
+            if (setMobile(true)) {
+                prefs().edit().putBoolean("mobile_off_by_us", false).apply()
+                fallbackOn = true
+            }
+            if (cellularValidated()) {
+                if (wm.setWifiEnabled(false)) note("Wi-Fi OFF (left home: no Wi-Fi + no beacon ${cfg.leaveMs / 1000}s)")
+                else AppLogger.warn(TAG, "setWifiEnabled(false) refused")
+            }
+        }
+    }
+
+    private fun beaconText(now: Long, cfg: Config): String = when {
+        cfg.beaconUuid.isNullOrBlank() -> "off"
+        !HomeBeacon.isScanning -> "not scanning"
+        else -> {
+            val age = HomeBeacon.ageMs(now)
+            val st = when (presence) { PRESENT -> "present"; ABSENT -> "absent"; else -> "unknown" }
+            if (age == null) "$st, never seen" else "$st, seen ${age / 1000}s ago"
+        }
+    }
+
+    private fun transportValidated(transport: Int, default: Boolean): Boolean {
+        val cm = app.getSystemService(ConnectivityManager::class.java) ?: return default
+        val caps = cm.allNetworks.mapNotNull { cm.getNetworkCapabilities(it) }
+            .firstOrNull { it.hasTransport(transport) } ?: return default
+        return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+    }
+
+    /** Unknown counts as validated, so a failed query never turns mobile data on by itself. */
+    private fun wifiValidated(): Boolean = transportValidated(NetworkCapabilities.TRANSPORT_WIFI, true)
+
+    private fun cellularValidated(): Boolean = transportValidated(NetworkCapabilities.TRANSPORT_CELLULAR, false)
+
+    /** Mobile data and the "Enable 5G" switch always move together (user 2026-10-20). */
+    private fun setMobile(enabled: Boolean): Boolean {
+        val ok = setMobileData(enabled)
+        if (ok) setFiveG(enabled)
+        return ok
+    }
+
+    /** The Internet panel's "Enable 5G" switch = whether NR is in the user's allowed network types. */
+    private fun setFiveG(enabled: Boolean) {
+        val tm = app.getSystemService(TelephonyManager::class.java) ?: return
+        try {
+            val reason = TelephonyManager.ALLOWED_NETWORK_TYPES_REASON_USER
+            val cur = tm.getAllowedNetworkTypesForReason(reason)
+            val nr = TelephonyManager.NETWORK_TYPE_BITMASK_NR
+            val want = if (enabled) cur or nr else cur and nr.inv()
+            if (want != cur) {
+                tm.setAllowedNetworkTypesForReason(reason, want)
+                AppLogger.info(TAG, "5G ${if (enabled) "ON" else "OFF"} (allowed types $cur -> $want)")
+            }
+        } catch (e: RuntimeException) {
+            AppLogger.warn(TAG, "5G -> $enabled failed", e)
         }
     }
 

@@ -1027,3 +1027,60 @@ Decisions with the user (this session):
   `blazer-sysapp-update` (temp tier, NOT promoted). `dumpsys media_session` shows both custom actions;
   `script:shader-music thumb-up` over MQTT toggled the favourite and flipped the phone's icon id on/off.
 - Not yet verified: a real finger tap on the card, and a real scrub drag (only the MQTT path was driven).
+
+## 2026-10-20 — Home beacon (BLE) -> Wi-Fi/mobile auto switch for the "Wi-Fi off outside" habit
+
+Problem (user): habit is mobile data on + Wi-Fi OFF outside to save battery. With Wi-Fi off and
+`wifi_scan_always_enabled=0` Android does no scans, so HomeWifiSteerer can never see home and never
+turns Wi-Fi back on; mobile data simply stays on (fails safe, but the auto-switch is dead for this habit).
+Options weighed: cell-tower ID, always-scan, Cybersyn location radius, Bluetooth beacon. User picked **Bluetooth**.
+
+Decisions:
+- **Beacon host = comrade** (hci0 present, always on). comintern checked: NO Bluetooth hardware
+  (no /sys/class/bluetooth, no USB adapter), so it cannot be the beacon without a dongle.
+- comrade advertises a fixed BLE UUID (`home-beacon` service, to be written). Phone does a hardware-filtered
+  low-power BLE scan for that UUID only (Bluetooth is already on, `bluetooth_on=1`).
+- **Arrive (beacon seen):** Wi-Fi ON -> HomeWifiSteerer joins 5 GHz -> mobile data OFF after 10 s (unchanged).
+- **Leave (beacon gone ~2 min, debounce): mobile data ON + "Enable 5G" ON first, wait for connectivity,
+  THEN Wi-Fi OFF** (no connectivity gap). User: "shut down wifi too and bring up both" — "both" read as the two
+  switches on the Vodafone card in the Internet panel (screenshot 2026-10-20 18:38): mobile data and Enable 5G.
+  5G switch is stored as `preferred_network_mode` (currently `26,26` = NR+LTE+GSM+WCDMA, i.e. 5G on).
+- Manual habit stays valid; automation must not fight a manual choice made while the beacon is steady.
+- OPEN: should the 5G switch also go OFF at home (like mobile data) or stay as-is? Not decided.
+
+### 2026-10-20 (later) — beacon side BUILT (comrade); phone side NOT started
+- `~/bin/home-beacon` (BlueZ `LEAdvertisement1` over D-Bus, python3 system `dbus`+`gi`, no root; `btmgmt add-adv` is
+  Permission Denied for a normal user) + `~/.config/systemd/user/home-beacon.service` (enabled, active).
+  Advertises one 128-bit service UUID `80d85629-c5d0-4fee-a23c-3cdb7e6c287a`, 1.0–1.5 s interval, no name.
+  `bluetoothctl show` -> `ActiveInstances: 1`. Not yet seen from the phone (no scanner built).
+- NEXT: Cybersyn BLE scan context (hardware ScanFilter on that UUID, low-power mode), then the arrive/leave logic
+  in HomeWifiSteerer territory (see decisions above). Blocked on the OPEN 5G-at-home question.
+
+### 2026-10-20 (later) — DECIDED: 5G stays ON always; Wi-Fi-dead fallback added to the design
+- User: stays on 5G always ("only way I get a half-usable connection, I live half-buried underground"). So the controller
+  NEVER turns 5G off; it only makes sure it is on when leaving (`preferred_network_mode` must include NR).
+- Added: "Wi-Fi dies" fallback. (a) Wi-Fi gone -> mobile data ON after ~15-20 s (was 60 s). (b) Wi-Fi connected but not
+  VALIDATED (no real internet) for ~20 s -> mobile data ON. Mobile goes back OFF only after Wi-Fi has been validated
+  for ~30 s (hysteresis). Mobile is only touched when `mobile_off_by_us` (never overrides a manual choice).
+- Leave rule: home Wi-Fi gone AND beacon absent for ~2 min -> mobile data + 5G on, wait for connectivity, then Wi-Fi OFF.
+  Arrive rule: beacon seen while Wi-Fi off -> Wi-Fi ON. One signal alone never switches (router reboot / BT hiccup safe).
+
+### 2026-10-20 (correction, same session) — 5G switch FOLLOWS mobile data (supersedes "5G stays on always")
+- User: the 5G switch goes OFF together with mobile data at home, and comes back ON together with mobile data
+  (5G is only wanted while mobile data is on; when it is on, 5G is essential — user lives half underground).
+  So: wherever the controller sets mobile data OFF/ON, it sets the "Enable 5G" switch OFF/ON in the same step.
+  Only touched when the controller itself turned mobile data off (`mobile_off_by_us`), never a manual choice.
+
+### 2026-10-20 (later) — phone side BUILT + installed (0.2.80, temp tier); arrive/leave NOT yet exercised
+- New `core/network/HomeBeacon.kt`: one SCAN_MODE_LOW_POWER, hardware-filtered BLE scan for the beacon UUID,
+  15 s batched reports (lastSeen only). UUID is config (`beacon_uuid` arg of `wifi.home_steer`, persisted in the steerer
+  prefs); it lives only in the gitignored `examples/home-wifi-steer.local.yaml`, the public example has a placeholder.
+- `HomeWifiSteerer.kt`: mobile data and the 5G switch (`ALLOWED_NETWORK_TYPES_REASON_USER` minus/plus NR) always move together
+  (`setMobile`); "home Wi-Fi lost" fallback 60 s -> 20 s; new "connected but not VALIDATED for 20 s -> mobile+5G ON";
+  mobile+5G go OFF only after Wi-Fi validated 10 s (30 s after a fallback); `steerPresence`: beacon seen after absence ->
+  Wi-Fi ON; no Wi-Fi link at all AND no beacon 120 s -> mobile+5G ON, then Wi-Fi OFF once cellular is validated.
+  Unknown validation counts as validated; scanner not running => never turns Wi-Fi off.
+- Installed via `blazer-sysapp-update`, task "Home Wi-Fi steer: on" re-applied with the beacon UUID. Verified: scanner starts
+  (`HomeBeacon: scanning for home beacon`), phone state unchanged (Wi-Fi off, mobile on, NR allowed).
+- NOT verified (user is away from home 2026-10-20 evening): beacon actually received; arrive -> Wi-Fi ON; leave -> Wi-Fi OFF;
+  dead-Wi-Fi fallback; `setWifiEnabled` being accepted for UID 1000. Test on arrival: watch `logcat -s HomeWifiSteerer HomeBeacon`.

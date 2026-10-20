@@ -14,6 +14,8 @@ tasks:
           up_dbm: "-72"
           down_dbm: "-80"
           mobile_data: "true"
+          # BLE home-beacon service UUID (comrade ~/bin/home-beacon); enables arrive/leave Wi-Fi switching.
+          # beacon_uuid: "00000000-0000-0000-0000-000000000000"
   - name: "Home Wi-Fi steer: off"
     actions:
       - type: wifi.home_steer

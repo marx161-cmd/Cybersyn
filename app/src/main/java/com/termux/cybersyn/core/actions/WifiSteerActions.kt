@@ -16,6 +16,7 @@ import com.termux.cybersyn.core.network.HomeWifiSteerer
  *   - "ssid": home network name (required for "on")
  *   - "up_dbm" / "down_dbm": thresholds, default -72 / -80
  *   - "mobile_data": "true"/"false" — also drive mobile data (default true)
+ *   - "beacon_uuid": comrade's BLE home-beacon service UUID (optional; enables arrive/leave Wi-Fi switching)
  * Sets variables wifi_steer_* (enabled, band, rssi, bssid, best5, pinned, mobile_off, last).
  */
 class WifiHomeSteerAction : Action {
@@ -32,6 +33,7 @@ class WifiHomeSteerAction : Action {
                     upDbm = args["up_dbm"]?.toIntOrNull() ?: -72,
                     downDbm = args["down_dbm"]?.toIntOrNull() ?: -80,
                     mobileData = args["mobile_data"]?.toBooleanStrictOrNull() ?: true,
+                    beaconUuid = args["beacon_uuid"]?.trim()?.takeIf { it.isNotEmpty() },
                 ))
             }
             "off" -> HomeWifiSteerer.stop(ctx.app)
@@ -47,6 +49,7 @@ class WifiHomeSteerAction : Action {
         ctx.variables.set("wifi_steer_pinned", s.pinnedBssid)
         ctx.variables.set("wifi_steer_mobile_off", s.mobileOffByUs.toString())
         ctx.variables.set("wifi_steer_last", s.lastAction)
+        ctx.variables.set("wifi_steer_beacon", s.beacon)
         ctx.logger("home steer: $s")
         return ActionResult.Success
     }
