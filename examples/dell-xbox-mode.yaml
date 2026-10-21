@@ -1,15 +1,15 @@
 name: Dell Xbox mode
-description: 2026-10-21 -- comintern display modes. Xbox mode = the Xbox (Moonlight) takes the landscape Apollo stream, both Dells show the portrait stream (HDMI-2 rotated portrait + flipped, mirrored). Runs comrade ~/bin/comintern-xbox-toggle.sh via kde-command.
+description: 2026-10-21 (short names so the list shows the important word) -- comintern display modes. Xbox mode = the Xbox (Moonlight) takes the landscape Apollo stream, both Dells show the portrait stream (HDMI-2 rotated portrait + flipped, mirrored). Runs comrade ~/bin/comintern-xbox-toggle.sh via kde-command.
 tasks:
-  - name: "Dell Xbox mode toggle"
+  - name: "Xbox toggle"
     actions:
       - type: mqtt.publish
         args: { topic: cybersyn/comrade/action, message: "script:kde-command appliance_xbox_toggle" }
-  - name: "Dell Xbox mode on"
+  - name: "Xbox on"
     actions:
       - type: mqtt.publish
         args: { topic: cybersyn/comrade/action, message: "script:kde-command appliance_xbox_on" }
-  - name: "Dell Xbox mode off"
+  - name: "Xbox off"
     actions:
       - type: mqtt.publish
         args: { topic: cybersyn/comrade/action, message: "script:kde-command appliance_xbox_off" }
