@@ -1084,3 +1084,54 @@ Decisions:
   (`HomeBeacon: scanning for home beacon`), phone state unchanged (Wi-Fi off, mobile on, NR allowed).
 - NOT verified (user is away from home 2026-10-20 evening): beacon actually received; arrive -> Wi-Fi ON; leave -> Wi-Fi OFF;
   dead-Wi-Fi fallback; `setWifiEnabled` being accepted for UID 1000. Test on arrival: watch `logcat -s HomeWifiSteerer HomeBeacon`.
+
+### 2026-10-26 — ServerBox monitoring satellite: keep the Flutter app, free `stub1`'s slot for it (decided)
+
+Decided with the user this session. Goal: get ServerBox's server-monitoring dashboard + home widgets into Cybersyn
+as a phone app, without reimplementing the UI in Kotlin.
+
+- **Source:** `lollipopkit/flutter_server_box` (AGPL-3.0; user prefers copyleft — no licensing blocker), cloned full
+  (+ submodules) to `~/builds/crossplatform/flutter_server_box-explore` (reference copy; fork a working copy before editing).
+  One repo — the second URL (`.../tree/main/monitor`) is the `monitor/` subdir (Rust agent + Svelte panel), already inside
+  the clone, and it is NOT being ported.
+- **Key decision: keep the Flutter app, do not port the UI to Kotlin.** The valuable layer is the Rust data crates
+  (`sbm_parser` command-manifest+parsers, `sbm_native` sysinfo sampler -> `ServerStatus` JSON), which are language-agnostic;
+  the Flutter dashboard (`lib/view/page/server/`) is a visual reference only. The home-screen widgets are already Kotlin
+  (`android/.../widget/`, ~1.6k lines) and stay as reference.
+- **Where it lives: the `com.termux.cybersyn.stub1` system-app slot.** To free it, migrate stub1's trackpad sidecar into
+  stub2 (the remote). Chose to REUSE the `stub1` package id (not rename to `.monitor`) so `device-secur.mk` +
+  `APPS_MANIFEST.md` entries stay put — the whole reason to free the slot.
+- **Stub census (live, 2026-10-26):** system apps = `com.termux.cybersyn`, `.stub1` (trackpad sidecar), `.stub2`
+  (remote/gamepad surface). `com.comrade.quicktaprelay` + `com.comrade.trackpadrelay` are 2026-07-22 DEBUG user apps
+  (`/data/app`, DEBUGGABLE, no sharedUserId), dead leftovers — NOT stubs, NOT system apps. The repo's `:quicktap-stub`
+  module is the superseded quick-tap scaffold (the real quick-tap relay already lives in `:app` as an activity-alias).
+- **stub1 (what moves):** `TrackpadStubActivity` — freeform popup, touch -> `cybersyn/hid/{mouse,click,scroll}`, gyro ->
+  `android/sensor`, own raw MQTT socket to `100.108.8.60:1883`. stub2 already covers gyro (`SensorLane`) + FIFO publish
+  (`PadPublisher`), so the merge is: add a trackpad mode to stub2, retire stub1's raw socket in favor of the FIFO->single-hub path.
+- **Migration order (never strand the trackpad mid-move):**
+  1. Add trackpad mode to stub2; verify it drives the cursor.
+  2. Stop using stub1 once redundant.
+  3. Replace `:cybersyn-stub1` content with the stripped ServerBox (`applicationId com.termux.cybersyn.stub1`,
+     `sharedUserId="android.uid.system"`, Cybersyn signing — the TERMUX_KEYSTORE path already in stub1/stub2).
+  4. Re-point `device-secur.mk` + `APPS_MANIFEST.md` to the new APK (sha256 changes), overlay-install via `blazer-sysapp-update`.
+- **Strip list (as we go, each = in-place overlay update):** LLM agent (`fl_pi_llm`), terminal (`fl_tty`/`xterm`), RDP/VNC
+  (`ironrdp`/`vnc`), the `monitor/` agent + Svelte panel, `website/`, unused `packages/` submodules. Keep: the
+  `lib/view/page/server/` dashboard, widgets, `sbm_parser`/`sbm_native`.
+- **Data path v1:** ServerBox's own SSH (`dartssh2`, already in the app) outbound to servers — no MQTT, no new broker,
+  consistent with "termux via ssh". Revisit routing through the single hub (FIFO/MqttBridge) later if the app ever needs
+  to *send* from the phone (note: satellites historically had no sanctioned downlink path).
+- **Drift to fix when touching the manifest:** `APPS_MANIFEST.md` source column says `.../Cybersyn/Android_src`, but that
+  dir does not exist — the modules live at the repo root.
+- **Status: not started.** Next: fork the working copy + write the trackpad-mode-into-stub2 merge before any ServerBox edit.
+
+## 2026-10-26 — ISLAND REMOTE in stub2 (user: "move the remote too ... the floating window fights artemis kiosk but the
+## pill doesn't"; "both, so the remote pad gets a notification and shadereditor its own"; "sticks are just needed for
+## the remote, if they're too tricky we fall back to the float and do just buttons")
+- stub2 posts ONE ongoing notification with a progress value -> the crDroid dynamic-bar island promotes it and draws
+  its own custom layout when expanded (axdynamicbar ExpandedOngoingContent.kt). No ROM change, no hook.
+- Panel = every starbox BUTTON (star colours, skins, VIEW/RIDE, mouse, STAR SLING, MOON), the two switches as toggles,
+  and a MODE picker: tap MODE = the option list opens in the panel, tap a mode = the pick, CONFIRM = sends it.
+- Presses go out exactly like a pad finger (PadPublisher: {"id","type":"BUTTON","state":PRESS then RELEASE}, the
+  switch's {"type":"SWITCH","state"}) -> comrade needs no change. Ids = the pad's own itemIdentifiers.
+- STICKS stay on the floating pad (RemoteViews cannot drag); the float is then only needed for flying the camera.
+- Shown on boot, when RemoteActivity opens, and by `am broadcast -a com.termux.cybersyn.stub2.SHOW_ISLAND`.

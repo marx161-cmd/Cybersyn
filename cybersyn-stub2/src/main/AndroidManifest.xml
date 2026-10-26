@@ -5,6 +5,13 @@
     <!-- Press feedback on the pad surface (normal permission, granted at install). -->
     <uses-permission android:name="android.permission.VIBRATE" />
 
+    <!-- Trackpad sidecar moved from stub1: its raw MQTT socket needs network. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- ISLAND REMOTE (scope.md 2026-10-26): the pad's buttons as an island notification, posted again at boot. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
     <application
         android:allowBackup="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -32,5 +39,29 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity
+            android:name=".TrackpadStubActivity"
+            android:exported="true"
+            android:excludeFromRecents="false"
+            android:noHistory="true"
+            android:resizeableActivity="true"
+            android:supportsPictureInPicture="false">
+            <layout
+                android:defaultHeight="300dp"
+                android:defaultWidth="400dp"
+                android:gravity="bottom|end" />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <!-- ISLAND REMOTE: presses come only from its own PendingIntents (not exported) -->
+        <receiver android:name=".IslandRemote" android:exported="false" />
+        <receiver android:name=".IslandRemote$Show" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="com.termux.cybersyn.stub2.SHOW_ISLAND" />
+            </intent-filter>
+        </receiver>
     </application>
 </manifest>

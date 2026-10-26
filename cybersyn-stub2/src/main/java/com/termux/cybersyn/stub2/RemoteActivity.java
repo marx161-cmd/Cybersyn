@@ -97,6 +97,7 @@ public final class RemoteActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        IslandRemote.show(this);                         // 2026-10-26 ISLAND REMOTE (scope.md)
         // Opened as an ordinary app while this remote is set to float (Quick Tap's "open remote"
         // rule, the launcher icon, `am start`): hand straight over to the freeform window before
         // building a surface, so the handover is one launch with no flash of a full-screen pad and
