@@ -30,7 +30,8 @@ final class IslandTable {
             {"SKIN RADAR", "isl_b2_2"},
             {"MOUSE OFF", "isl_b3_0"},
             {"MOUSE BOOP", "isl_b3_1"},
-            {"MOUSE GRAB", "isl_b3_2"}
+            {"MOUSE GRAB", "isl_b3_2"},
+            {"HUD", "isl_b3_3"}
     };
 
     /** Latched switches: {pad switch id, label, view id name}. */
