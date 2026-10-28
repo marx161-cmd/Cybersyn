@@ -28,7 +28,7 @@ ulimit -l unlimited 2>/dev/null || true
 export NPUD_CONF="$HOME_DIR/.config/npud/npud.conf"
 export NPUD_MODEL_DIR="$HOME_DIR/npu_models"
 export NPUD_SOCKET="$PREFIX/tmp/npud.sock"
-export NPUD_DISPATCH_DIR=/data/local/tmp/agora
+export NPUD_DISPATCH_DIR="$HOME_DIR/npu_models/dispatch"
 
 # NPUD_PRELOAD=1 loads every discovered model at startup. Check total RAM against
 # the models present first: each resident LLM costs roughly its file size in RSS,
@@ -49,12 +49,32 @@ export NPUD_DISPATCH_DIR=/data/local/tmp/agora
 #   monkey -p com.termux.boot -c android.intent.category.LAUNCHER 1
 #   dumpsys deviceidle whitelist +com.termux.boot
 setsid "$PREFIX/bin/npud" >> "$PREFIX/tmp/npud.log" 2>&1 &
+NPUD_PID=$!
+
+# lmkd/oom_reaper protection. npud spawns as a plain child of a Termux/SSH
+# session, so it inherits a generic background-app oom_score_adj (measured
+# 200, i.e. "kill me first") despite holding several GB of resident NPU model
+# weights — exactly the profile lmkd reclaims first under memory pressure.
+# Confirmed live 2026-08-02: npud died overnight with no crash trace in its
+# own log, consistent with an external kill rather than a panic. -800 matches
+# the protected end of Android's native-daemon range; it's a plain /proc
+# write so it survives fine even though npud isn't Zygote/AMS-tracked (no
+# system_server oom_adjuster to reset it later). Model worker children
+# (whisper/gemma/kokoro) fork from npud on demand and inherit this at fork
+# time, so nothing separate is needed for them.
+sudo sh -c "echo -800 > /proc/$NPUD_PID/oom_score_adj" 2>/dev/null || true
 
 # Record the outcome while the wake lock is still held, so a boot-time failure
 # leaves a trace instead of vanishing.
 sleep 3
 if [ -S "$PREFIX/tmp/npud.sock" ]; then
   echo "$(date '+%Y-%m-%d %H:%M:%S') npud up" >> "$HOME_DIR/npud-boot.log"
+  # 2026-10-28 (user): keep the Gemma 1B LLM loaded at all times (the only NPU model in use; ringbox commander
+  # test). Warm it HERE, right after start, while RAM is still free: a first-use load later (~3.75 GB) made lmkd
+  # kill a screenful of background apps incl. sshd (2026-10-28 22:41). npud never unloads a warm worker, and the
+  # watchdog restarts through this script, so every restart re-warms too. Background: boot isn't held up.
+  ( echo "WARM llm gemma3-1b-it-tensor-g5-ekv4096" | nc -w 90 -U "$PREFIX/tmp/npud.sock" \
+      | sed "s/^/$(date '+%Y-%m-%d %H:%M:%S') warm gemma: /" >> "$HOME_DIR/npud-boot.log" ) &
 else
   echo "$(date '+%Y-%m-%d %H:%M:%S') npud FAILED to bind" >> "$HOME_DIR/npud-boot.log"
 fi
