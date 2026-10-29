@@ -1135,3 +1135,76 @@ as a phone app, without reimplementing the UI in Kotlin.
   switch's {"type":"SWITCH","state"}) -> comrade needs no change. Ids = the pad's own itemIdentifiers.
 - STICKS stay on the floating pad (RemoteViews cannot drag); the float is then only needed for flying the camera.
 - Shown on boot, when RemoteActivity opens, and by `am broadcast -a com.termux.cybersyn.stub2.SHOW_ISLAND`.
+
+### 2026-10-26 (afternoon) — ServerBox satellite: strip list DEFERRED (user)
+- User: no stripping right away -- it lives as its own satellite app (stub1 slot), so the full ServerBox stays for now
+  (terminal, LLM agent, RDP/VNC, monitor/, website/ all still in; APK 121 MB). The 2026-10-26 strip list is not a to-do.
+- Live: stub1 = ServerBox v1.0.1816 (installed 06:19 via blazer-sysapp-update, promoted at the next OTA as usual);
+  trackpad lives in stub2. Open: SpectreBoard AMD-Control still targets `stub1.TrackpadStubActivity` (gone).
+
+### 2026-10-26 (afternoon) — ServerBox satellite: unified surface, Plenum-style backend swap (PROPOSED, user direction)
+User: "rip out their back plumbing, wire in termux instead of their shell, plenum instead of their agent" (same move as
+Plenum's TermuxSandboxManager replacing its proot rootfs).
+- TERMINAL -> Termux: fl_tty's PTY spawns Termux bash with Termux env (PREFIX/HOME/termux-exec), proot Alpine rootfs
+  (packages/fl_tty/lib/src/rootfs/) ripped out. Server tab = Termux `ssh <host>` in the PTY. Each tab lives in a named
+  Termux tmux session `sb-<server>`. ServerBox keeps its terminal UI (tabs, key row, snippets).
+- AGENT -> Plenum: ServerBox agent pages + fl_pi_llm removed; its "ask AI" entry points hand server + screen text to a
+  NEW Plenum intake intent. Plenum acts via its Termux sandbox (`ssh host '...'`) and reads/types into ServerBox tabs via
+  `tmux capture-pane` / `send-keys` (replaces terminal_screen / terminal_run).
+- NO KEYS anywhere (user): tailnet hosts run Tailscale SSH (RunSSH true on comrade + comintern, checked); dartssh2 tries
+  auth `none` first, which Tailscale SSH accepts. dartssh2 stays for the dashboard poller, SFTP, port forwards.
+- Dashboard + Rust parsers (sbm_parser/sbm_native) unchanged.
+- Order (rough, unverified effort): terminal swap ~1 d; Plenum intake + tmux tools ~1-2 d; remove ServerBox agent ~0.5 d.
+  Each step = its own sysapp install. Not started.
+
+### 2026-10-26 14:30 — unified surface STEP 1 DONE (terminal -> Termux)
+- Built + installed stub1 14:24 (blazer-sysapp-update). Local tab = Termux bash -l; keyless server tabs = Termux ssh in
+  Termux tmux `sb-<server>` (TermuxSshBackend); password/key/jump/proxy servers stay on dartssh2 (not in the plan before,
+  needed so those servers keep working). No rootfs to rip out: this build never shipped proot (Rootfs.isAvailable false).
+- Verified: AMD tab -> sb-AMD on comrade, `tmux capture-pane -t sb-AMD` from Termux reads it. Device tab not tapped yet.
+- Commits: cybersyn-monitor 'cybersyn-satellite' branch + fl_tty submodule branch of the same name (local only).
+- Next: step 2 = Plenum intake intent + tmux tools.
+
+### 2026-10-26 ~14:45 — CHANGED: step 2 = opencode on comrade, NOT Plenum (user)
+User: "isn't it even easier to wire in opencode through termux? ... on the amd". opencode serve already runs on comrade
+(tmux `opencode-serve`, `opencode serve --port 4096 --hostname 100.108.8.60`; TUI attaches with `--server`).
+- ServerBox's AI entry points open a terminal tab = Termux ssh to comrade running the opencode TUI against that server,
+  in Termux tmux `sb-opencode`, with a context prompt (server, its phone tmux session `sb-<server>`, how to read/type it:
+  `ssh -p 8022 system@100.69.13.12 tmux capture-pane -p -t sb-X` / `send-keys`).
+- NO confirm step (user): same --dangerously-skip-permissions as the existing comrade opencode.
+- Plenum step DROPPED (Plenum untouched). Step 3 (remove ServerBox agent) unchanged.
+
+### 2026-10-26 ~15:20 — STEP 2 DONE (Ask AI -> opencode on comrade)
+- Installed stub1 (blazer-sysapp-update). Ask AI (terminal toolbar ✦ + "Ask AI" on selected text) opens tab
+  "opencode · <server>" = Termux ssh to comrade, `opencode --server http://100.108.8.60:4096 --prompt <context>` in Termux
+  tmux `sb-oc-<server>`; repeat ask = send-keys the new context into the same chat + reattach. Password stays on comrade.
+- Verified the launch script from Termux on the phone (first prompt + follow-up both answered); the in-app tap not yet.
+- Still on ServerBox's own agent: the Agent home tab (step 3 removes it).
+- 2026-10-26 15:00: launcher label 'Cybersyn Monitor' + QS tile (OpenTileService, first QS tile) to open it.
+
+### 2026-10-28 — stub1 FGS type: dataSync -> systemExempted (kills the 6h clock)
+- Symptom: server_box session service died ~6h after start. Logcat: `ActivityManager: FGS (dataSync) timed out` ->
+  `RemoteServiceException$ForegroundServiceDidNotStopInTimeException: A foreground service of type dataSync did not stop
+  within its timeout` (2026-10-28 01:54). Since API 34 dataSync is capped at 6h per 24h rolling window.
+- Fix (fork `~/builds/crossplatform/cybersyn-monitor`, branch `cybersyn-satellite`): manifest permission
+  `FOREGROUND_SERVICE_DATA_SYNC` -> `FOREGROUND_SERVICE_SYSTEM_EXEMPTED`, service
+  `android:foregroundServiceType="systemExempted"`; `ForegroundService.ensureForeground` passes
+  `ServiceInfo.FOREGROUND_SERVICE_TYPE_SYSTEM_EXEMPTED` on API 34+ (dataSync bit kept for 29..33, where types are
+  unenforced); pubspec version 1.0.1816+1816 -> 1.0.1817+1817 (versionCode bump so the overlay install is a real update).
+- Chose systemExempted over specialUse: the app is a priv-app (`/system/priv-app/CybersynStub1`, UPDATED_SYSTEM_APP) in
+  shared UID 1000 and `FOREGROUND_SERVICE_SYSTEM_EXEMPTED` is already granted=true; specialUse would need the
+  PROPERTY_SPECIAL_USE_FGS_SUBTYPE property and carries Play-policy meaning. Swap is one line if systemExempted is ever
+  rejected at runtime.
+- Installed 2026-10-28 02:10 via `blazer-sysapp-update install com.termux.cybersyn.stub1 <apk>` (sha256
+  ac4dfe6a...5c84d, signer ce89479e = Termux key). Verified on-device: `dumpsys activity services
+  com.termux.cybersyn.stub1` -> `isForeground=true foregroundId=1000 types=0x00000400` (0x400 = systemExempted) both for
+  a forced start (as root) and for the app's own start after relaunch; no SecurityException.
+- Still to confirm later: no `ForegroundServiceDidNotStopInTimeException` in logcat after a >6h uptime. ROM promotion
+  (APPS_MANIFEST sha + device-secur.mk) is a separate gated step as usual.
+
+### 2026-10-29 — upstream OpenTasker time-tick recovery fixes ported (user: "just cybersyn" of the fork updates)
+- Ported by hand (package rename + no ExpectedTriggerLedger here): 67988068 (no 5 s recovery on a background-start
+  refusal), f5e709b7 (recovery backoff 5 s / 30 s / 5 min then stop; counter in prefs `time_tick_recovery`),
+  921fef68 (recovery never past the next minute tick). Rest of upstream's 460 commits NOT merged.
+- Live check before the port: 8511 TIME_TICK wakeups in 8512 min uptime = the normal minute tick, no storm active;
+  these are insurance. The minute tick itself (the 4.4 h wakelock finding) is our own trigger, unchanged.

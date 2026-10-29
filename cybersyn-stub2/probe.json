@@ -1,0 +1,83 @@
+{
+  "controlPad": {
+    "name": "probe",
+    "orientation": "PORTRAIT",
+    "width": 1280,
+    "height": 2587
+  },
+  "controlPadItems": [
+    {
+      "itemIdentifier": "probe_stick",
+      "controlPadId": 1,
+      "offsetX": 350.0,
+      "offsetY": 1900.0,
+      "scale": 1.6,
+      "itemType": "JOYSTICK",
+      "properties": "{\"showCoordinates\":true,\"showValues\":true}"
+    },
+    {
+      "itemIdentifier": "probe_button",
+      "controlPadId": 1,
+      "offsetX": 640.0,
+      "offsetY": 400.0,
+      "scale": 2.5,
+      "itemType": "BUTTON",
+      "properties": "{\"text\":\"probe\"}"
+    },
+    {
+      "itemIdentifier": "probe_switch",
+      "controlPadId": 1,
+      "offsetX": 300.0,
+      "offsetY": 1000.0,
+      "scale": 1.6,
+      "itemType": "SWITCH",
+      "properties": "{}"
+    },
+    {
+      "itemIdentifier": "probe_dpad",
+      "controlPadId": 1,
+      "offsetX": 950.0,
+      "offsetY": 1000.0,
+      "scale": 1.8,
+      "itemType": "DPAD",
+      "properties": "{}"
+    },
+    {
+      "itemIdentifier": "probe_step",
+      "controlPadId": 1,
+      "offsetX": 300.0,
+      "offsetY": 1600.0,
+      "scale": 1.6,
+      "itemType": "STEP_SLIDER",
+      "properties": "{}"
+    },
+    {
+      "itemIdentifier": "probe_wheel",
+      "controlPadId": 1,
+      "offsetX": 950.0,
+      "offsetY": 1900.0,
+      "scale": 1.5,
+      "itemType": "STEERING_WHEEL",
+      "properties": "{}"
+    },
+    {
+      "itemIdentifier": "gyro",
+      "controlPadId": 1,
+      "offsetX": 300.0,
+      "offsetY": 300.0,
+      "scale": 1.2,
+      "itemType": "SWITCH",
+      "properties": "{}"
+    },
+    {
+      "itemIdentifier": "tilt",
+      "controlPadId": 1,
+      "offsetX": 950.0,
+      "offsetY": 300.0,
+      "scale": 1.2,
+      "itemType": "SWITCH",
+      "properties": "{}"
+    }
+  ],
+  "connectionConfig": {}
+}
