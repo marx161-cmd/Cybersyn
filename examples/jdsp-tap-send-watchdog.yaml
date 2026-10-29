@@ -1,0 +1,30 @@
+name: JDSP desk-send watchdog
+description: >
+  Keep the JDSP desk-send sender (~/bin/jdsp-tap-send: Pixel output tap -> UDP -> Oppo desk speaker)
+  alive. Added 2026-10-30: the sender was killed in the 22:42 low-memory storm and, since only its
+  Termux:Boot hook starts it, the desk speaker stayed silent while JDSP kept muting the phone.
+  Same shape as NowplayingWatchdog: minute tick -> idempotent boot hook via a tasker wrapper.
+tasks:
+  - name: "JDSP desk send: start"
+    priority: 5
+    collisionMode: ABORT_NEW
+    actions:
+      - type: script.termux.run
+        label: start jdsp-tap-send if down
+        continueOnError: true
+        args:
+          executable: ~/.termux/tasker/jdsp_tap_send_start.sh
+          arguments: ""
+          useRoot: "false"
+          timeoutMs: "15000"
+profiles:
+  - name: JdspTapSendWatchdog
+    enabled: true
+    group: System
+    automationMode: SINGLE
+    cooldownSec: 0
+    enterTask: "JDSP desk send: start"
+    contexts:
+      - type: EVENT
+        config:
+          event: time_tick
