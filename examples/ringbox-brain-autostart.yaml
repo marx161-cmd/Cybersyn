@@ -1,0 +1,30 @@
+name: ringbox brain autostart
+description: >
+  Start the phone ringbox brain (Termux ~/ringbox-brain/brain.py) when the ringbox wallpaper is on screen
+  without it. ShaderEditor (v122+) sends external_trigger "feed_ringbox" when a FEED shader is visible and
+  its feed has had no new step for 3 s (at most every 15 s). ringbox_ensure_brain.sh (copy of shader-backdrop phone-ringbox/ensure_brain.sh) only starts a missing brain.
+tasks:
+  - name: "ringbox: ensure brain"
+    priority: 5
+    collisionMode: ABORT_NEW
+    actions:
+      - type: script.termux.run
+        label: start the brain if missing
+        continueOnError: false
+        args:
+          executable: ~/.termux/tasker/ringbox_ensure_brain.sh
+          arguments: ""
+          useRoot: "false"
+          timeoutMs: "10000"
+profiles:
+  - name: RingboxBrainAutostart
+    enabled: true
+    group: Shaders
+    automationMode: SINGLE
+    cooldownSec: 0
+    enterTask: "ringbox: ensure brain"
+    contexts:
+      - type: EVENT
+        config:
+          event: external_trigger
+          trigger: feed_ringbox
