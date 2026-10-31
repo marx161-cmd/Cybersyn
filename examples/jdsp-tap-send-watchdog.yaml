@@ -4,6 +4,11 @@ description: >
   alive. Added 2026-10-30: the sender was killed in the 22:42 low-memory storm and, since only its
   Termux:Boot hook starts it, the desk speaker stayed silent while JDSP kept muting the phone.
   Same shape as NowplayingWatchdog: minute tick -> idempotent boot hook via a tasker wrapper.
+  2026-11-01: became a FUNCTIONAL check. While audio plays it reads tap.bin's header
+  (sampleRate/flags written by the HAL engine) and, if the engine lost the desk-send
+  config (audioserver crash -> effect re-created with defaults), re-opens JDSP effect
+  session 0 in the app so it re-syncs everything (3 min cooldown). The sender's
+  Wi-Fi-pinned socket is handled inside jdsp-tap-send (re-created every 30 s).
 tasks:
   - name: "JDSP desk send: start"
     priority: 5
@@ -16,7 +21,7 @@ tasks:
           executable: ~/.termux/tasker/jdsp_tap_send_start.sh
           arguments: ""
           useRoot: "false"
-          timeoutMs: "15000"
+          timeoutMs: "25000"
 profiles:
   - name: JdspTapSendWatchdog
     enabled: true

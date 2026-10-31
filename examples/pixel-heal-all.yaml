@@ -1,0 +1,23 @@
+name: Pixel heal all
+description: >
+  One manual pass over everything Cybersyn supervises, with functional checks
+  (sshd port, Tailscale reachability, Wi-Fi band + mobile-data fail-safe,
+  JDSP desk send engine state + sender + Oppo receiver via comrade's relay,
+  MQTT hub, island remote, now-playing, task-slot count). Fixes what it can,
+  posts a notification "Pixel heal: N fixed, M failing" and writes
+  ~/.local/share/heal_all.last. Pin it as a Cybersyn widget/shortcut on the
+  phone, or run ~/bin/pixel-heal from comrade. scope.md 2026-11-01.
+tasks:
+  - name: "Pixel: heal all"
+    priority: 5
+    collisionMode: ABORT_NEW
+    actions:
+      - type: script.termux.run
+        label: functional check + fix pass
+        continueOnError: true
+        args:
+          executable: ~/.termux/tasker/heal_all.sh
+          arguments: ""
+          useRoot: "true"
+          timeoutMs: "90000"
+profiles: []

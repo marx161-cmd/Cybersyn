@@ -1208,3 +1208,39 @@ User: "isn't it even easier to wire in opencode through termux? ... on the amd".
   921fef68 (recovery never past the next minute tick). Rest of upstream's 460 commits NOT merged.
 - Live check before the port: 8511 TIME_TICK wakeups in 8512 min uptime = the normal minute tick, no storm active;
   these are insurance. The minute tick itself (the 4.4 h wakelock finding) is our own trigger, unchanged.
+
+## 2026-11-01 — "Pixel: heal all" task + functional JDSP desk-send watchdog (user: automation "always gets stuck", wants self-healing that works and one task that "runs through everything and reactivates whatever is messed up")
+- Finding: every watchdog was a LIVENESS check (pidfile/port) inside Cybersyn. The JDSP desk send had been
+  dead since the 2026-10-30 reboot while JdspTapSendWatchdog logged success every minute. Two stacked faults:
+  (1) audioserver aborted 2026-10-31 21:05 (audio HAL hang in createAudioPatch, tombstones 25/26); the HAL
+  re-created the JamesDSP effect with default state and the app never re-sends its config -- it only
+  re-syncs on a preference change (`checkEngine()` runs inside `syncWithPreferences`). (2) the Termux sender's
+  UDP socket was opened at boot before Tailscale's tun0 existed; Android pins a connected socket to the
+  network current at connect() (netd fwmark), so 1.5 days of "sent N pkts" went out over Wi-Fi to nowhere.
+  Plus (3) the Oppo's `listen-pixel` ffplay had lost its PulseAudio input. All invisible to a pidfile check.
+- Levers (verified live, desk audio back at 00:21): re-open JDSP effect session 0 via its exported
+  `SessionReceiver` (`OPEN_AUDIO_EFFECT_CONTROL_SESSION`, session 0, package com.termux.jdsp) = fresh effect
+  + full preference sync; restart the sender; kill the Oppo ffplay (its loop respawns it).
+- Built: `examples/phone-scripts/jdsp_tap_send_start.sh` is now FUNCTIONAL (while audio plays it reads
+  tap.bin's header -- sampleRate/flags written by the HAL -- and re-opens session 0 when the engine lost the
+  tap, 3 min cooldown). `jdsp_tap_send.c` (vendor/JamesDSP tools/desk-send) re-creates its socket every 30 s
+  and on send errors; boot hook waits for tun0; sender now cross-compiled on comrade (`build.sh`, NDK).
+- Built: task **"Pixel: heal all"** (`examples/pixel-heal-all.yaml`, no profile, useRoot) =
+  `phone-scripts/heal_all.sh`: sshd port, Tailscale reachability, Wi-Fi band + mobile-data fail-safe
+  (`svc data enable` when away from home with data off; home SSID from `~/.config/heal_all.env`, never in the
+  repo), steerer status (newest logcat line), JDSP desk send (engine + sender + re-attach), comrade half via
+  `cybersyn-send` -> relay `script:pixel-heal-comrade` (comrade `~/.config/cybersyn/scripts/`: relay units,
+  mosquitto, Oppo receiver restart; replies as a Pixel notification through `pixel-notify`), MQTT hub, island
+  remote re-show, now-playing hook, task-slot count. Report = notification "Pixel heal: N fixed, M failing"
+  (termux-notification id pixel-heal) + `~/.local/share/heal_all.last`. comrade wrapper `~/bin/pixel-heal`.
+  Run 4.5 s, success logged. The user can pin the task as a Cybersyn widget/shortcut.
+- Engine lessons: a task must not broadcast RUN_TASK back into the engine (the called task waits on the
+  running one; the action hits the 60 s per-action cap and is logged as a timeout even though the script
+  finished in 7 s). `logcat -d | tail -1` returns the PREVIOUS run's line -- show the line's timestamp.
+  Script children must not inherit the task's stdout (the broker waits for EOF).
+- Not built (proposed): the proper fix for fault (1) is in the JDSP app -- `AudioManager.registerAudioServerStateCallback`
+  -> on server up: `clearCache()` + `rebootEngine()` + `syncWithPreferences()` for every session, plus an
+  exported RESYNC action. Until then the minute watchdog covers it (<= 1 min after audio resumes).
+- Open: what the user means by "the hid thing" (stub2 pad/remote vs SpectreBoard GYRO/CLUTCH keys) -- stub2
+  was not running at 00:15; the heal task re-shows the island remote. Wi-Fi "stuck" cases not reproduced
+  tonight (steerer healthy on 5 GHz, mobile off by it); the away-from-home data fail-safe is in heal-all only.
