@@ -1244,3 +1244,15 @@ User: "isn't it even easier to wire in opencode through termux? ... on the amd".
 - Open: what the user means by "the hid thing" (stub2 pad/remote vs SpectreBoard GYRO/CLUTCH keys) -- stub2
   was not running at 00:15; the heal task re-shows the island remote. Wi-Fi "stuck" cases not reproduced
   tonight (steerer healthy on 5 GHz, mobile off by it); the away-from-home data fail-safe is in heal-all only.
+
+## 2026-11-01 — stub2 ISLAND REMOTE goes GENERIC: it follows comrade's active shader (user)
+User: the pill "is always ringbox". It was: IslandTable was a static table generated from the starbox layout (10-26).
+Now (versionCode 11, blazer-sysapp-update temp install, ledgered): IslandRemote reads ~/.cybersyn/active_shader (written
+over ssh by comrade's ~/bin/shader-remote-announce whenever shader-backdrop's active_shader.txt changes, then
+SHOW_ISLAND), maps it through ~/.cybersyn/pads/remotes.json (shader -> pad, synced from shader-backdrop/pads/), loads
+that pad's export and fills a generic layout (4 x 4 BUTTONs, 4 SWITCHes, rows hidden when empty; MODE/PICK/CONFIRM
+gone -- they were starbox-specific). Presses publish exactly as before (PadPublisher -> FIFO -> DroidPad/Events).
+PICK = SWITCH: choosing a pad in RemoteActivity's chooser also publishes {"type":"SHADER","name":<shader>} on
+DroidPad/Events; the comrade service writes active_shader.txt and the renderer hot-swaps. Desktop only by decision:
+the Pixel's own wallpaper shaders are touch-driven inside the shader and keep ShaderEditor's BUTTON_ notification.
+Decision record: shader-backdrop/scope.md 2026-11-01 "REMOTES PER SHADER".

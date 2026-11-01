@@ -379,8 +379,28 @@ public final class RemoteActivity extends Activity {
         for (int i = 0; i < pads.size(); i++) names[i] = pads.get(i).getName();
         new AlertDialog.Builder(this)
                 .setTitle("Pads in ~/.cybersyn/pads")
-                .setItems(names, (dialog, which) -> show(pads.get(which)))
+                .setItems(names, (dialog, which) -> {
+                    show(pads.get(which));
+                    switchDesktopShader(pads.get(which));
+                })
                 .show();
+    }
+
+    /**
+     * PICK = SWITCH (shader-backdrop scope.md 2026-11-01): choosing a pad in the chooser asks comrade to run the shader
+     * this pad belongs to (the inverse of pads/remotes.json; a pad named like a shader maps to itself). The
+     * shader-remote-announce service on comrade subscribes to DroidPad/Events and writes active_shader.txt.
+     */
+    private void switchDesktopShader(File padFile) {
+        String shader = IslandRemote.shaderFor(padFile.getName());
+        if (shader == null) return;
+        JSONObject o = new JSONObject();
+        try {
+            o.put("type", "SHADER").put("name", shader);
+        } catch (JSONException ignored) {
+        }
+        publisher.publish(o.toString());
+        Toast.makeText(this, "comrade -> " + shader, Toast.LENGTH_SHORT).show();
     }
 
     /** Load (or reload) one profile from disk. */

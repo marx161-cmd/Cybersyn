@@ -8,29 +8,56 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.util.Log;
 import android.view.View;
 import android.widget.RemoteViews;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.util.ArrayList;
+import java.util.List;
+
 /**
- * ISLAND REMOTE (Cybersyn scope.md 2026-10-26): the starbox pad's buttons as ONE ongoing notification. It carries a
- * progress value, so the crDroid dynamic-bar island promotes it and draws this custom layout when the pill is opened.
- * Presses go out exactly like a pad finger (PadPublisher -> the ingest FIFO -> DroidPad/Events): no comrade change.
- * MODE opens the option list inside the panel, a mode becomes the PICK, CONFIRM presses the picked pad button.
- * The sticks stay on the floating pad (a notification cannot be dragged on).
+ * ISLAND REMOTE, generic since 2026-11-01 (shader-backdrop scope.md "REMOTES PER SHADER"): ONE ongoing notification
+ * that shows the BUTTONs and SWITCHes of the pad belonging to the shader comrade is running right now. The 10-26
+ * version was a fixed table of the starbox pad (so the pill "was always ringbox"); this one reads
+ * <pre>
+ *   ~/.cybersyn/active_shader          the shader dir base name, written by comrade's shader-remote-announce
+ *   ~/.cybersyn/pads/remotes.json      shader -> pad name (pads/remotes.json in shader-backdrop, synced)
+ *   ~/.cybersyn/pads/<pad>.json        the DroidPad export: BUTTON / SWITCH items
+ * </pre>
+ * and fills a generic layout (4 x 4 buttons, 4 switches) at runtime. Presses go out exactly like a pad finger
+ * (PadPublisher -> ingest FIFO -> DroidPad/Events). Sticks and sliders stay on the floating pad. It carries a progress
+ * value so the crDroid dynamic-bar island promotes it and draws this layout when the pill is opened.
  */
 public final class IslandRemote extends BroadcastReceiver {
 
+    private static final String TAG = "stub2-island";
     static final String CHANNEL = "island_remote";
     static final int ID = 4711;
     static final String A_PRESS = "com.termux.cybersyn.stub2.ISLAND_PRESS";
-    static final String A_MODE = "com.termux.cybersyn.stub2.ISLAND_MODE";
-    static final String A_PICK = "com.termux.cybersyn.stub2.ISLAND_PICK";
-    static final String A_CONFIRM = "com.termux.cybersyn.stub2.ISLAND_CONFIRM";
     static final String A_SWITCH = "com.termux.cybersyn.stub2.ISLAND_SWITCH";
     private static final String PREFS = "island_remote";
+    private static final File HOME = new File("/data/data/com.termux/files/home");
+    private static final File ACTIVE = new File(HOME, ".cybersyn/active_shader");
+    private static final File PADS = new File(HOME, ".cybersyn/pads");
+    static final int MAX_BUTTONS = 16;
+    static final int MAX_SWITCHES = 4;
+
+    /** What the pill shows: resolved from the three files above. */
+    static final class Remote {
+        String shader = "";          // active shader (dir base name), "" = unknown
+        String pad = null;           // pad name, null = this shader has no remote
+        final List<String[]> buttons = new ArrayList<>();   // {id, label}
+        final List<String[]> switches = new ArrayList<>();  // {id, label}
+        String problem = null;       // shown in the status line when something is off
+    }
 
     @Override
     public void onReceive(Context ctx, Intent in) {
@@ -38,35 +65,12 @@ public final class IslandRemote extends BroadcastReceiver {
         if (a == null) return;
         SharedPreferences sp = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
         SharedPreferences.Editor ed = sp.edit();
-        String last;
+        String last = null;
         switch (a) {
             case A_PRESS: {
                 String id = in.getStringExtra("id");
                 press(id);
                 last = id;
-                break;
-            }
-            case A_MODE:
-                ed.putBoolean("open", !sp.getBoolean("open", false));
-                last = sp.getBoolean("open", false) ? "list closed" : "pick a mode";
-                break;
-            case A_PICK: {
-                int k = in.getIntExtra("k", -1);
-                if (k >= 0 && k < IslandTable.MODES.length) ed.putInt("pick", k);
-                ed.putBoolean("open", false);
-                last = "picked " + (k >= 0 && k < IslandTable.MODES.length ? IslandTable.MODES[k][1] : "?")
-                        + " -- CONFIRM sends it";
-                break;
-            }
-            case A_CONFIRM: {
-                int k = sp.getInt("pick", -1);
-                if (k < 0) {
-                    last = "nothing picked (MODE first)";
-                } else {
-                    press(IslandTable.MODES[k][0]);
-                    last = "sent " + IslandTable.MODES[k][1];
-                    ed.remove("pick");
-                }
                 break;
             }
             case A_SWITCH: {
@@ -83,7 +87,7 @@ public final class IslandRemote extends BroadcastReceiver {
                 break;
             }
             default:
-                last = null;        // SHOW / BOOT: just (re)post
+                break;        // SHOW / BOOT: just (re)post
         }
         if (last != null) ed.putString("last", last);
         ed.apply();
@@ -109,6 +113,91 @@ public final class IslandRemote extends BroadcastReceiver {
         p.close();
     }
 
+    private static String readText(File f) {
+        try {
+            return new String(Files.readAllBytes(f.toPath()), StandardCharsets.UTF_8).trim();
+        } catch (IOException e) {
+            return null;
+        }
+    }
+
+    /** shader -> pad name: remotes.json first, then a pad file named like the shader, else none. */
+    static String padFor(String shader) {
+        if (shader == null || shader.isEmpty()) return null;
+        String map = readText(new File(PADS, "remotes.json"));
+        if (map != null) {
+            try {
+                JSONObject o = new JSONObject(map);
+                String p = o.optString(shader, null);
+                if (p != null && !p.isEmpty()) return p;
+            } catch (JSONException e) {
+                Log.w(TAG, "remotes.json: " + e);
+            }
+        }
+        return new File(PADS, shader + ".json").isFile() ? shader : null;
+    }
+
+    /** pad name -> shader (the inverse of remotes.json; a pad named like a shader maps to itself). */
+    static String shaderFor(String pad) {
+        if (pad == null) return null;
+        if (pad.endsWith(".json")) pad = pad.substring(0, pad.length() - 5);
+        String map = readText(new File(PADS, "remotes.json"));
+        if (map != null) {
+            try {
+                JSONObject o = new JSONObject(map);
+                for (java.util.Iterator<String> it = o.keys(); it.hasNext(); ) {
+                    String k = it.next();
+                    if (!k.startsWith("_") && pad.equals(o.optString(k))) return k;
+                }
+            } catch (JSONException ignored) {
+            }
+        }
+        return pad;
+    }
+
+    static Remote resolve() {
+        Remote r = new Remote();
+        String s = readText(ACTIVE);
+        if (s == null || s.isEmpty()) {
+            r.problem = "no active shader yet (comrade's shader-remote-announce writes it)";
+            return r;
+        }
+        r.shader = s;
+        r.pad = padFor(s);
+        if (r.pad == null) {
+            r.problem = "no remote for this shader";
+            return r;
+        }
+        String doc = readText(new File(PADS, r.pad + ".json"));
+        if (doc == null) {
+            r.problem = "pad file missing: " + r.pad + ".json";
+            return r;
+        }
+        try {
+            JSONArray items = new JSONObject(doc).getJSONArray("controlPadItems");
+            for (int i = 0; i < items.length(); i++) {
+                JSONObject it = items.getJSONObject(i);
+                String type = it.optString("itemType", "");
+                String id = it.optString("itemIdentifier", "");
+                if (id.isEmpty()) continue;
+                String label = id;
+                String props = it.optString("properties", null);
+                if (props != null) {
+                    try {
+                        String t = new JSONObject(props).optString("text", "");
+                        if (!t.isEmpty()) label = t;
+                    } catch (JSONException ignored) {
+                    }
+                }
+                if ("BUTTON".equals(type) && r.buttons.size() < MAX_BUTTONS) r.buttons.add(new String[] {id, label});
+                else if ("SWITCH".equals(type) && r.switches.size() < MAX_SWITCHES) r.switches.add(new String[] {id, label});
+            }
+        } catch (JSONException e) {
+            r.problem = "pad file unreadable: " + e.getMessage();
+        }
+        return r;
+    }
+
     /** Post (or refresh) the remote. Safe to call any time. */
     public static void show(Context ctx) {
         NotificationManager nm = ctx.getSystemService(NotificationManager.class);
@@ -116,9 +205,9 @@ public final class IslandRemote extends BroadcastReceiver {
         nm.createNotificationChannel(new NotificationChannel(CHANNEL, "Island remote",
                 NotificationManager.IMPORTANCE_LOW));
         SharedPreferences sp = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
-        int k = sp.getInt("pick", -1);
-        String pick = k >= 0 && k < IslandTable.MODES.length ? IslandTable.MODES[k][1] : null;
-        String status = "DESK" + (pick != null ? " · pick " + pick : "") + " · " + sp.getString("last", "ready");
+        Remote r = resolve();
+        String title = "DESK · " + (r.shader.isEmpty() ? "?" : r.shader);
+        String status = (r.pad != null ? r.pad + " · " : "") + (r.problem != null ? r.problem : sp.getString("last", "ready"));
         Notification n = new Notification.Builder(ctx, CHANNEL)
                 .setSmallIcon(R.drawable.ic_stub)
                 .setOngoing(true)
@@ -126,39 +215,53 @@ public final class IslandRemote extends BroadcastReceiver {
                 .setShowWhen(false)
                 .setCategory(Notification.CATEGORY_STATUS)
                 .setVisibility(Notification.VISIBILITY_PUBLIC)
-                .setContentTitle(pick != null ? "DESK · " + pick : "DESK remote")
+                .setContentTitle(title)
                 .setSubText(status)
                 .setStyle(new Notification.DecoratedCustomViewStyle())
-                .setCustomContentView(views(ctx, R.layout.island_remote_small, sp, status, pick))
-                .setCustomBigContentView(views(ctx, R.layout.island_remote, sp, status, pick))
+                .setCustomContentView(views(ctx, R.layout.island_remote_small, sp, r, status))
+                .setCustomBigContentView(views(ctx, R.layout.island_remote, sp, r, status))
                 .setProgress(100, 100, false)          // = promoted into the island (NotificationIslandManager)
                 .build();
         nm.notify(ID, n);
     }
 
-    private static RemoteViews views(Context ctx, int layout, SharedPreferences sp, String status, String pick) {
+    private static RemoteViews views(Context ctx, int layout, SharedPreferences sp, Remote r, String status) {
         RemoteViews v = new RemoteViews(ctx.getPackageName(), layout);
-        v.setTextViewText(R.id.isl_status, status);
-        boolean open = sp.getBoolean("open", false);
-        v.setTextViewText(R.id.isl_mode, (open ? "MODE ▴ " : "MODE ▾ ") + (pick != null ? pick : ""));
-        v.setOnClickPendingIntent(R.id.isl_mode, pi(ctx, A_MODE, 1, null, -1));
-        v.setOnClickPendingIntent(R.id.isl_confirm, pi(ctx, A_CONFIRM, 2, null, -1));
-        if (layout != R.layout.island_remote) return v;
-        v.setViewVisibility(R.id.isl_pick0, open ? View.VISIBLE : View.GONE);
-        v.setViewVisibility(R.id.isl_pick1, open ? View.VISIBLE : View.GONE);
-        for (int i = 0; i < IslandTable.MODES.length; i++) {
-            v.setOnClickPendingIntent(vid(ctx, "isl_m" + i), pi(ctx, A_PICK, 100 + i, null, i));
+        v.setTextViewText(R.id.isl_status, "DESK · " + (r.shader.isEmpty() ? "?" : r.shader) + " · " + status);
+        boolean small = layout != R.layout.island_remote;
+        int nb = small ? Math.min(r.buttons.size(), 4) : r.buttons.size();
+        int perRow = 4;
+        for (int i = 0; i < MAX_BUTTONS; i++) {
+            int id = vid(ctx, "isl_b" + i);
+            if (id == 0) continue;
+            if (i < nb) {
+                v.setTextViewText(id, r.buttons.get(i)[1]);
+                v.setViewVisibility(id, View.VISIBLE);
+                v.setOnClickPendingIntent(id, pi(ctx, A_PRESS, 200 + i, r.buttons.get(i)[0]));
+            } else {
+                v.setViewVisibility(id, View.GONE);
+            }
         }
-        for (int i = 0; i < IslandTable.BUTTONS.length; i++) {
-            v.setOnClickPendingIntent(vid(ctx, IslandTable.BUTTONS[i][1]),
-                    pi(ctx, A_PRESS, 200 + i, IslandTable.BUTTONS[i][0], -1));
+        for (int row = 0; row < MAX_BUTTONS / perRow; row++) {
+            int rid = vid(ctx, "isl_r" + row);
+            if (rid != 0) v.setViewVisibility(rid, row * perRow < nb ? View.VISIBLE : View.GONE);
         }
-        for (int i = 0; i < IslandTable.SWITCHES.length; i++) {
-            String[] s = IslandTable.SWITCHES[i];
-            int id = vid(ctx, s[2]);
-            v.setTextViewText(id, s[1] + (sp.getBoolean("sw_" + s[0], false) ? " ●" : " ○"));
-            v.setOnClickPendingIntent(id, pi(ctx, A_SWITCH, 300 + i, s[0], -1));
+        if (small) return v;
+        int ns = r.switches.size();
+        for (int i = 0; i < MAX_SWITCHES; i++) {
+            int id = vid(ctx, "isl_s" + i);
+            if (id == 0) continue;
+            if (i < ns) {
+                String[] s = r.switches.get(i);
+                v.setTextViewText(id, s[1] + (sp.getBoolean("sw_" + s[0], false) ? " ●" : " ○"));
+                v.setViewVisibility(id, View.VISIBLE);
+                v.setOnClickPendingIntent(id, pi(ctx, A_SWITCH, 300 + i, s[0]));
+            } else {
+                v.setViewVisibility(id, View.GONE);
+            }
         }
+        int rs = vid(ctx, "isl_rs");
+        if (rs != 0) v.setViewVisibility(rs, ns > 0 ? View.VISIBLE : View.GONE);
         return v;
     }
 
@@ -166,10 +269,9 @@ public final class IslandRemote extends BroadcastReceiver {
         return ctx.getResources().getIdentifier(name, "id", ctx.getPackageName());
     }
 
-    private static PendingIntent pi(Context ctx, String action, int code, String id, int k) {
+    private static PendingIntent pi(Context ctx, String action, int code, String id) {
         Intent i = new Intent(action).setClass(ctx, IslandRemote.class);
         if (id != null) i.putExtra("id", id);
-        if (k >= 0) i.putExtra("k", k);
         return PendingIntent.getBroadcast(ctx, code, i,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     }
