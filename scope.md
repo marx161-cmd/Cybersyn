@@ -1256,3 +1256,14 @@ PICK = SWITCH: choosing a pad in RemoteActivity's chooser also publishes {"type"
 DroidPad/Events; the comrade service writes active_shader.txt and the renderer hot-swaps. Desktop only by decision:
 the Pixel's own wallpaper shaders are touch-driven inside the shader and keep ShaderEditor's BUTTON_ notification.
 Decision record: shader-backdrop/scope.md 2026-11-01 "REMOTES PER SHADER".
+
+## 2026-11-02 — heal all now fixes the dead Cybersyn FIFO itself (SpectreBoard i3 buttons)
+User: in Diana the IME i3/numpad buttons were dead before and after "heal all" (= "the hid thing" from 11-01).
+Cause = 09-01 failure again: cybersyn-pub.fifo unlinked (18:26) while Cybersyn kept the deleted inode open;
+SpectreBoard drops the ENOENT silently. JDSP audio is a separate UDP path, unaffected. heal_all only reported it.
+Decision (user: "it can start a termux script which can kill cybersyn"): new examples/phone-scripts/
+cybersyn_relaunch.sh (root): force-stop + relaunch, wait for FIFO, kill npud pids that are new after the relaunch,
+optional `rerun` = RUN_TASK "Pixel: heal all" again. heal_all.sh section 2b starts it DETACHED when the FIFO is
+MISSING/STALE (180 s loop guard via stamp); ~/bin/pixel-heal calls the same script detached first, then a FIFO->MQTT
+round-trip test. Gotchas: Termux `am` shadows /system/bin/am (no force-stop); force-stop also kills the calling
+adb shell. Also: Tailscale check now accepts any tun* (was tun0, phone is on tun1 -> false FAIL).

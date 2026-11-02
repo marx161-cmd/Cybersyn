@@ -27,8 +27,28 @@ else sh "$H/.termux/tasker/sshd_watchdog.sh" </dev/null >/dev/null 2>&1; sleep 2
   nc -w 2 -z 127.0.0.1 8022 >/dev/null 2>&1 && say "sshd: FIXED (restarted)" || say "sshd: FAIL (still not listening)"; fi
 
 # --- 2. Tailscale ------------------------------------------------------------
-if ip link show tun0 >/dev/null 2>&1 && ping -c 1 -W 2 100.108.8.60 >/dev/null 2>&1; then say "tailscale: OK (comrade reachable)"
-else say "tailscale: FAIL (tun0 down or comrade unreachable -> open the Tailscale app)"; fi
+# interface name drifts (tun0 -> tun1 seen 2026-11-02): look for our 100.x/32 on any tun*
+if ip -br addr 2>/dev/null | grep -q '^tun[0-9]* .* 100\.' && ping -c 1 -W 2 100.108.8.60 >/dev/null 2>&1; then say "tailscale: OK (comrade reachable)"
+else say "tailscale: FAIL (no tun* with a 100.x address, or comrade unreachable -> open the Tailscale app)"; fi
+
+# --- 2b. Cybersyn ingest FIFO (SpectreBoard i3/numpad/spacer, cybersyn-send) -------
+# Unlinked-while-open = everything through it silently dead. A task cannot relaunch its own
+# engine, so a DETACHED cybersyn_relaunch.sh does it (3 s later) and re-runs this task.
+# Loop guard: no second relaunch within 180 s. scope.md 2026-11-02.
+FIFO=$PREFIX/tmp/cybersyn-pub.fifo
+cp=$(pidof com.termux.cybersyn)
+if [ ! -p "$FIFO" ]; then fst=MISSING
+elif ls -l /proc/$cp/fd 2>/dev/null | grep cybersyn-pub.fifo | grep -q deleted; then fst=STALE
+else fst=OK; fi
+if [ "$fst" = OK ]; then say "ime fifo: OK"
+else
+  last=$(cat "$H/.local/share/cybersyn_relaunch.stamp" 2>/dev/null || echo 0)
+  if [ $(( $(date +%s) - last )) -lt 180 ]; then say "ime fifo: FAIL ($fst, Cybersyn was relaunched <3 min ago; not looping)"
+  else
+    setsid nohup sh "$H/.termux/tasker/cybersyn_relaunch.sh" rerun </dev/null >/dev/null 2>&1 &
+    say "ime fifo: $fst -> relaunching Cybersyn in 3 s, then this heal re-runs by itself"
+  fi
+fi
 
 # --- 3. Wi-Fi band + mobile data ---------------------------------------------
 wifi=$(dumpsys wifi 2>/dev/null | grep -m1 -o 'mWifiInfo SSID: "[^"]*".*Frequency: [0-9]*MHz' )
