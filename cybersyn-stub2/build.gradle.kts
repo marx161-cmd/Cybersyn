@@ -17,7 +17,7 @@ android {
         applicationId = "com.termux.cybersyn.stub2"
         minSdk = 26
         targetSdk = 37
-        versionCode = 11
+        versionCode = 12
         versionName = "1.0"
     }
 
@@ -37,6 +37,13 @@ android {
         release {
             signingConfigs.findByName("release")?.let { signingConfig = it }
         }
+    }
+
+    // 2026-11-05 ROM-READY (docs-consolidated/70-crdroid-rom.md standing rule): dex + native libs stored
+    // uncompressed and aligned -> the release APK is promoted into the ROM as built, no repack
+    packaging {
+        dex { useLegacyPackaging = false }
+        jniLibs { useLegacyPackaging = false }
     }
 
     compileOptions {

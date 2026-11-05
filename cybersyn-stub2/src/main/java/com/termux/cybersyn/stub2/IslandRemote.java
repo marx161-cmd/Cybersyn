@@ -221,13 +221,19 @@ public final class IslandRemote extends BroadcastReceiver {
                 .setCustomContentView(views(ctx, R.layout.island_remote_small, sp, r, status))
                 .setCustomBigContentView(views(ctx, R.layout.island_remote, sp, r, status))
                 .setProgress(100, 100, false)          // = promoted into the island (NotificationIslandManager)
+                .setContentIntent(openRemote(ctx, r))  // v12 (a ROM that honours a body tap; crDroid only expands)
                 .build();
         nm.notify(ID, n);
     }
 
     private static RemoteViews views(Context ctx, int layout, SharedPreferences sp, Remote r, String status) {
         RemoteViews v = new RemoteViews(ctx.getPackageName(), layout);
-        v.setTextViewText(R.id.isl_status, "DESK · " + (r.shader.isEmpty() ? "?" : r.shader) + " · " + status);
+        v.setTextViewText(R.id.isl_status, "DESK · " + (r.shader.isEmpty() ? "?" : r.shader) + " · " + status
+                + (r.pad != null ? "   open ▸" : ""));
+        // v12 (2026-11-05, user: the island remote must open the full Cybersyn remote that mirrors the desktop one):
+        // the status line is the tap target (crDroid only expands / collapses on a tap on the notification body)
+        PendingIntent open = openRemote(ctx, r);
+        if (open != null) v.setOnClickPendingIntent(R.id.isl_status, open);
         boolean small = layout != R.layout.island_remote;
         int nb = small ? Math.min(r.buttons.size(), 4) : r.buttons.size();
         int perRow = 4;
@@ -263,6 +269,15 @@ public final class IslandRemote extends BroadcastReceiver {
         int rs = vid(ctx, "isl_rs");
         if (rs != 0) v.setViewVisibility(rs, ns > 0 ? View.VISIBLE : View.GONE);
         return v;
+    }
+
+    /** The full remote (RemoteActivity) on this shader's pad; it decides floating vs normal itself. */
+    private static PendingIntent openRemote(Context ctx, Remote r) {
+        if (r.pad == null) return null;
+        Intent i = new Intent(Intent.ACTION_MAIN).setClass(ctx, RemoteActivity.class)
+                .putExtra("pad", r.pad)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        return PendingIntent.getActivity(ctx, 400, i, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     }
 
     private static int vid(Context ctx, String name) {
