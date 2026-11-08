@@ -1267,3 +1267,9 @@ optional `rerun` = RUN_TASK "Pixel: heal all" again. heal_all.sh section 2b star
 MISSING/STALE (180 s loop guard via stamp); ~/bin/pixel-heal calls the same script detached first, then a FIFO->MQTT
 round-trip test. Gotchas: Termux `am` shadows /system/bin/am (no force-stop); force-stop also kills the calling
 adb shell. Also: Tailscale check now accepts any tun* (was tun0, phone is on tun1 -> false FAIL).
+
+## 2026-11-08 — comrade media card moved to Termux:Float (0.2.81)
+The always-on `media` context (MediaContextSource: comrade MPRIS card over cybersyn-relay MQTT) is no longer started
+by AutomationService; the card now lives in the Float player (termux-float scope.md decision 6, plan 3 Task 3:
+own Paho connection, same topics/actions incl. thumbs, art via Termux ssh). The source class stays for profiles.
+Revert = restore the 3 lines in startSystemContextSources().
