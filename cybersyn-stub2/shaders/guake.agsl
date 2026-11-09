@@ -1,0 +1,65 @@
+// Guake panel: HOLOGRAM materialize (stub2 GuakeService). Live: re-read on every open/close.
+// iAmount 1 = not there, 0 = solid. Open: 1->0 (beam sweeps down), close: 0->1 (beam sweeps up).
+// 2026-11-09: user wanted "less blocky / old TV static, more hologram appearing"; then a less clean, ragged beam.
+// Previous aggressive TV-static version: guake_tvstatic.agsl (scratch copy on comrade).
+uniform shader content;
+uniform float2 iResolution;
+uniform float iAmount;
+uniform float iTime;
+
+const half3 HOLO = half3(0.40, 1.00, 0.91);        // comrade teal #66FFE8
+
+float h(float2 p) { return fract(sin(dot(p, float2(12.9898, 78.233))) * 43758.5453); }
+float vnoise(float x) { float i = floor(x); float f = fract(x); f = f * f * (3.0 - 2.0 * f); return mix(h(float2(i, 0.0)), h(float2(i + 1.0, 0.0)), f); }
+
+half4 main(float2 c) {
+    float a = clamp(iAmount, 0.0, 1.0);
+    if (a <= 0.001) return content.eval(c);
+    float H = iResolution.y;
+    float t = iTime;
+
+    // scan beam position: top -> bottom as the panel materializes (a 1 -> 0), with a jittery y
+    float jit = (h(float2(floor(t * 30.0), 2.0)) - 0.5) * 14.0 * a;
+    float reveal = (1.0 - a) * (H + 160.0) - 80.0 + jit;
+    // ragged, wandering edge: big slow bends + small fast teeth along x
+    float edge = (vnoise(c.x * 0.008 + t * 3.0) - 0.5) * 46.0
+               + (vnoise(c.x * 0.05 - t * 13.0) - 0.5) * 16.0
+               + (vnoise(c.x * 0.21 + t * 31.0) - 0.5) * 5.0;
+    float d = c.y - reveal - edge;                // > 0 = not yet drawn
+    // thickness varies along the line, segments drop out, brightness stutters
+    float w = 4.0 + 12.0 * vnoise(c.x * 0.02 + t * 6.0);
+    float seg = 0.25 + 0.75 * smoothstep(0.3, 0.55, vnoise(c.x * 0.012 + t * 8.0));
+    float stut = 0.65 + 0.7 * h(float2(floor(t * 45.0), 4.0));
+    float beam = exp(-abs(d) / w) * seg * stut;
+    float halo = exp(-abs(d) / 60.0) * (0.6 + 0.4 * seg);
+    // two faint ghost beams trailing behind the main one
+    float g1 = exp(-abs(d + 22.0 + 6.0 * vnoise(c.x * 0.03 + t * 4.0)) / 3.0) * 0.35 * h(float2(floor(t * 25.0), 8.0));
+    float g2 = exp(-abs(d + 48.0 + 10.0 * vnoise(c.x * 0.02 - t * 5.0)) / 2.5) * 0.2 * h(float2(floor(t * 20.0), 12.0));
+    beam += (g1 + g2) * seg;
+
+    // smooth row wobble that settles, plus a slow sway
+    float wob = (sin(c.y * 0.045 + t * 23.0) * 0.6 + (vnoise(c.y * 0.02 + t * 9.0) - 0.5)) * 38.0 * a;
+    // a few thin glitch lines, rare
+    float line = step(0.985 - a * 0.03, h(float2(floor(c.y / 3.0), floor(t * 30.0))));
+    float2 p = float2(c.x + wob + line * (h(float2(c.y, t)) - 0.5) * 120.0 * a, c.y);
+
+    // soft chromatic aberration
+    float sp = 10.0 * a + 6.0 * halo;
+    half4 base = content.eval(p);
+    half4 col = half4(content.eval(p + float2(sp, 0.0)).r, base.g, content.eval(p - float2(sp, 0.0)).b, base.a);
+
+    // holographic tint fading to true colour
+    half lum = dot(col.rgb, half3(0.299, 0.587, 0.114));
+    col.rgb = mix(col.rgb, HOLO * (lum * 1.4 + 0.08 * col.a), half(a * 0.85));
+
+    // fine moving scanlines + soft flicker
+    float scan = 1.0 - 0.45 * a * (0.5 + 0.5 * sin((c.y + t * 240.0) * 2.1));
+    float flick = 1.0 - a * 0.35 * vnoise(t * 40.0);
+    col *= half(scan * flick);
+
+    // only the part above the beam exists (soft edge), beam glows on top
+    float vis = 1.0 - smoothstep(-6.0, 6.0, d);
+    col *= half(vis);
+    half3 glow = HOLO * half(beam * 1.2 + halo * 0.35) * half(a > 0.02 ? 1.0 : 0.0);
+    return half4(col.rgb + glow, max(col.a, half(beam * 0.9 + halo * 0.25)));
+}

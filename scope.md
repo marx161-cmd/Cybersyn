@@ -1273,3 +1273,19 @@ The always-on `media` context (MediaContextSource: comrade MPRIS card over cyber
 by AutomationService; the card now lives in the Float player (termux-float scope.md decision 6, plan 3 Task 3:
 own Paho connection, same topics/actions incl. thumbs, art via Termux ssh). The source class stays for profiles.
 Revert = restore the 3 lines in startSystemContextSources().
+
+## 2026-11-09 — stub2: Guake drop-down Termux panel (GuakeService) — APPROVED ("looks insane")
+
+Full history + decisions: `~/homelab/crDroid/GUAKE_TERMUX_SCOPE.md`. In short: LMOFreeform's mechanism
+rebuilt in this system-UID app instead of system_server (no OTA): trusted virtual display
+(SECURE|OWN_CONTENT_ONLY|SUPPORTS_TOUCH|TRUSTED) in a non-opaque TextureView overlay under the status bar,
+the real Termux task moved onto it, touches injected, IME on the main display.
+- Trigger: shaderfx cutout tap -> implicit `dev.marx.guake.TOGGLE` (+INCLUDE_BACKGROUND, +INCLUDE_STOPPED —
+  an update leaves stub2 "stopped" and implicit broadcasts skip stopped apps). User: better than Quick Tap.
+- Bottom 28 dp strip = live height (saved); release past 70 % -> display released -> normal full-screen Termux.
+- Hidden: virtual display surface detached -> display OFF -> Termux stops drawing (shells keep running).
+- Dim layer behind the translucent Termux: `--ei dim 0..255` (saved, 210 chosen). Burst length `--ei ms` (550).
+- Open/close effect = AGSL, live file `/data/local/tmp/shaderfx/guake.agsl` (repo copy `cybersyn-stub2/shaders/`):
+  hologram materialize with a ragged teal scan beam (approved); `guake_tvstatic.agsl` = earlier block/static
+  version, `guake_holo_clean.agsl` = clean-beam version. Built-in fallback in GuakeService is still the
+  first mild glitch — swap it for guake.agsl on the next stub2 rebuild.

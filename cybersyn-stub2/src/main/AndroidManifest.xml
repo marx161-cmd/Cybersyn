@@ -12,6 +12,12 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
+    <!-- GUAKE PANEL (crDroid/GUAKE_TERMUX_SCOPE.md 2026-11-09): overlay + trusted virtual display + input injection.
+         System UID holds these anyway; declared for clarity. -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SYSTEM_EXEMPTED" />
+
     <application
         android:allowBackup="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -61,6 +67,17 @@
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="com.termux.cybersyn.stub2.SHOW_ISLAND" />
+            </intent-filter>
+        </receiver>
+        <!-- GUAKE PANEL -->
+        <service android:name=".GuakeService" android:exported="false"
+            android:foregroundServiceType="systemExempted" />
+        <receiver android:name=".GuakeReceiver" android:exported="true">
+            <intent-filter>
+                <action android:name="dev.marx.guake.SHOW" />
+                <action android:name="dev.marx.guake.HIDE" />
+                <action android:name="dev.marx.guake.TOGGLE" />
+                <action android:name="dev.marx.guake.RELEASE" />
             </intent-filter>
         </receiver>
     </application>

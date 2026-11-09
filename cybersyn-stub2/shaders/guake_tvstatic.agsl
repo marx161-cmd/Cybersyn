@@ -1,0 +1,44 @@
+// Guake panel glitch (stub2 GuakeService). Live: re-read on every open/close.
+// iAmount 1 = shattered/invisible, 0 = clean. 2026-11-09: "300% more aggressive".
+uniform shader content;
+uniform float2 iResolution;
+uniform float iAmount;
+uniform float iTime;
+
+float h(float2 p) { return fract(sin(dot(p, float2(12.9898, 78.233))) * 43758.5453); }
+
+half4 main(float2 c) {
+    float a = iAmount;
+    if (a <= 0.001) return content.eval(c);
+    float s = sqrt(a);                         // stays violent for more of the burst
+    float tick = floor(iTime * 60.0);
+
+    // vertical jolt of the whole panel
+    float jolt = (h(float2(tick, 5.0)) - 0.5) * 140.0 * s * step(0.55, h(float2(tick, 6.0)));
+    float2 q = float2(c.x, c.y + jolt);
+
+    // slices: thinner + thicker mix, most of them torn sideways
+    float bandH = mix(3.0, 90.0, h(float2(tick, 3.0)));
+    float band = floor(q.y / bandH);
+    float r = h(float2(band, tick));
+    float shift = (r > 1.0 - s * 0.98) ? (h(float2(band, tick + 7.0)) - 0.5) * 780.0 * s : 0.0;
+    float2 p = float2(q.x + shift, q.y);
+
+    // RGB split, also a little vertical
+    float sp = 54.0 * s * (0.4 + h(float2(tick, 9.0)));
+    float2 off = float2(sp, sp * 0.25 * (h(float2(tick, 11.0)) - 0.5));
+    half4 base = content.eval(p);
+    half4 col = half4(content.eval(p + off).r, base.g, content.eval(p - off).b, base.a);
+
+    // inverted colour flashes on some slices
+    if (h(float2(band, tick + 13.0)) > 1.0 - s * 0.35) col.rgb = col.a - col.rgb;
+
+    // block build-up / break-down, re-rolled every tick
+    float2 blk = floor(c / float2(48.0, 20.0));
+    float keep = step(a, h(blk + float2(tick * 0.37, 0.0)) * 0.9 + 0.05);
+
+    // hard flicker + heavy scanlines
+    float flick = mix(1.0, step(0.45, h(float2(tick, 1.0))), s);
+    float scan = 1.0 - s * 0.6 * step(0.5, fract(c.y / 3.0));
+    return col * half(keep * flick * scan);
+}
