@@ -67,6 +67,8 @@
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="com.termux.cybersyn.stub2.SHOW_ISLAND" />
+                <!-- an update cancels our notifications: post the island remote again right away -->
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
             </intent-filter>
         </receiver>
         <!-- GUAKE PANEL -->

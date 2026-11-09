@@ -93,7 +93,10 @@ public final class GuakeService extends Service implements TextureView.SurfaceTe
         NotificationManager nm = getSystemService(NotificationManager.class);
         nm.createNotificationChannel(new NotificationChannel("guake", "Guake panel", NotificationManager.IMPORTANCE_MIN));
         Notification n = new Notification.Builder(this, "guake").setSmallIcon(android.R.drawable.ic_menu_view)
-            .setContentTitle("Guake panel").setOngoing(true).build();
+            .setContentTitle("Guake panel").setOngoing(true)
+            // Own group: without it Android auto-groups this with the island remote (also stub2), and the
+            // grouped remote drops out of the island bar (2026-11-09).
+            .setGroup("guake").build();
         startForeground(41, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_SYSTEM_EXEMPTED);
         try {
             injectMethod = InputManager.class.getMethod("injectInputEvent", InputEvent.class, int.class);
@@ -168,7 +171,7 @@ public final class GuakeService extends Service implements TextureView.SurfaceTe
     /**
      * Glitch the panel in/out in place (user 2026-11-09: "couldnt it glitch into place?").
      * iAmount 1 = shattered/invisible, 0 = clean. Shader = /data/local/tmp/shaderfx/guake.agsl if
-     * present (live, like the other shaderfx surfaces), else GLITCH_AGSL; a compile error = no effect.
+     * present (live, like the other shaderfx surfaces), else GLITCH_AGSL (= shaders/guake.agsl, the approved hologram); a compile error = no effect.
      */
     private void glitch(float from, float to, Runnable end) {
         RuntimeShader sh = loadShader();
@@ -209,28 +212,70 @@ public final class GuakeService extends Service implements TextureView.SurfaceTe
     }
 
     private static final String GLITCH_AGSL =
+        "// Guake panel: HOLOGRAM materialize (stub2 GuakeService). Live: re-read on every open/close.\n" +
+        "// iAmount 1 = not there, 0 = solid. Open: 1->0 (beam sweeps down), close: 0->1 (beam sweeps up).\n" +
+        "// 2026-11-09: user wanted \"less blocky / old TV static, more hologram appearing\"; then a less clean, ragged beam.\n" +
+        "// Previous aggressive TV-static version: guake_tvstatic.agsl (scratch copy on comrade).\n" +
         "uniform shader content;\n" +
         "uniform float2 iResolution;\n" +
         "uniform float iAmount;\n" +
         "uniform float iTime;\n" +
+        "\n" +
+        "const half3 HOLO = half3(0.40, 1.00, 0.91);        // comrade teal #66FFE8\n" +
+        "\n" +
         "float h(float2 p) { return fract(sin(dot(p, float2(12.9898, 78.233))) * 43758.5453); }\n" +
+        "float vnoise(float x) { float i = floor(x); float f = fract(x); f = f * f * (3.0 - 2.0 * f); return mix(h(float2(i, 0.0)), h(float2(i + 1.0, 0.0)), f); }\n" +
+        "\n" +
         "half4 main(float2 c) {\n" +
-        "  float a = iAmount;\n" +
-        "  if (a <= 0.001) return content.eval(c);\n" +
-        "  float tick = floor(iTime * 40.0);\n" +
-        "  float bandH = mix(6.0, 48.0, h(float2(tick, 3.0)));\n" +
-        "  float band = floor(c.y / bandH);\n" +
-        "  float r = h(float2(band, tick));\n" +
-        "  float shift = (r > 1.0 - a * 0.9) ? (h(float2(band, tick + 7.0)) - 0.5) * 260.0 * a : 0.0;\n" +
-        "  float2 p = float2(c.x + shift, c.y);\n" +
-        "  float sp = 18.0 * a * (0.4 + h(float2(tick, 9.0)));\n" +
-        "  half4 base = content.eval(p);\n" +
-        "  half4 col = half4(content.eval(p + float2(sp, 0.0)).r, base.g, content.eval(p - float2(sp, 0.0)).b, base.a);\n" +
-        "  float2 blk = floor(c / float2(64.0, 28.0));\n" +
-        "  float keep = step(a, h(blk + tick * 0.0) * 0.85 + 0.1);\n" +
-        "  float flick = mix(1.0, step(0.25, h(float2(tick, 1.0))), a);\n" +
-        "  float scan = 1.0 - a * 0.35 * step(0.5, fract(c.y / 4.0));\n" +
-        "  return col * half(keep * flick * scan);\n" +
+        "    float a = clamp(iAmount, 0.0, 1.0);\n" +
+        "    if (a <= 0.001) return content.eval(c);\n" +
+        "    float H = iResolution.y;\n" +
+        "    float t = iTime;\n" +
+        "\n" +
+        "    // scan beam position: top -> bottom as the panel materializes (a 1 -> 0), with a jittery y\n" +
+        "    float jit = (h(float2(floor(t * 30.0), 2.0)) - 0.5) * 14.0 * a;\n" +
+        "    float reveal = (1.0 - a) * (H + 160.0) - 80.0 + jit;\n" +
+        "    // ragged, wandering edge: big slow bends + small fast teeth along x\n" +
+        "    float edge = (vnoise(c.x * 0.008 + t * 3.0) - 0.5) * 46.0\n" +
+        "               + (vnoise(c.x * 0.05 - t * 13.0) - 0.5) * 16.0\n" +
+        "               + (vnoise(c.x * 0.21 + t * 31.0) - 0.5) * 5.0;\n" +
+        "    float d = c.y - reveal - edge;                // > 0 = not yet drawn\n" +
+        "    // thickness varies along the line, segments drop out, brightness stutters\n" +
+        "    float w = 4.0 + 12.0 * vnoise(c.x * 0.02 + t * 6.0);\n" +
+        "    float seg = 0.25 + 0.75 * smoothstep(0.3, 0.55, vnoise(c.x * 0.012 + t * 8.0));\n" +
+        "    float stut = 0.65 + 0.7 * h(float2(floor(t * 45.0), 4.0));\n" +
+        "    float beam = exp(-abs(d) / w) * seg * stut;\n" +
+        "    float halo = exp(-abs(d) / 60.0) * (0.6 + 0.4 * seg);\n" +
+        "    // two faint ghost beams trailing behind the main one\n" +
+        "    float g1 = exp(-abs(d + 22.0 + 6.0 * vnoise(c.x * 0.03 + t * 4.0)) / 3.0) * 0.35 * h(float2(floor(t * 25.0), 8.0));\n" +
+        "    float g2 = exp(-abs(d + 48.0 + 10.0 * vnoise(c.x * 0.02 - t * 5.0)) / 2.5) * 0.2 * h(float2(floor(t * 20.0), 12.0));\n" +
+        "    beam += (g1 + g2) * seg;\n" +
+        "\n" +
+        "    // smooth row wobble that settles, plus a slow sway\n" +
+        "    float wob = (sin(c.y * 0.045 + t * 23.0) * 0.6 + (vnoise(c.y * 0.02 + t * 9.0) - 0.5)) * 38.0 * a;\n" +
+        "    // a few thin glitch lines, rare\n" +
+        "    float line = step(0.985 - a * 0.03, h(float2(floor(c.y / 3.0), floor(t * 30.0))));\n" +
+        "    float2 p = float2(c.x + wob + line * (h(float2(c.y, t)) - 0.5) * 120.0 * a, c.y);\n" +
+        "\n" +
+        "    // soft chromatic aberration\n" +
+        "    float sp = 10.0 * a + 6.0 * halo;\n" +
+        "    half4 base = content.eval(p);\n" +
+        "    half4 col = half4(content.eval(p + float2(sp, 0.0)).r, base.g, content.eval(p - float2(sp, 0.0)).b, base.a);\n" +
+        "\n" +
+        "    // holographic tint fading to true colour\n" +
+        "    half lum = dot(col.rgb, half3(0.299, 0.587, 0.114));\n" +
+        "    col.rgb = mix(col.rgb, HOLO * (lum * 1.4 + 0.08 * col.a), half(a * 0.85));\n" +
+        "\n" +
+        "    // fine moving scanlines + soft flicker\n" +
+        "    float scan = 1.0 - 0.45 * a * (0.5 + 0.5 * sin((c.y + t * 240.0) * 2.1));\n" +
+        "    float flick = 1.0 - a * 0.35 * vnoise(t * 40.0);\n" +
+        "    col *= half(scan * flick);\n" +
+        "\n" +
+        "    // only the part above the beam exists (soft edge), beam glows on top\n" +
+        "    float vis = 1.0 - smoothstep(-6.0, 6.0, d);\n" +
+        "    col *= half(vis);\n" +
+        "    half3 glow = HOLO * half(beam * 1.2 + halo * 0.35) * half(a > 0.02 ? 1.0 : 0.0);\n" +
+        "    return half4(col.rgb + glow, max(col.a, half(beam * 0.9 + halo * 0.25)));\n" +
         "}\n";
 
     /** Hidden: no surface -> Android turns the virtual display off, Termux stops drawing (shells keep running). */

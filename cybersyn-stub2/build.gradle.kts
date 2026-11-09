@@ -17,7 +17,7 @@ android {
         applicationId = "com.termux.cybersyn.stub2"
         minSdk = 26
         targetSdk = 37
-        versionCode = 17
+        versionCode = 18
         versionName = "1.0"
     }
 
