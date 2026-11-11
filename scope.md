@@ -1289,3 +1289,13 @@ the real Termux task moved onto it, touches injected, IME on the main display.
   hologram materialize with a ragged teal scan beam (approved); `guake_tvstatic.agsl` = earlier block/static
   version, `guake_holo_clean.agsl` = clean-beam version. Built-in fallback in GuakeService is still the
   first mild glitch — swap it for guake.agsl on the next stub2 rebuild.
+
+## 2026-11-11 20:40 — Task "Pixel: unstick PiP"
+- User: PiP sometimes stuck in the status-bar top stash; wants a task to trigger from Device Controls.
+- Cause found: a SystemUI restart/crash while a PiP is open orphans it (WM pinned task alive, fresh WMShell pip2
+  never adopts it; relaunching the app, even --windowingMode 1, does not unpin). `am stack remove <task>` frees it.
+- Built: examples/pip-unstick.yaml (task id 201, useRoot, 30 s) + examples/phone-scripts/pip_unstick.sh
+  (-> ~/.termux/tasker/): removes every pinned task, logs whether SystemUI had lost it, notification
+  "PiP unstick: freed N" + ~/.local/share/pip_unstick.last. Every task is a Device Control (TaskControlsService):
+  add it in the power-menu controls editor. Tested 20:36 via cybersynctl run with no PiP open ("nothing to free");
+  the removal command itself freed the real stuck YouTube PiP at 20:30 (run by hand).

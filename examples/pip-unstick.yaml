@@ -1,0 +1,21 @@
+name: Pixel unstick PiP
+description: >
+  Frees a picture-in-picture window stuck in the status-bar top stash. A SystemUI
+  restart or crash while a PiP is open orphans it (WM keeps the pinned task, the
+  new SystemUI never adopts it, the app can't unpin it). Removes the pinned task
+  (the video closes) and posts "PiP unstick: freed N". Trigger from Device
+  Controls / widget when PiP is stuck. scope.md 2026-11-11.
+tasks:
+  - name: "Pixel: unstick PiP"
+    priority: 5
+    collisionMode: ABORT_NEW
+    actions:
+      - type: script.termux.run
+        label: remove stuck pinned task
+        continueOnError: true
+        args:
+          executable: ~/.termux/tasker/pip_unstick.sh
+          arguments: ""
+          useRoot: "true"
+          timeoutMs: "30000"
+profiles: []
